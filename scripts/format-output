@@ -1,0 +1,7 @@
+#!/bin/sh
+echo BEFORE: $BEFORE_TIMESTAMP
+echo AFTER: $AFTER_TIMESTAMP
+# cat | jq
+echo $?
+# exit with status 42 to abort the sync
+# exit 42

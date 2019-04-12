@@ -1,0 +1,22 @@
+[package]
+name = "s5ci"
+version = "0.1.0"
+authors = ["Andrew Yourtchenko <ayourtch@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+ssh2 = { git = "https://github.com/ayourtch/ssh2-rs.git" }
+git2 = { version = "*", default-features = false, features = ["https", "curl", "ssh_key_from_memory"] }
+serde_json = "*"
+serde = "*"
+serde_derive = "*"
+
+chrono = { version = "*", features = ["serde"] }
+dotenv = "*"
+yaml-rust = "0.4"
+serde_yaml = "*"
+libc = "*"
+regex = "*"
+mustache = "*"
+psutil = "*"
+

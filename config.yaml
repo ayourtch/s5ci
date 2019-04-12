@@ -1,0 +1,53 @@
+default_auth:
+  auth_pubkey_file:
+          # username: ayourtch
+    username: lucy-ci
+    pubkey: /home/ubuntu/.ssh/id_rsa.pub
+    privatekey: /home/ubuntu/.ssh/id_rsa
+    passphrase: cisco123
+# auth_password:
+#   username: foo
+#   password: bar
+
+default_query:
+        # query: status:open project:vpp limit:4
+        # filter: (status:new OR status:open) project:vpp limit:1
+    filter: (status:new OR status:open) project:testproj limit:1
+    options: --all-approvals --all-reviewers --comments --commit-message --dependencies --patch-sets --submit-records
+    # options: "" # --all-approvals --all-reviewers --comments --commit-message --dependencies --patch-sets --submit-records
+    # ? per_batch_command
+    # ? per_change_command
+# default_batch_command: scripts/format-output
+default_sync_horizon_sec: 8640000
+
+triggers:
+  patchset_upload:
+      regex: ^Uploaded patch set (?P<patchset>\d+)$
+      action:
+        event: check_build
+  recheck_request:
+      regex: 'recheck'
+      action:
+        command: scripts/run-build {{regex.patchset}}
+              # event: check_build
+  test_comment:
+      regex: test (?P<testval>\d+)(:? (?P<secondval>.+))?
+      action:
+        event: test_command
+
+patchset_extract_regex: '(?s)^Patch Set (?P<patchset>\d+):\n\n'
+
+# the below two must be in sync
+bid_regex: 'Lucy-CI-bid (?P<bid_id>\d+) (?P<hostname>\S+)'
+bid_template: 'Lucy-CI-bid {{bid_id}} {{config.hostname}}'
+
+hostname: gerrit-client
+
+server:
+  address: 10.0.3.18
+  port: 29418
+  # auth:
+  poll_wait_ms: 5000
+  syncing_poll_wait_ms: 1000
+  sync_horizon_sec: 600
+

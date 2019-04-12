@@ -1,0 +1,4 @@
+#!/bin/sh -eux
+echo Git Mirror
+sleep 5
+exit 123
