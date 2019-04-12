@@ -1,0 +1,1 @@
+docker run --name test --shm-size=512M aytest
