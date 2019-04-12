@@ -1,7 +1,7 @@
 default_auth:
   auth_pubkey_file:
-          # username: ayourtch
-    username: lucy-ci
+    username: ayourtch
+    # username: lucy-ci
     pubkey: /home/ubuntu/.ssh/id_rsa.pub
     privatekey: /home/ubuntu/.ssh/id_rsa
     passphrase: cisco123
@@ -12,7 +12,7 @@ default_auth:
 default_query:
         # query: status:open project:vpp limit:4
         # filter: (status:new OR status:open) project:vpp limit:1
-    filter: (status:new OR status:open) project:testproj limit:1
+    filter: (status:new OR status:open) (project:testproj OR project:vpp) limit:3
     options: --all-approvals --all-reviewers --comments --commit-message --dependencies --patch-sets --submit-records
     # options: "" # --all-approvals --all-reviewers --comments --commit-message --dependencies --patch-sets --submit-records
     # ? per_batch_command
