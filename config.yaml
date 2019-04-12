@@ -28,7 +28,7 @@ triggers:
   recheck_request:
       regex: 'recheck'
       action:
-        command: scripts/run-build {{regex.patchset}}
+        command: scripts/run-build {{patchset.ref}} {{regex.patchset}}
               # event: check_build
   test_comment:
       regex: test (?P<testval>\d+)(:? (?P<secondval>.+))?

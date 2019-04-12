@@ -696,7 +696,6 @@ fn basename_from_cmd(cmd: &str) -> String {
     format!("{}", path.file_name().unwrap().to_str().unwrap())
 }
 
-
 pub fn spawn_command(cmd: &str) {
     use std::process::Command;
     use std::process::Stdio;
@@ -716,8 +715,6 @@ pub fn spawn_command(cmd: &str) {
         .spawn()
         .expect("failed to execute child");
 }
-
-
 
 fn process_change(
     config: &LucyCiConfig,
@@ -768,11 +765,22 @@ fn process_change(
             let all_triggers = get_comment_triggers(config, cconfig, comments_vec, startline_ts);
             let mut final_triggers = all_triggers.clone();
             if let Some(cfgt) = &config.triggers {
-              final_triggers.retain(|x| { let ctrig = &cfgt[&x.trigger_name]; if let LucyTriggerAction::command(cmd) = &ctrig.action { true } else { false } });
+                final_triggers.retain(|x| {
+                    let ctrig = &cfgt[&x.trigger_name];
+                    if let LucyTriggerAction::command(cmd) = &ctrig.action {
+                        true
+                    } else {
+                        false
+                    }
+                });
             }
+            eprintln!("all triggers: {:#?}", &final_triggers);
             eprintln!("final triggers: {:#?}", &final_triggers);
             for trig in &final_triggers {
-                let template = cconfig.trigger_command_templates.get(&trig.trigger_name).unwrap();
+                let template = cconfig
+                    .trigger_command_templates
+                    .get(&trig.trigger_name)
+                    .unwrap();
                 let patchset = psmap.get(&format!("{}", trig.patchset_id)).unwrap();
                 let data = mustache::MapBuilder::new()
                     .insert("patchset", &patchset)
@@ -799,7 +807,7 @@ fn print_process(p: &psutil::process::Process) {
         p.utime,
         p.stime,
         p.cmdline()
-            .unwrap()
+            .unwrap_or_else(|_| Some("no-command-line".to_string()))
             .unwrap_or_else(|| format!("[{}]", p.comm))
     );
 }
@@ -810,8 +818,12 @@ fn ps() {
         "PID", "PPID", "STATE", "UTIME", "STIME", "CMD"
     );
 
-    for p in &psutil::process::all().unwrap() {
-        print_process(p);
+    if let Ok(processes) = &psutil::process::all() {
+        for p in processes {
+            print_process(p);
+        }
+    } else {
+        println!("--- could not do ps ---");
     }
 }
 

@@ -1,0 +1,2 @@
+lxc launch ubuntu:18.04 s5ci -c security.nesting=true
+

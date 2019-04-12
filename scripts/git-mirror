@@ -1,4 +1,14 @@
 #!/bin/sh -eux
 echo Git Mirror
-sleep 5
-exit 123
+mkdir -p gitroot
+cd gitroot
+
+if [ -d vpp.git ]; 
+then
+  cd vpp.git
+  git pull
+else
+  git clone --mirror http://10.0.3.18:8080/vpp
+fi
+echo Success cloning!
+exit 0
