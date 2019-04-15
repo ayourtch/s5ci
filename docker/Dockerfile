@@ -9,7 +9,7 @@ RUN apt-get install -y build-essential git sudo
 # RUN (cd testvpp; UNATTENDED=y make install-dep)
 # RUN (cd testvpp; TEST=foo make test)
 
-COPY start.sh /start.sh
+COPY  start.sh /start.sh
 
 CMD ["./start.sh"]
 

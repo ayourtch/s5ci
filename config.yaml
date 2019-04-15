@@ -41,6 +41,9 @@ patchset_extract_regex: '(?s)^Patch Set (?P<patchset>\d+):\n\n'
 bid_regex: 'Lucy-CI-bid (?P<bid_id>\d+) (?P<hostname>\S+)'
 bid_template: 'Lucy-CI-bid {{bid_id}} {{config.hostname}}'
 
+jobs:
+        rootdir: /var/www/html/jobs
+
 hostname: gerrit-client
 
 server:
@@ -49,5 +52,6 @@ server:
   # auth:
   poll_wait_ms: 5000
   syncing_poll_wait_ms: 1000
-  sync_horizon_sec: 600
+  # sync_horizon_sec: 600
+  sync_horizon_sec: 0
 

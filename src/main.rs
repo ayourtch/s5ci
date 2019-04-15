@@ -201,6 +201,11 @@ struct LucyGerritTrigger {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+struct LucyCiJobs {
+    rootdir: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct LucyCiConfig {
     default_auth: LucySshAuth,
     server: LucyCiPollGerrit,
@@ -212,6 +217,7 @@ struct LucyCiConfig {
     hostname: String,
     bid_regex: String,
     bid_template: String,
+    jobs: LucyCiJobs,
 }
 
 impl LucyCiPollGerrit {
@@ -696,15 +702,39 @@ fn basename_from_cmd(cmd: &str) -> String {
     format!("{}", path.file_name().unwrap().to_str().unwrap())
 }
 
-pub fn spawn_command(cmd: &str) {
+fn get_next_job_number(config: &LucyCiConfig, jobname: &str) -> u32 {
+    use std::fs;
+    let jobpath = format!("{}/{}", &config.jobs.rootdir, jobname);
+    let path = Path::new(&jobpath);
+    if !path.is_dir() {
+        fs::create_dir(&jobpath).unwrap();
+    }
+    let file_count = fs::read_dir(path).unwrap().count();
+    let new_path = format!("{}/{}", jobpath, file_count);
+    fs::create_dir(&new_path).unwrap();
+    file_count as u32
+}
+
+fn spawn_command(config: &LucyCiConfig, cmd: &str) {
+    use regex::Regex;
     use std::process::Command;
     use std::process::Stdio;
 
+    let re = Regex::new(r"[^A-Za-z0-9_]").unwrap();
+
     let cmd_file = basename_from_cmd(cmd);
-    let log_file = open_log_file(&cmd_file).unwrap();
+    let job_nr = get_next_job_number(config, &cmd_file);
+    let job_id = format!("{}/{}", cmd_file, job_nr);
+    let job_name = re
+        .replace_all(&format!("{}_{}", cmd_file, job_nr), "_")
+        .to_string();
+    let log_fname = format!("{}/{}/console.txt", config.jobs.rootdir, job_id);
+    println!("LOG file: {}", &log_fname);
+    let log_file = open_log_file(&log_fname).unwrap();
     let stderr_cmd = format!("{}-stderr", cmd_file);
     let log_file_stderr = log_file.try_clone().unwrap(); // open_log_file(&stderr_cmd).unwrap();
-                                                         // let errors = outputs.try_clone()?;
+
+    // let errors = outputs.try_clone()?;
     let mut child = Command::new("/bin/sh")
         .arg("-c")
         .arg(format!("{}", cmd))
@@ -712,6 +742,8 @@ pub fn spawn_command(cmd: &str) {
         .stdout(log_file)
         .stderr(log_file_stderr)
         .env("RUST_BACKTRACE", "1")
+        .env("S5CI_JOB_ID", &job_id)
+        .env("S5CI_JOB_NAME", &job_name)
         .spawn()
         .expect("failed to execute child");
 }
@@ -792,7 +824,7 @@ fn process_change(
 
                 template.render_data(&mut bytes, &data).unwrap();
                 let expanded_command = String::from_utf8_lossy(&bytes);
-                spawn_command(&expanded_command);
+                spawn_command(config, &expanded_command);
             }
         }
     }

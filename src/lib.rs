@@ -29,7 +29,7 @@ pub fn open_log_file(verb: &str) -> std::io::Result<File> {
     use std::fs::OpenOptions;
     use std::io::Write;
 
-    let logfname = format!("/tmp/{}.log", verb);
+    let logfname = format!("{}", verb);
     let file = OpenOptions::new().append(true).create(true).open(logfname);
     file
 }
