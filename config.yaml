@@ -44,7 +44,7 @@ bid_template: 'Lucy-CI-bid {{bid_id}} {{config.hostname}}'
 hostname: gerrit-client
 
 server:
-  address: 10.0.3.18
+  address: 136.243.48.188
   port: 29418
   # auth:
   poll_wait_ms: 5000
