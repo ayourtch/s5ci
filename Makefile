@@ -19,8 +19,10 @@ install-docker:
 install-nginx:
 	sudo apt-get install -y nginx
 	sudo chown -R `whoami` /var/www/html
+	sudo sed -i -e 's/# First attempt to/autoindex on; #/g' /etc/nginx/sites-enabled/default
 	rm -f /var/www/html/index.nginx-debian.html 
 	mkdir /var/www/html/jobs
+	sudo service nginx restart
 install-dep: install-rust install-docker install-nginx
 	echo Installed all dependencies
 prepare-image:
