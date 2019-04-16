@@ -28,8 +28,12 @@ triggers:
   recheck_request:
       regex: 'recheck'
       action:
-        command: scripts/run-build {{patchset.ref}} {{regex.patchset}}
+        command: scripts/run-build {{patchset.ref}} # {{regex.patchset}}
               # event: check_build
+  retest_request:
+      regex: 'retest (?P<testname>\S+)'
+      action:
+        command: scripts/run-build {{patchset.ref}} {{regex.testname}}
   test_comment:
       regex: test (?P<testval>\d+)(:? (?P<secondval>.+))?
       action:
@@ -39,7 +43,7 @@ patchset_extract_regex: '(?s)^Patch Set (?P<patchset>\d+):\n\n'
 
 # the below two must be in sync
 bid_regex: 'Lucy-CI-bid (?P<bid_id>\d+) (?P<hostname>\S+)'
-bid_template: 'Lucy-CI-bid {{bid_id}} {{config.hostname}}'
+bid_template: 'Starting build http://s5ci-dev.myvpp.net/jobs/{{job_id}} on {{config.hostname}}'
 
 jobs:
         rootdir: /var/www/html/jobs
