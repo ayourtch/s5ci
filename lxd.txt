@@ -1,2 +1,15 @@
-lxc launch ubuntu:18.04 s5ci -c security.nesting=true
+lxc init ubuntu:18.04 s5ci -c security.nesting=true
+lxc network attach lxdbr0 s5ci
+lxc start s5ci
+lxc exec s5ci -- su -l ubuntu
+
+# inside the container
+
+sudo apt-get update
+sudo apt-get install -y make git
+git clone https://github.com/ayourtch/s5ci
+cd s5ci
+make install-dep
+
+
 

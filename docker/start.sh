@@ -13,8 +13,8 @@ else
 	echo Inside docker: failure, exit code ${EXIT_CODE}
 	for CORE in $(find /tmp/vpp* -name core); do
 		BINFILE=$(gdb -c ${CORE} -ex quit | grep 'Core was generated' | awk '{ print $5; }' | sed -e s/\`//g)
-		echo CORE: ${CORE}
-		gdb ${BINFILE} ${CORE} -ex bt -ex 'x/i $pc' -ex 'info locals'
+		echo ====================================================== DECODE CORE: ${CORE}
+		gdb ${BINFILE} ${CORE} -ex \"source -v /gdb-commands\" -ex quit
 	done
 fi
 

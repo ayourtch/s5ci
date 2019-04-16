@@ -11,6 +11,7 @@ RUN (cd testvpp; make build-release)
 RUN apt install -y gdb
 
 COPY  start.sh /start.sh
+COPY  gdb-commands /gdb-commands
 
 CMD ["./start.sh"]
 
