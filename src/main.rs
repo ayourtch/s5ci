@@ -323,6 +323,30 @@ fn run_ssh_command(config: &LucyCiConfig, cmd: &str) -> Result<String, LucySshEr
     }
 }
 
+fn gerrit_spawn_comment_on_change (
+    config: &LucyCiConfig,
+    cconfig: &LucyCiCompiledConfig,
+    change_id: u32,
+    patch_set_id: u32,
+    job_id: &str,
+) -> Result<String, LucySshError> {
+    let data = mustache::MapBuilder::new()
+        .insert("config", config)
+        .unwrap()
+        .insert_str("job_id", format!("{}", job_id))
+        .build();
+    let mut bytes = vec![];
+
+    cconfig.bid_template.render_data(&mut bytes, &data)?;
+    let message = String::from_utf8_lossy(&bytes);
+
+    let cmd = &format!(
+        "gerrit review {},{} --message '{}'",
+        change_id, patch_set_id, message
+    );
+    run_ssh_command(config, &cmd)
+}
+
 fn gerrit_bid_for_work(
     config: &LucyCiConfig,
     cconfig: &LucyCiCompiledConfig,
@@ -715,7 +739,7 @@ fn get_next_job_number(config: &LucyCiConfig, jobname: &str) -> u32 {
     file_count as u32
 }
 
-fn spawn_command(config: &LucyCiConfig, cmd: &str) {
+fn spawn_command(config: &LucyCiConfig, cmd: &str) -> String {
     use regex::Regex;
     use std::process::Command;
     use std::process::Stdio;
@@ -746,6 +770,8 @@ fn spawn_command(config: &LucyCiConfig, cmd: &str) {
         .env("S5CI_JOB_NAME", &job_name)
         .spawn()
         .expect("failed to execute child");
+
+    return job_id;
 }
 
 fn process_change(
@@ -824,7 +850,9 @@ fn process_change(
 
                 template.render_data(&mut bytes, &data).unwrap();
                 let expanded_command = String::from_utf8_lossy(&bytes);
-                spawn_command(config, &expanded_command);
+                let job_id = spawn_command(config, &expanded_command);
+                let change_id = cs.number.unwrap_or(0);
+                gerrit_spawn_comment_on_change(config, cconfig, change_id, trig.patchset_id, &job_id);
             }
         }
     }
