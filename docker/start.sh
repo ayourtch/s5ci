@@ -11,10 +11,11 @@ if TEST=$2 UNATTENDED=y make install-dep test; then
 else
 	EXIT_CODE=$?
 	echo Inside docker: failure, exit code ${EXIT_CODE}
+	cd /
 	for CORE in $(find /tmp/vpp* -name core); do
 		BINFILE=$(gdb -c ${CORE} -ex quit | grep 'Core was generated' | awk '{ print $5; }' | sed -e s/\`//g)
 		echo ====================================================== DECODE CORE: ${CORE}
-		gdb ${BINFILE} ${CORE} -ex \'source -v /gdb-commands\' -ex quit
+		gdb ${BINFILE} ${CORE} -ex 'source -v gdb-commands' -ex quit 
 	done
 fi
 
