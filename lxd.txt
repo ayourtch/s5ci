@@ -1,4 +1,7 @@
-lxc init ubuntu:18.04 s5ci -c security.nesting=true
+lxc storage create ext4-lxd dir source=/home/ubuntu/ext4-lxd-storage,size=500G
+
+
+lxc init ubuntu:18.04 s5ci -c security.nesting=true -s ext4-lxd
 lxc network attach lxdbr0 s5ci
 lxc start s5ci
 lxc exec s5ci -- su -l ubuntu

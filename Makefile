@@ -20,7 +20,7 @@ install-nginx:
 	sudo apt-get install -y nginx
 	sudo chown -R `whoami` /var/www/html
 	rm -f /var/www/html/index.nginx-debian.html 
-	make /var/www/html/jobs
+	mkdir /var/www/html/jobs
 install-dep: install-rust install-docker install-nginx
 	echo Installed all dependencies
 prepare-image:

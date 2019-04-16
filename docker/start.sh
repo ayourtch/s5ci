@@ -14,7 +14,7 @@ else
 	for CORE in $(find /tmp/vpp* -name core); do
 		BINFILE=$(gdb -c ${CORE} -ex quit | grep 'Core was generated' | awk '{ print $5; }' | sed -e s/\`//g)
 		echo ====================================================== DECODE CORE: ${CORE}
-		gdb ${BINFILE} ${CORE} -ex \"source -v /gdb-commands\" -ex quit
+		gdb ${BINFILE} ${CORE} -ex \'source -v /gdb-commands\' -ex quit
 	done
 fi
 
