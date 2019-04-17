@@ -5,11 +5,13 @@ use std::io::prelude::*;
 use std::net::TcpStream;
 use std::path::Path;
 
+extern crate clap;
 extern crate libc;
 extern crate psutil;
 extern crate regex;
 extern crate serde_yaml;
 extern crate yaml_rust;
+use clap::{App, Arg, SubCommand};
 
 use regex::Regex;
 
@@ -893,14 +895,26 @@ fn ps() {
     }
 }
 
-fn main() {
+fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
+    let matches = App::new("S5CI - S<imple> CI")
+        .version("0.5")
+        .author("Andrew Yourtchenko <ayourtch@gmail.com>")
+        .about("A simple CI daemon")
+        .arg(
+            Arg::with_name("config")
+                .short("c")
+                .long("config")
+                .value_name("FILE")
+                .env("S5CI_CONFIG")
+                .required(true)
+                .takes_value(true)
+                .help("Set custom config file"),
+        )
+        .get_matches();
     use std::env;
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Supply the YAML config file name");
-        return;
-    }
-    let yaml_fname = &args[1];
+
+    let yaml_fname = &matches.value_of("config").unwrap();
     let s = fs::read_to_string(yaml_fname).unwrap();
     let config: LucyCiConfig = serde_yaml::from_str(&s).unwrap();
     eprintln!("Config: {:#?}", &config);
@@ -916,6 +930,11 @@ fn main() {
         bid_template: bid_template,
         trigger_command_templates: trigger_command_templates,
     };
+    (config, cconfig)
+}
+
+fn main() {
+    let (config, cconfig) = get_configs();
 
     let sync_horizon_sec: u32 = config
         .server

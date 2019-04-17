@@ -32,4 +32,4 @@ build:
 	cargo build
 
 run: build
-	RUST_BACKTRACE=1 cargo run config.yaml
+	RUST_BACKTRACE=1 cargo run -- --config config.yaml
