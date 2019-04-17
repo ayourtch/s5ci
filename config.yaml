@@ -34,6 +34,11 @@ triggers:
       regex: 'retest (?P<testname>\S+)'
       action:
         command: scripts/run-build {{patchset.ref}} {{regex.testname}}
+  echo_comment:
+      regex: echo (?P<testval>.+)
+      action:
+        command: scripts/run-echo {{regex.testval}}
+
   test_comment:
       regex: test (?P<testval>\d+)(:? (?P<secondval>.+))?
       action:
@@ -47,6 +52,7 @@ bid_template: 'Starting build http://s5ci-dev.myvpp.net/jobs/{{job_id}} on {{con
 
 jobs:
         rootdir: /var/www/html/jobs
+        root_url: http://s5ci-dev.myvpp.net/jobs
 
 hostname: gerrit-client
 

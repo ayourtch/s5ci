@@ -17,6 +17,8 @@ install-docker:
 	sudo apt-get update
 	sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 	sudo usermod -a -G docker ubuntu
+	docker volume create CCACHE
+
 install-nginx:
 	sudo apt-get install -y nginx
 	sudo chown -R `whoami` /var/www/html

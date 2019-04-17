@@ -2,9 +2,14 @@
 EXECSTART=`date`
 echo Arguments: $1 $2 $3 $4 $5
 echo EXECSTART: $EXECSTART
-# git clone http://testgerrit.myvpp.net/r/testvpp
+export CCACHE_DIR=/CCACHE
+git clone http://testgerrit.myvpp.net/r/testvpp
 cd testvpp
+echo ====== BEFORE PULL ======
+git log HEAD~3..
 git pull
+echo ====== AFTER PULL ======
+git log HEAD~3..
 git fetch http://testgerrit.myvpp.net/r/testvpp $1 && git checkout FETCH_HEAD
 if TEST=$2 UNATTENDED=y make install-dep test; then
 	echo Inside docker: success
@@ -21,6 +26,7 @@ fi
 
 EXECEND=`date`
 echo EXECEND: $EXECEND
+exit ${EXIT_CODE}
 
 # while true; do date; sleep 1; done
 

@@ -1,10 +1,15 @@
 #!/bin/sh -eux
 echo run-build $1
-if docker run -v gitroot:/gitroot --shm-size=1024M --name $S5CI_JOB_NAME aytest /start.sh $1 $2 ; then
+env
+echo Starting build...
+
+if docker run --mount source=CCACHE,target=/CCACHE --shm-size=1024M --name $S5CI_JOB_NAME aytest /start.sh $1 $2 ; then
 	echo Docker Success
+	${S5CI_EXE} review-success -m "Build ${S5CI_JOB_URL} has finished: success"
 else
 	DOCKER_RES=$?
 	echo Docker run result: ${DOCKER_RES}
+	${S5CI_EXE} review-failure -m "Build ${S5CI_JOB_URL} has finished: failure"
 fi
 # | ts
 sleep 5

@@ -11,6 +11,9 @@ extern crate psutil;
 extern crate regex;
 extern crate serde_yaml;
 extern crate yaml_rust;
+#[macro_use]
+extern crate log;
+extern crate env_logger;
 use clap::{App, Arg, SubCommand};
 
 use regex::Regex;
@@ -205,6 +208,7 @@ struct LucyGerritTrigger {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct LucyCiJobs {
     rootdir: String,
+    root_url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -299,22 +303,22 @@ fn run_ssh_command(config: &LucyCiConfig, cmd: &str) -> Result<String, LucySshEr
 
     let mut channel = sess.channel_session().unwrap();
 
-    eprintln!("SSH: running command '{}'", cmd);
+    debug!("SSH: running command '{}'", cmd);
     channel.exec(cmd)?;
 
     let mut stderr = channel.stderr();
     let mut stderr_buffer = String::new();
     stderr.read_to_string(&mut stderr_buffer)?;
-    eprintln!("SSH: ERR: {}", &stderr_buffer);
+    debug!("SSH: ERR: {}", &stderr_buffer);
 
     let mut s = String::new();
-    eprintln!("SSH: collect output");
+    debug!("SSH: collect output");
     while !channel.eof() {
         let mut s0 = String::new();
         channel.read_to_string(&mut s0)?;
         s.push_str(&s0);
     }
-    eprintln!("SSH: end collecting");
+    debug!("SSH: end collecting");
 
     let exit_status = channel.exit_status().unwrap();
     println!("Exit status {}", &exit_status);
@@ -323,6 +327,10 @@ fn run_ssh_command(config: &LucyCiConfig, cmd: &str) -> Result<String, LucySshEr
     } else {
         Ok(s)
     }
+}
+
+fn get_job_url(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) -> String {
+    format!("{}/{}/", config.jobs.root_url, job_id)
 }
 
 fn gerrit_spawn_comment_on_change(
@@ -336,6 +344,10 @@ fn gerrit_spawn_comment_on_change(
         .insert("config", config)
         .unwrap()
         .insert_str("job_id", format!("{}", job_id))
+        .insert_str(
+            "job_url",
+            format!("{}", get_job_url(config, cconfig, job_id)),
+        )
         .build();
     let mut bytes = vec![];
 
@@ -396,7 +408,7 @@ fn gerrit_query_changes(
         }
     };
 
-    eprintln!("DATE query: {}", &date_str);
+    debug!("DATE query: {}", &date_str);
     // let cmd = format!("gerrit query status:open project:vpp limit:4 {} --format JSON --all-approvals --all-reviewers --comments --commit-message --dependencies --files --patch-sets --submit-records", &date_str);
     // let cmd = format!("gerrit query status:open project:vpp limit:4 {} --format JSON --all-approvals --all-reviewers --comments --commit-message --dependencies --patch-sets --submit-records", &date_str);
     let q = &config.default_query;
@@ -413,7 +425,7 @@ fn do_ssh(
     before_when: Option<NaiveDateTime>,
     after_when: Option<NaiveDateTime>,
 ) -> Result<LucySshResult, LucySshError> {
-    eprintln!(
+    debug!(
         "Retrieving changesets for time before {:?} or after {:?}",
         &before_when, &after_when
     );
@@ -442,7 +454,7 @@ fn do_ssh(
                 let cs: GerritChangeSet = serde_json::from_str(&format!("{}", &line))?;
                 // println!("Backend res: {:?}", &cs);
                 if let Some(ts) = cs.lastUpdated {
-                    eprintln!(
+                    debug!(
                         "Change: {} number {}",
                         &cs.id.clone().unwrap_or("".into()),
                         &cs.number.unwrap_or(0)
@@ -453,7 +465,7 @@ fn do_ssh(
                     ret_changes.push(cs);
                 }
             } else {
-                eprintln!("STATS Backend res: {:?}", backend_res);
+                debug!("STATS Backend res: {:?}", backend_res);
                 if let Ok(stats) = backend_res {
                     ret_stats = Some(stats.clone());
                     more_changes = stats.moreChanges;
@@ -520,7 +532,7 @@ fn run_batch_command(
                     None => println!("Process terminated by signal"),
                 }
             } else {
-                eprintln!("Command finished with error, code: {:?}", exit_code);
+                error!("Command finished with error, code: {:?}", exit_code);
             }
         } else {
             println!("{}", output);
@@ -577,12 +589,24 @@ struct CommentTriggerRegex {
 }
 
 #[derive(Debug, Clone)]
+enum LucyCiAction {
+    Loop,
+    GerritCommand(String),
+    ReviewSuccess(String),
+    ReviewFailure(String),
+}
+
+#[derive(Debug, Clone)]
 struct LucyCiCompiledConfig {
+    config_path: String,
     patchset_extract_regex: Regex,
     bid_regex: Regex,
     trigger_regexes: Vec<CommentTriggerRegex>,
     bid_template: mustache::Template,
     trigger_command_templates: HashMap<String, mustache::Template>,
+    action: LucyCiAction,
+    changeset_id: Option<u32>,
+    patchset_id: Option<u32>,
 }
 
 fn get_trigger_regexes(config: &LucyCiConfig) -> Vec<CommentTriggerRegex> {
@@ -630,7 +654,7 @@ fn get_comment_bids(
     for (i, comment) in comments_vec.iter().enumerate() {
         if let Some(rem) = cconfig.bid_regex.captures(&comment.message) {
             if let (Some(bid), Some(host)) = (rem.name("bid_id"), rem.name("hostname")) {
-                eprintln!(
+                debug!(
                     "Found bid for id {} from host {}",
                     bid.as_str(),
                     host.as_str()
@@ -741,10 +765,12 @@ fn get_next_job_number(config: &LucyCiConfig, jobname: &str) -> u32 {
     file_count as u32
 }
 
-fn spawn_command(config: &LucyCiConfig, cmd: &str) -> String {
+fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> String {
     use regex::Regex;
+    use std::env;
     use std::process::Command;
     use std::process::Stdio;
+    let args: Vec<String> = env::args().collect();
 
     let re = Regex::new(r"[^A-Za-z0-9_]").unwrap();
 
@@ -768,8 +794,19 @@ fn spawn_command(config: &LucyCiConfig, cmd: &str) -> String {
         .stdout(log_file)
         .stderr(log_file_stderr)
         .env("RUST_BACKTRACE", "1")
+        .env("S5CI_EXE", &format!("{}", args[0]))
         .env("S5CI_JOB_ID", &job_id)
         .env("S5CI_JOB_NAME", &job_name)
+        .env("S5CI_JOB_URL", &get_job_url(config, cconfig, &job_id))
+        .env("S5CI_CONFIG", &cconfig.config_path)
+        .env(
+            "S5CI_GERRIT_CHANGESET_ID",
+            &format!("{}", cconfig.changeset_id.unwrap()),
+        )
+        .env(
+            "S5CI_GERRIT_PATCHSET_ID",
+            &format!("{}", cconfig.patchset_id.unwrap()),
+        )
         .spawn()
         .expect("failed to execute child");
 
@@ -809,7 +846,7 @@ fn process_change(
                 if pset.createdOn > 0 {
                     // startline_ts {
                     // println!("{:?}", &pset);
-                    eprintln!(
+                    debug!(
                         "  #{} revision: {} ref: {}",
                         &pset.number, &pset.revision, &pset.r#ref
                     );
@@ -852,8 +889,11 @@ fn process_change(
 
                 template.render_data(&mut bytes, &data).unwrap();
                 let expanded_command = String::from_utf8_lossy(&bytes);
-                let job_id = spawn_command(config, &expanded_command);
-                let change_id = cs.number.unwrap_or(0);
+                let change_id = cs.number.unwrap();
+                let mut cconfig2 = cconfig.clone();
+                cconfig2.changeset_id = Some(change_id);
+                cconfig2.patchset_id = Some(trig.patchset_id);
+                let job_id = spawn_command(config, &cconfig2, &expanded_command);
                 gerrit_spawn_comment_on_change(
                     config,
                     cconfig,
@@ -910,32 +950,172 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                 .takes_value(true)
                 .help("Set custom config file"),
         )
+        .subcommand(
+            SubCommand::with_name("command")
+                .about("run arbitrary command")
+                .arg(
+                    Arg::with_name("command")
+                        .short("c")
+                        .help("command to run")
+                        .required(true)
+                        .takes_value(true),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("review-success")
+                .about("add a +1 review with comment")
+                .arg(
+                    Arg::with_name("message")
+                        .short("m")
+                        .help("message to add in a review")
+                        .required(true)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("changeset-id")
+                        .short("c")
+                        .help("changeset ID")
+                        .required(true)
+                        .env("S5CI_GERRIT_CHANGESET_ID")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("patchset-id")
+                        .short("p")
+                        .help("patchset ID")
+                        .required(true)
+                        .env("S5CI_GERRIT_PATCHSET_ID")
+                        .takes_value(true),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("review-failure")
+                .about("add a -1 review with comment")
+                .arg(
+                    Arg::with_name("message")
+                        .short("m")
+                        .help("message to add in a review")
+                        .required(true)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("changeset-id")
+                        .short("c")
+                        .help("changeset ID")
+                        .required(true)
+                        .env("S5CI_GERRIT_CHANGESET_ID")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("patchset-id")
+                        .short("p")
+                        .help("patchset ID")
+                        .required(true)
+                        .env("S5CI_GERRIT_PATCHSET_ID")
+                        .takes_value(true),
+                ),
+        )
         .get_matches();
-    use std::env;
-    let args: Vec<String> = env::args().collect();
 
     let yaml_fname = &matches.value_of("config").unwrap();
     let s = fs::read_to_string(yaml_fname).unwrap();
     let config: LucyCiConfig = serde_yaml::from_str(&s).unwrap();
-    eprintln!("Config: {:#?}", &config);
+    debug!("Config: {:#?}", &config);
     let trigger_regexes = get_trigger_regexes(&config);
     let patchset_regex = Regex::new(&config.patchset_extract_regex).unwrap();
     let bid_regex = Regex::new(&config.bid_regex).unwrap();
     let bid_template = mustache::compile_str(&config.bid_template).unwrap();
     let trigger_command_templates = get_trigger_command_templates(&config);
+    let mut changeset_id: Option<u32> = None;
+    let mut patchset_id: Option<u32> = None;
+
+    let mut action = LucyCiAction::Loop;
+
+    if let Some(matches) = matches.subcommand_matches("command") {
+        let cmd = matches.value_of("command").unwrap().to_string();
+        action = LucyCiAction::GerritCommand(cmd);
+    }
+    if let Some(matches) = matches.subcommand_matches("review-success") {
+        let msg = matches.value_of("message").unwrap().to_string();
+        action = LucyCiAction::ReviewSuccess(msg);
+        patchset_id = Some(
+            matches
+                .value_of("patchset-id")
+                .unwrap()
+                .to_string()
+                .parse::<u32>()
+                .unwrap(),
+        );
+        changeset_id = Some(
+            matches
+                .value_of("changeset-id")
+                .unwrap()
+                .to_string()
+                .parse::<u32>()
+                .unwrap(),
+        );
+    }
+    if let Some(matches) = matches.subcommand_matches("review-failure") {
+        let msg = matches.value_of("message").unwrap().to_string();
+        action = LucyCiAction::ReviewFailure(msg);
+        patchset_id = Some(
+            matches
+                .value_of("patchset-id")
+                .unwrap()
+                .to_string()
+                .parse::<u32>()
+                .unwrap(),
+        );
+        changeset_id = Some(
+            matches
+                .value_of("changeset-id")
+                .unwrap()
+                .to_string()
+                .parse::<u32>()
+                .unwrap(),
+        );
+    }
+
     let cconfig = LucyCiCompiledConfig {
+        config_path: yaml_fname.to_string(),
         patchset_extract_regex: patchset_regex,
         bid_regex: bid_regex,
         trigger_regexes: trigger_regexes,
         bid_template: bid_template,
         trigger_command_templates: trigger_command_templates,
+        action: action,
+        changeset_id: changeset_id,
+        patchset_id: patchset_id,
     };
+    debug!("C-Config: {:#?}", &cconfig);
     (config, cconfig)
 }
 
-fn main() {
-    let (config, cconfig) = get_configs();
+fn do_gerrit_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) {
+    run_ssh_command(config, cmd);
+}
 
+fn do_review_failure(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, msg: &str) {
+    let cmd = format!(
+        "gerrit review {},{} --code-review -1 --message \"{}\"",
+        cconfig.changeset_id.unwrap(),
+        cconfig.patchset_id.unwrap(),
+        msg
+    );
+    run_ssh_command(config, &cmd);
+}
+
+fn do_review_success(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, msg: &str) {
+    let cmd = format!(
+        "gerrit review {},{} --code-review +1 --message \"{}\"",
+        cconfig.changeset_id.unwrap(),
+        cconfig.patchset_id.unwrap(),
+        msg
+    );
+    run_ssh_command(config, &cmd);
+}
+
+fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     let sync_horizon_sec: u32 = config
         .server
         .sync_horizon_sec
@@ -989,5 +1169,18 @@ fn main() {
         ps();
         eprintln!("Sleeping for {} msec ({})", wait_time_ms, wait_name);
         s5ci::thread_sleep_ms(wait_time_ms);
+    }
+}
+
+fn main() {
+    env_logger::init();
+    let (config, cconfig) = get_configs();
+    use LucyCiAction;
+
+    match &cconfig.action {
+        LucyCiAction::Loop => do_loop(&config, &cconfig),
+        LucyCiAction::GerritCommand(cmd) => do_gerrit_command(&config, &cconfig, &cmd),
+        LucyCiAction::ReviewSuccess(cmd) => do_review_success(&config, &cconfig, &cmd),
+        LucyCiAction::ReviewFailure(cmd) => do_review_failure(&config, &cconfig, &cmd),
     }
 }

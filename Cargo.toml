@@ -20,4 +20,6 @@ regex = "*"
 mustache = "*"
 psutil = "*"
 clap = "*"
+log = "*"
+env_logger = "*"
 

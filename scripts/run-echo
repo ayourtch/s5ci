@@ -1,0 +1,3 @@
+#!/bin/sh
+set -eux
+${S5CI_EXE} review-success -m "Build ${S5CI_JOB_URL} has finished: $1"
