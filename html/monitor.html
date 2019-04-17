@@ -1,0 +1,60 @@
+<html>
+	<script>
+
+		var console_data = "";
+                var last_start = 0;
+
+		function reqListener () {
+			var d = document.getElementById("console");
+			var resp = this.responseText;
+			if (this.status < 400) {
+				console_data = console_data + resp;
+				// console.log("response len: " + resp.length);
+				// console.log("console_data len: " + console_data.length);
+
+				ch = document.createElement("PRE")
+				ch.innerHTML = this.responseText;
+				d.appendChild(ch);
+			        ch.scrollIntoView();
+			}
+			setTimeout(function(){ load_some(); }, 1000);
+
+		}
+
+
+
+		function load_some() {
+			var oReq = new XMLHttpRequest();
+			oReq.addEventListener("load", reqListener);
+			var get_url = location.search.substr(1);
+			oReq.open("GET", get_url);
+			var start_len = console_data.length;
+			if (start_len > 0) {
+			  var range = "" + start_len + "-";
+			  oReq.setRequestHeader("Range", "bytes=" + range);
+			  if (last_start != start_len) {
+				  last_start = start_len;
+			          // console.log(range);
+			  }
+			}
+			oReq.send();
+		}
+
+		function doc_load() {
+			var get_url = location.search.substr(1);
+			if (get_url != "") {
+			  load_some();
+			} else {
+			  var d = document.getElementById("console");
+	                  d.innerHTML = "supply the path of the file to monitor, via '?/path/to-file'";
+			}
+
+		}
+	</script>
+
+	<body onload="doc_load()">
+		<h1>Console output</h1>
+				<div id="console">
+				</div>
+	</body>
+</html>
