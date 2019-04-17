@@ -14,7 +14,7 @@ RUN apt-get install -y cmake ninja-build uuid-dev libssl-dev
 
 # RUN apt-get install -y build-essential git && rm -rf /var/lib/apt/lists/*
 RUN apt-get install -y build-essential git sudo gdb
-RUN apt-get install -y iperf3
+RUN apt-get install -y iperf3 && true
 # RUN git clone http://testgerrit.myvpp.net/r/testvpp
 # RUN (cd testvpp; git log HEAD~3.. 1>&2)
 # RUN (cd testvpp; UNATTENDED=y make install-dep)

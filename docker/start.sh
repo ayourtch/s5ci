@@ -1,4 +1,5 @@
-#!/bin/sh -evx
+#!/bin/sh
+# -evx
 EXECSTART=`date`
 echo Arguments: $1 $2 $3 $4 $5
 echo EXECSTART: $EXECSTART
@@ -11,7 +12,7 @@ git pull
 echo ====== AFTER PULL ======
 git log HEAD~3..
 git fetch http://testgerrit.myvpp.net/r/testvpp $1 && git checkout FETCH_HEAD
-if TEST=$2 UNATTENDED=y make install-dep test; then
+if TEST=$2 UNATTENDED=y CACHE_OUTPUT=0 make install-dep test; then
 	echo Inside docker: success
 else
 	EXIT_CODE=$?
