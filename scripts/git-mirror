@@ -8,7 +8,7 @@ then
   cd vpp.git
   git pull
 else
-  git clone --mirror http://10.0.3.18:8080/vpp
+  git clone --mirror http://testgerrit.myvpp.net/vpp
 fi
 echo Success cloning!
 exit 0
