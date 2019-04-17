@@ -694,6 +694,7 @@ fn get_comment_triggers(
     let mut out = vec![];
 
     for (i, comment) in comments_vec.iter().enumerate() {
+        debug!("Comment: {}: {:#?}", i, &comment);
         if comment.timestamp > startline_ts {
             let mut patchset_str = format!("");
             /*
@@ -707,8 +708,6 @@ fn get_comment_triggers(
             if let Some(rem) = cconfig.patchset_extract_regex.captures(&comment.message) {
                 if let Some(ps) = rem.name("patchset") {
                     patchset_str = format!("{}", ps.as_str());
-                } else {
-                    panic!("Could not get patchset from {:#?}", &comment);
                 }
             }
             for tr in trigger_regexes {
@@ -727,6 +726,12 @@ fn get_comment_triggers(
                         }
                     }
 
+                    if !captures["patchset"].parse::<u32>().is_ok() {
+                        error!(
+                            "unparseable patchset in {:#?}: {:#?}",
+                            &comment, &patchset_str
+                        );
+                    }
                     let patchset_id = captures["patchset"].parse::<u32>().unwrap();
                     let trigger_name = format!("{}", &tr.name);
                     let trig = CommentTrigger {

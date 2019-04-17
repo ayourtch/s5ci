@@ -23,8 +23,10 @@ default_sync_horizon_sec: 8640000
 triggers:
   patchset_upload:
       regex: ^Uploaded patch set (?P<patchset>\d+)$
+      # action:
+      #  event: check_build
       action:
-        event: check_build
+        command: scripts/run-build {{patchset.ref}} '' # {{regex.patchset}}
   recheck_request:
       regex: 'recheck'
       action:
@@ -44,7 +46,7 @@ triggers:
       action:
         event: test_command
 
-patchset_extract_regex: '(?s)^Patch Set (?P<patchset>\d+):\n\n'
+patchset_extract_regex: '(?s)^Patch Set (?P<patchset>\d+): '
 
 # the below two must be in sync
 bid_regex: 'Lucy-CI-bid (?P<bid_id>\d+) (?P<hostname>\S+)'
