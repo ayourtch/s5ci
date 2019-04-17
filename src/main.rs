@@ -707,6 +707,8 @@ fn get_comment_triggers(
             if let Some(rem) = cconfig.patchset_extract_regex.captures(&comment.message) {
                 if let Some(ps) = rem.name("patchset") {
                     patchset_str = format!("{}", ps.as_str());
+                } else {
+                    panic!("Could not get patchset from {:#?}", &comment);
                 }
             }
             for tr in trigger_regexes {
