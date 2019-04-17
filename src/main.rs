@@ -323,7 +323,7 @@ fn run_ssh_command(config: &LucyCiConfig, cmd: &str) -> Result<String, LucySshEr
     }
 }
 
-fn gerrit_spawn_comment_on_change (
+fn gerrit_spawn_comment_on_change(
     config: &LucyCiConfig,
     cconfig: &LucyCiCompiledConfig,
     change_id: u32,
@@ -852,7 +852,13 @@ fn process_change(
                 let expanded_command = String::from_utf8_lossy(&bytes);
                 let job_id = spawn_command(config, &expanded_command);
                 let change_id = cs.number.unwrap_or(0);
-                gerrit_spawn_comment_on_change(config, cconfig, change_id, trig.patchset_id, &job_id);
+                gerrit_spawn_comment_on_change(
+                    config,
+                    cconfig,
+                    change_id,
+                    trig.patchset_id,
+                    &job_id,
+                );
             }
         }
     }
