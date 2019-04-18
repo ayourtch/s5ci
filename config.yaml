@@ -27,6 +27,10 @@ triggers:
       #  event: check_build
       action:
         command: scripts/run-build {{patchset.ref}} '' # {{regex.patchset}}
+  faulure_recheck_request:
+      regex: 'failure' # a crude infinite retry
+      action:
+        command: scripts/run-build {{patchset.ref}} '' # {{regex.patchset}}
   recheck_request:
       regex: 'recheck'
       action:
