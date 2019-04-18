@@ -54,7 +54,7 @@ patchset_extract_regex: '(?s)^Patch Set (?P<patchset>\d+):'
 
 # the below two must be in sync
 bid_regex: 'Lucy-CI-bid (?P<bid_id>\d+) (?P<hostname>\S+)'
-bid_template: 'Starting build http://s5ci-dev.myvpp.net/jobs/{{job_id}} on {{config.hostname}}'
+bid_template: 'Starting build {{config.jobs.root_url}}/{{job_id}} on {{config.hostname}} - monitor at {{config.jobs.root_url}}/../html/monitor.html?/jobs/{{job_id}}/console.txt'
 
 jobs:
         rootdir: /var/www/html/jobs
