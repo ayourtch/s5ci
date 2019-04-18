@@ -1,4 +1,4 @@
-lxc storage create ext4-lxd dir source=/home/ubuntu/ext4-lxd-storage,size=500G
+lxc storage create ext4-lxd dir source=${HOME}/ext4-lxd-storage
 
 
 lxc init ubuntu:18.04 s5ci -c security.nesting=true -s ext4-lxd
