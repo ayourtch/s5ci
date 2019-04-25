@@ -1,7 +1,16 @@
 #!/bin/sh -eux
 echo run-build $1
 env
-echo Starting build...
+START_TIME=`date`
+echo Starting the job ... $START_TIME
+
+PROC_LIMIT=5
+SLEEPTIME=300
+while NUMPROC=$(docker ps | grep -v 'CONTAINER ID' | wc -l); [ ${NUMPROC} -gt ${PROC_LIMIT} ] ; do
+   NOW=$(date)
+   echo ${NOW}: $NUMPROC is more than max allowed $PROC_LIMIT, sleeping for $SLEEPTIME seconds
+   sleep $SLEEPTIME
+done
 
 if docker run --mount source=CCACHE,target=/CCACHE --shm-size=1024M --name $S5CI_JOB_NAME aytest /start.sh $1 $2 ; then
 	echo Docker Success
