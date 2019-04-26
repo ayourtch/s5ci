@@ -37,7 +37,10 @@ lazy_static! {
 }
 
 pub fn set_db_url(url: &str) {
-    GLOBAL_HASH.lock().unwrap().insert("DATABASE_URL".to_string(), url.to_string());
+    GLOBAL_HASH
+        .lock()
+        .unwrap()
+        .insert("DATABASE_URL".to_string(), url.to_string());
 }
 
 pub fn get_db_url() -> String {

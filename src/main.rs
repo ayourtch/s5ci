@@ -873,11 +873,13 @@ fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &st
     println!("Spawned pid {}", res.id());
 }
 
-fn get_next_counter(name: &str) -> i32 {
+fn get_next_counter(name: &str) -> i32 {}
 
-}
-
-fn exec_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> (String, Option<i32>) {
+fn exec_command(
+    config: &LucyCiConfig,
+    cconfig: &LucyCiCompiledConfig,
+    cmd: &str,
+) -> (String, Option<i32>) {
     use std::process::Command;
     let mut child0 = Command::new("/bin/sh");
     let mut child = child0.arg("-c");
@@ -887,7 +889,7 @@ fn exec_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str
     let status = child.status().expect("failed to execute process");
     match status.code() {
         Some(code) => println!("Finished {} with status code {}", &job_id, code),
-        None => println!("Finished {} due to signal", &job_id)
+        None => println!("Finished {} due to signal", &job_id),
     }
     return (job_id, status.code());
 }
@@ -1073,9 +1075,9 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                     Arg::with_name("vote")
                         .short("v")
                         .help("vote success, failure, or clear")
-                        .possible_values(&["success","failure", "clear"])
+                        .possible_values(&["success", "failure", "clear"])
                         .takes_value(true),
-                )
+                ),
         )
         .get_matches();
 
@@ -1152,7 +1154,12 @@ fn do_gerrit_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd:
     run_ssh_command(config, cmd);
 }
 
-fn do_review(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, maybe_vote: &Option<GerritVoteAction>, msg: &str) {
+fn do_review(
+    config: &LucyCiConfig,
+    cconfig: &LucyCiCompiledConfig,
+    maybe_vote: &Option<GerritVoteAction>,
+    msg: &str,
+) {
     let vote = if let Some(act) = maybe_vote {
         match act {
             GerritVoteAction::success => format!(" --code-review +1"),
@@ -1193,7 +1200,7 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) 
     let (job_id, status) = exec_command(config, cconfig, cmd);
     let mut ret_status = 4242;
     if let Some(st) = status {
-      ret_status = st;
+        ret_status = st;
     }
     println!("Exiting job '{}' with status {}", cmd, &ret_status);
     std::process::exit(ret_status);
@@ -1260,7 +1267,6 @@ fn main() {
     env_logger::init();
     let (config, cconfig) = get_configs();
     use LucyCiAction;
-
 
     match &cconfig.action {
         LucyCiAction::Loop => do_loop(&config, &cconfig),
