@@ -19,4 +19,9 @@ CREATE TABLE jobs (
 	return_code INT
 );
 
+CREATE TABLE counters (
+	name VARCHAR NOT NULL PRIMARY KEY,
+	value INT NOT NULL
+)
+
 

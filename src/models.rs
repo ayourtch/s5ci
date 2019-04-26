@@ -19,6 +19,13 @@ pub struct comment {
 }
 
 #[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone)]
+#[table_name = "counters"]
+pub struct counter {
+    pub name: String,
+    pub value: i32,
+}
+
+#[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone)]
 #[table_name = "jobs"]
 pub struct job {
     pub uuid: String,

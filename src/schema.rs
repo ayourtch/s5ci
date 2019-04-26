@@ -7,6 +7,13 @@ table! {
 }
 
 table! {
+    counters (name) {
+        name -> Text,
+        value -> Integer,
+    }
+}
+
+table! {
     jobs (uuid) {
         uuid -> Text,
         job_name -> Text,
@@ -20,4 +27,4 @@ table! {
     }
 }
 
-allow_tables_to_appear_in_same_query!(comments, jobs,);
+allow_tables_to_appear_in_same_query!(comments, counters, jobs,);

@@ -873,6 +873,10 @@ fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &st
     println!("Spawned pid {}", res.id());
 }
 
+fn get_next_counter(name: &str) -> i32 {
+
+}
+
 fn exec_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> (String, Option<i32>) {
     use std::process::Command;
     let mut child0 = Command::new("/bin/sh");
