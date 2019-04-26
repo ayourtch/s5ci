@@ -4,7 +4,11 @@ default: build
 install-rust:
 	sudo apt-get install -y make build-essential git
 	curl https://sh.rustup.rs -sSf | sh -s -- -y
-	sudo apt-get install -y libssl-dev pkg-config moreutils
+	sudo apt-get install -y libssl-dev pkg-config moreutils libpq-dev libsqlite3-dev
+	cargo install diesel_cli --no-default-features --features postgres,sqlite
+	mkdir db
+	diesel setup --database-url db/s5ci.sqlite3
+
 install-docker:
 	echo Install docker
 	sudo apt-get update

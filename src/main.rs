@@ -221,6 +221,7 @@ struct LucyCiConfig {
     triggers: Option<HashMap<String, LucyGerritTrigger>>,
     patchset_extract_regex: String,
     hostname: String,
+    db_url: String,
     bid_regex: String,
     bid_template: String,
     jobs: LucyCiJobs,
@@ -591,6 +592,7 @@ struct CommentTriggerRegex {
 #[derive(Debug, Clone)]
 enum LucyCiAction {
     Loop,
+    ListJobs,
     GerritCommand(String),
     ReviewSuccess(String),
     ReviewFailure(String),
@@ -957,6 +959,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                 .takes_value(true)
                 .help("Set custom config file"),
         )
+        .subcommand(SubCommand::with_name("list-jobs").about("list jobs"))
         .subcommand(
             SubCommand::with_name("command")
                 .about("run arbitrary command")
@@ -1028,6 +1031,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     let s = fs::read_to_string(yaml_fname).unwrap();
     let config: LucyCiConfig = serde_yaml::from_str(&s).unwrap();
     debug!("Config: {:#?}", &config);
+    set_db_url(&config.db_url);
     let trigger_regexes = get_trigger_regexes(&config);
     let patchset_regex = Regex::new(&config.patchset_extract_regex).unwrap();
     let bid_regex = Regex::new(&config.bid_regex).unwrap();
@@ -1041,6 +1045,9 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     if let Some(matches) = matches.subcommand_matches("command") {
         let cmd = matches.value_of("command").unwrap().to_string();
         action = LucyCiAction::GerritCommand(cmd);
+    }
+    if let Some(matches) = matches.subcommand_matches("list-jobs") {
+        action = LucyCiAction::ListJobs;
     }
     if let Some(matches) = matches.subcommand_matches("review-success") {
         let msg = matches.value_of("message").unwrap().to_string();
@@ -1122,6 +1129,13 @@ fn do_review_success(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, msg:
     run_ssh_command(config, &cmd);
 }
 
+fn do_list_jobs(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
+    let jobs = db_get_all_jobs();
+    for j in jobs {
+        println!("{:#?}", &j);
+    }
+}
+
 fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     let sync_horizon_sec: u32 = config
         .server
@@ -1186,6 +1200,7 @@ fn main() {
 
     match &cconfig.action {
         LucyCiAction::Loop => do_loop(&config, &cconfig),
+        LucyCiAction::ListJobs => do_list_jobs(&config, &cconfig),
         LucyCiAction::GerritCommand(cmd) => do_gerrit_command(&config, &cconfig, &cmd),
         LucyCiAction::ReviewSuccess(cmd) => do_review_success(&config, &cconfig, &cmd),
         LucyCiAction::ReviewFailure(cmd) => do_review_failure(&config, &cconfig, &cmd),

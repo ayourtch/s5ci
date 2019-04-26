@@ -61,6 +61,7 @@ jobs:
         root_url: http://s5ci-dev.myvpp.net/jobs
 
 hostname: gerrit-client
+db_url: db/s5ci.sqlite3
 
 server:
   address: 136.243.48.188
