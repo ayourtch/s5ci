@@ -1,0 +1,17 @@
+#!/bin/sh -eux
+
+trap '' INT
+trap '' PIPE
+trap '' HUP
+trap '' QUIT
+trap '' ABRT
+
+echo run-two $1
+env
+START_TIME=`date`
+echo Starting the job ... $START_TIME
+
+
+export S5CI_CHANGE_REF=$1
+export S5CI_FILTER=$2
+parallel sh -c '${S5CI_EXE} run-job -c "scripts/${0} ${S5CI_CHANGE_REF} ${S5CI_FILTER}"' -- run-build run-test

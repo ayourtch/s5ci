@@ -1190,6 +1190,7 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) 
             println!("Received signal {:?}", sig);
         }
     });
+    println!("Requested to run job '{}'", cmd);
     let job_id = exec_command(config, cconfig, cmd);
 }
 

@@ -44,6 +44,10 @@ triggers:
       regex: echo (?P<testval>.+)
       action:
         command: scripts/run-echo {{regex.testval}}
+  run_two:
+      regex: runtwo (?P<testval>.+)
+      action:
+        command: scripts/run-two {{patchset.ref}} {{regex.testval}}
 
   test_comment:
       regex: test (?P<testval>\d+)(:? (?P<secondval>.+))?
