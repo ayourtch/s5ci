@@ -28,4 +28,5 @@ psutil = "*"
 clap = "*"
 log = "*"
 env_logger = "*"
+signal-hook = "*"
 

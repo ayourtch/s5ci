@@ -10,6 +10,7 @@ extern crate libc;
 extern crate psutil;
 extern crate regex;
 extern crate serde_yaml;
+extern crate signal_hook;
 extern crate yaml_rust;
 #[macro_use]
 extern crate log;
@@ -818,11 +819,15 @@ fn prepare_child_command<'a>(
 }
 
 fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> String {
-    use std::process::Command;
     use std::env;
+    use std::process::Command;
     let args: Vec<String> = env::args().collect();
     let mut child0 = Command::new(&args[0]);
-    let mut child = child0.arg("run-job").arg("-c").arg(format!("{}", cmd)).env("S5CI_CONFIG", &cconfig.config_path);
+    let mut child = child0
+        .arg("run-job")
+        .arg("-c")
+        .arg(format!("{}", cmd))
+        .env("S5CI_CONFIG", &cconfig.config_path);
 
     // let (job_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "-master");
     let env_changeset_id = format!("{}", cconfig.changeset_id.unwrap());
@@ -1175,6 +1180,16 @@ fn do_list_jobs(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     }
 }
 fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) {
+    use signal_hook::{iterator::Signals, SIGABRT, SIGHUP, SIGINT, SIGPIPE, SIGQUIT};
+    use std::{error::Error, thread};
+
+    let signals = Signals::new(&[SIGINT, SIGPIPE, SIGHUP, SIGQUIT, SIGABRT]).unwrap();
+
+    thread::spawn(move || {
+        for sig in signals.forever() {
+            println!("Received signal {:?}", sig);
+        }
+    });
     let job_id = exec_command(config, cconfig, cmd);
 }
 
@@ -1239,6 +1254,7 @@ fn main() {
     env_logger::init();
     let (config, cconfig) = get_configs();
     use LucyCiAction;
+
 
     match &cconfig.action {
         LucyCiAction::Loop => do_loop(&config, &cconfig),
