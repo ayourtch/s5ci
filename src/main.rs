@@ -569,6 +569,12 @@ fn mypid() -> pid_t {
     pid
 }
 
+fn setsid() -> pid_t {
+    use libc::setsid;
+    let pid = unsafe { setsid() };
+    pid
+}
+
 pub fn collect_zombies() -> i32 {
     mod c {
         use libc;
@@ -867,6 +873,7 @@ fn exec_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str
     let mut child = child0.arg("-c");
     let (job_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "");
     println!("Executing {}", &job_id);
+    setsid();
     let status = child.status().expect("failed to execute process");
     match status.code() {
         Some(code) => println!("Finished {} with status code {}", &job_id, code),
