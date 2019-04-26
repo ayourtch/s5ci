@@ -460,7 +460,7 @@ fn do_ssh(
                         &cs.number.unwrap_or(0)
                     );
                     if ts < last_timestamp {
-                        last_timestamp = ts - 1;
+                        last_timestamp = ts;
                     }
                     ret_changes.push(cs);
                 }
