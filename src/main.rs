@@ -900,7 +900,7 @@ fn process_change(
 
     // eprintln!("Processing change: {:#?}", cs);
     if let Some(startline) = after_when {
-        let startline_ts = startline.timestamp();
+        let startline_ts = startline.timestamp() - 1;
         let mut psmap: HashMap<String, GerritPatchSet> = HashMap::new();
 
         if let Some(psets) = &cs.patchSets {
