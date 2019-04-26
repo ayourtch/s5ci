@@ -1,0 +1,16 @@
+#!/bin/sh -eux
+
+DIGIT=$(date +"%s" | sed -e 's/^.\+\(.\)$/\1/g')
+if echo ${DIGIT} | egrep -e '[02468]' --; then
+  RET=0
+else
+  RET=$?
+fi
+echo Exiting with code $RET for ${DIGIT}
+
+if [ ${RET} != 0 ]; then
+  ${S5CI_EXE} review -v failure  -m "Build ${S5CI_JOB_URL} failed"
+fi
+
+exit ${RET}
+
