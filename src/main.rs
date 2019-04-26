@@ -322,7 +322,6 @@ fn run_ssh_command(config: &LucyCiConfig, cmd: &str) -> Result<String, LucySshEr
     debug!("SSH: end collecting");
 
     let exit_status = channel.exit_status().unwrap();
-    println!("Exit status {}", &exit_status);
     if exit_status != 0 {
         Err(LucySshError::RemoteError(exit_status, stderr_buffer))
     } else {
@@ -472,7 +471,7 @@ fn do_ssh(
                     more_changes = stats.moreChanges;
                     if stats.rowCount > 0 {
                         use s5ci::*;
-                        spawn_simple_command("scripts", "git-mirror");
+                        // spawn_simple_command("scripts", "git-mirror");
                     }
                 }
             }
@@ -536,7 +535,7 @@ fn run_batch_command(
                 error!("Command finished with error, code: {:?}", exit_code);
             }
         } else {
-            println!("{}", output);
+            // println!("{}", output);
         }
     }
     abort_sync
@@ -593,6 +592,7 @@ struct CommentTriggerRegex {
 enum LucyCiAction {
     Loop,
     ListJobs,
+    RunJob(String),
     GerritCommand(String),
     ReviewSuccess(String),
     ReviewFailure(String),
@@ -774,7 +774,13 @@ fn get_next_job_number(config: &LucyCiConfig, jobname: &str) -> u32 {
     file_count as u32
 }
 
-fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> String {
+fn prepare_child_command<'a>(
+    config: &LucyCiConfig,
+    cconfig: &LucyCiCompiledConfig,
+    child0: &'a mut std::process::Command,
+    cmd: &str,
+    suffix: &str,
+) -> (String, &'a mut std::process::Command) {
     use regex::Regex;
     use std::env;
     use std::process::Command;
@@ -789,15 +795,15 @@ fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &st
     let job_name = re
         .replace_all(&format!("{}_{}", cmd_file, job_nr), "_")
         .to_string();
-    let log_fname = format!("{}/{}/console.txt", config.jobs.rootdir, job_id);
+    let log_fname = format!("{}/{}/console{}.txt", config.jobs.rootdir, job_id, suffix);
     println!("LOG file: {}", &log_fname);
     let log_file = open_log_file(&log_fname).unwrap();
     let stderr_cmd = format!("{}-stderr", cmd_file);
     let log_file_stderr = log_file.try_clone().unwrap(); // open_log_file(&stderr_cmd).unwrap();
 
     // let errors = outputs.try_clone()?;
-    let mut child = Command::new("/bin/sh")
-        .arg("-c")
+    // let mut child0 = Command::new("/bin/sh");
+    let mut child = child0
         .arg(format!("{}", cmd))
         .stdin(Stdio::null())
         .stdout(log_file)
@@ -807,18 +813,38 @@ fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &st
         .env("S5CI_JOB_ID", &job_id)
         .env("S5CI_JOB_NAME", &job_name)
         .env("S5CI_JOB_URL", &get_job_url(config, cconfig, &job_id))
-        .env("S5CI_CONFIG", &cconfig.config_path)
-        .env(
-            "S5CI_GERRIT_CHANGESET_ID",
-            &format!("{}", cconfig.changeset_id.unwrap()),
-        )
-        .env(
-            "S5CI_GERRIT_PATCHSET_ID",
-            &format!("{}", cconfig.patchset_id.unwrap()),
-        )
-        .spawn()
-        .expect("failed to execute child");
+        .env("S5CI_CONFIG", &cconfig.config_path);
+    return (job_id, child0);
+}
 
+fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> String {
+    use std::process::Command;
+    use std::env;
+    let args: Vec<String> = env::args().collect();
+    let mut child0 = Command::new(&args[0]);
+    let mut child = child0.arg("run-job").arg("-c").arg(format!("{}", cmd)).env("S5CI_CONFIG", &cconfig.config_path);
+
+    // let (job_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "-master");
+    let env_changeset_id = format!("{}", cconfig.changeset_id.unwrap());
+    let env_patchset_id = format!("{}", cconfig.patchset_id.unwrap());
+    let job_id = format!("foo/1");
+    let child = child
+        .env("S5CI_GERRIT_CHANGESET_ID", &env_changeset_id)
+        .env("S5CI_GERRIT_PATCHSET_ID", &env_patchset_id);
+    println!("Spawning {:#?} -- {}", child, &job_id);
+    let res = child.spawn().expect("failed to execute child");
+    println!("Spawned {}, pid {}", &job_id, res.id());
+    return job_id;
+}
+
+fn exec_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> String {
+    use std::process::Command;
+    let mut child0 = Command::new("/bin/sh");
+    let mut child = child0.arg("-c");
+    let (job_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "");
+    println!("Executing {}", &job_id);
+    let status = child.status().expect("failed to execute process");
+    println!("Finished {} with status: {:?}", &job_id, &status);
     return job_id;
 }
 
@@ -865,7 +891,7 @@ fn process_change(
                 psmap.insert(format!("{}", &pset.revision), pset.clone());
             }
 
-            eprintln!("Patchset map: {:#?}", &psmap);
+            // eprintln!("Patchset map: {:#?}", &psmap);
         }
         if let Some(comments_vec) = &cs.comments {
             let all_triggers = get_comment_triggers(config, cconfig, comments_vec, startline_ts);
@@ -880,7 +906,7 @@ fn process_change(
                     }
                 });
             }
-            eprintln!("all triggers: {:#?}", &final_triggers);
+            // eprintln!("all triggers: {:#?}", &final_triggers);
             eprintln!("final triggers: {:#?}", &final_triggers);
             for trig in &final_triggers {
                 let template = cconfig
@@ -961,7 +987,16 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         )
         .subcommand(SubCommand::with_name("list-jobs").about("list jobs"))
         .subcommand(
-            SubCommand::with_name("command")
+            SubCommand::with_name("run-job").about("run a job").arg(
+                Arg::with_name("command")
+                    .short("c")
+                    .help("command to run")
+                    .required(true)
+                    .takes_value(true),
+            ),
+        )
+        .subcommand(
+            SubCommand::with_name("gerrit-command")
                 .about("run arbitrary command")
                 .arg(
                     Arg::with_name("command")
@@ -1042,9 +1077,13 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
 
     let mut action = LucyCiAction::Loop;
 
-    if let Some(matches) = matches.subcommand_matches("command") {
+    if let Some(matches) = matches.subcommand_matches("gerrit-command") {
         let cmd = matches.value_of("command").unwrap().to_string();
         action = LucyCiAction::GerritCommand(cmd);
+    }
+    if let Some(matches) = matches.subcommand_matches("run-job") {
+        let cmd = matches.value_of("command").unwrap().to_string();
+        action = LucyCiAction::RunJob(cmd);
     }
     if let Some(matches) = matches.subcommand_matches("list-jobs") {
         action = LucyCiAction::ListJobs;
@@ -1135,6 +1174,9 @@ fn do_list_jobs(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
         println!("{:#?}", &j);
     }
 }
+fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) {
+    let job_id = exec_command(config, cconfig, cmd);
+}
 
 fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     let sync_horizon_sec: u32 = config
@@ -1187,8 +1229,8 @@ fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
         }
 
         collect_zombies();
-        ps();
-        eprintln!("Sleeping for {} msec ({})", wait_time_ms, wait_name);
+        // ps();
+        // eprintln!("Sleeping for {} msec ({})", wait_time_ms, wait_name);
         s5ci::thread_sleep_ms(wait_time_ms);
     }
 }
@@ -1201,6 +1243,7 @@ fn main() {
     match &cconfig.action {
         LucyCiAction::Loop => do_loop(&config, &cconfig),
         LucyCiAction::ListJobs => do_list_jobs(&config, &cconfig),
+        LucyCiAction::RunJob(cmd) => do_run_job(&config, &cconfig, &cmd),
         LucyCiAction::GerritCommand(cmd) => do_gerrit_command(&config, &cconfig, &cmd),
         LucyCiAction::ReviewSuccess(cmd) => do_review_success(&config, &cconfig, &cmd),
         LucyCiAction::ReviewFailure(cmd) => do_review_failure(&config, &cconfig, &cmd),
