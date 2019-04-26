@@ -842,15 +842,18 @@ fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &st
     return job_id;
 }
 
-fn exec_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> String {
+fn exec_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> (String, Option<i32>) {
     use std::process::Command;
     let mut child0 = Command::new("/bin/sh");
     let mut child = child0.arg("-c");
     let (job_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "");
     println!("Executing {}", &job_id);
     let status = child.status().expect("failed to execute process");
-    println!("Finished {} with status: {:?}", &job_id, &status);
-    return job_id;
+    match status.code() {
+        Some(code) => println!("Finished {} with status code {}", &job_id, code),
+        None => println!("Finished {} due to signal", &job_id)
+    }
+    return (job_id, status.code());
 }
 
 fn process_change(
@@ -1191,7 +1194,12 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) 
         }
     });
     println!("Requested to run job '{}'", cmd);
-    let job_id = exec_command(config, cconfig, cmd);
+    let (job_id, status) = exec_command(config, cconfig, cmd);
+    let mut ret_status = 4242;
+    if let Some(st) = status {
+      ret_status = st;
+    }
+    std::process::exit(ret_status);
 }
 
 fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {

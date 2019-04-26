@@ -14,4 +14,9 @@ echo Starting the job ... $START_TIME
 
 export S5CI_CHANGE_REF=$1
 export S5CI_FILTER=$2
+
+${S5CI_EXE} run-job -c "scripts/run-random ${S5CI_CHANGE_REF} ${S5CI_FILTER}"
+
+# we should not reach here if there was error above
+
 parallel sh -c '${S5CI_EXE} run-job -c "scripts/${0} ${S5CI_CHANGE_REF} ${S5CI_FILTER}"' -- run-build run-test
