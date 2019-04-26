@@ -1,4 +1,11 @@
 #!/bin/sh -eux
+
+trap '' INT
+trap '' PIPE
+trap '' HUP
+trap '' QUIT
+trap '' ABRT
+
 echo run-build $1
 env
 START_TIME=`date`
