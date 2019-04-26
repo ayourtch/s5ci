@@ -787,7 +787,7 @@ fn basename_from_cmd(cmd: &str) -> String {
     format!("{}", path.file_name().unwrap().to_str().unwrap())
 }
 
-fn get_next_job_number(config: &LucyCiConfig, jobname: &str) -> u32 {
+fn get_min_job_counter(config: &LucyCiConfig, jobname: &str) -> i32 {
     use std::fs;
     let jobpath = format!("{}/{}", &config.jobs.rootdir, jobname);
     let path = Path::new(&jobpath);
@@ -795,9 +795,23 @@ fn get_next_job_number(config: &LucyCiConfig, jobname: &str) -> u32 {
         fs::create_dir(&jobpath).unwrap();
     }
     let file_count = fs::read_dir(path).unwrap().count();
-    let new_path = format!("{}/{}", jobpath, file_count);
+    file_count as i32
+}
+
+fn get_next_job_number(config: &LucyCiConfig, jobname: &str) -> i32 {
+    use std::fs;
+    let a_min = get_min_job_counter(config, jobname);
+    let job_number = db_get_next_counter_value_with_min(jobname, a_min).unwrap();
+
+    let jobpath = format!("{}/{}", &config.jobs.rootdir, jobname);
+    let path = Path::new(&jobpath);
+    if !path.is_dir() {
+        fs::create_dir(&jobpath).unwrap();
+    }
+    let new_path = format!("{}/{}", jobpath, job_number);
+    println!("CREATING DIR {}", &new_path);
     fs::create_dir(&new_path).unwrap();
-    file_count as u32
+    job_number
 }
 
 fn prepare_child_command<'a>(
@@ -873,7 +887,79 @@ fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &st
     println!("Spawned pid {}", res.id());
 }
 
-fn get_next_counter(name: &str) -> i32 {}
+fn db_get_next_counter_value(a_name: &str) -> Result<i32, String> {
+    db_get_next_counter_value_with_min(a_name, 0)
+}
+
+fn db_get_next_counter_value_with_min(a_name: &str, a_min: i32) -> Result<i32, String> {
+    use diesel::connection::Connection;
+    use diesel::expression_methods::*;
+    use diesel::query_dsl::QueryDsl;
+    use diesel::query_dsl::RunQueryDsl;
+    use diesel::result::Error;
+    use schema::counters;
+    use schema::counters::dsl::*;
+
+    let db = get_db();
+    let conn = db.conn();
+    let mut result: Result<i32, String> = Err(format!("result unset"));
+
+    conn.transaction::<_, Error, _>(|| {
+        let res = counters
+            .filter(name.eq(a_name))
+            .limit(2)
+            .load::<models::counter>(conn);
+
+        let count_val: Result<i32, String> = match res {
+            Ok(r) => match r.len() {
+                0 => {
+                    let curr_value = a_min;
+                    let new_counter = models::counter {
+                        name: format!("{}", a_name),
+                        value: curr_value + 1,
+                    };
+                    diesel::insert_into(counters::table)
+                        .values(&new_counter)
+                        .execute(conn)
+                        .expect(&format!("Error inserting new counter {}", a_name));
+                    Ok(curr_value)
+                }
+                1 => {
+                    let curr_val = if r[0].value < a_min {
+                        a_min
+                    } else {
+                        r[0].value
+                    };
+
+                    diesel::update(counters.filter(name.eq(a_name)))
+                        .set((value.eq(curr_val + 1)))
+                        .execute(conn);
+                    Ok(curr_val)
+                }
+                _ => Err(format!("More than one counter of type {}", a_name)),
+            },
+            Err(e) => Err(format!("counter select error: {:?}", &e)),
+        };
+        result = count_val;
+        Ok(())
+    })
+    .unwrap();
+
+    if result.is_ok() {
+        let r = counters
+            .filter(name.eq(a_name))
+            .limit(1)
+            .load::<models::counter>(conn)
+            .unwrap();
+        if Ok(r[0].value - 1) != result {
+            /* there was another transaction in parallel, retry */
+            s5ci::thread_sleep_ms(r[0].value as u64 % 100);
+            result = Ok(db_get_next_counter_value_with_min(a_name, a_min).unwrap());
+        }
+    }
+
+    result
+}
 
 fn exec_command(
     config: &LucyCiConfig,

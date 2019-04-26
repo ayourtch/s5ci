@@ -57,7 +57,6 @@ pub fn sqlite3_establish_connection() -> SqliteConnection {
     let database_url = get_db_url();
     let connection = SqliteConnection::establish(&database_url)
         .expect(&format!("Error connecting to {}", database_url));
-    connection.batch_execute("PRAGMA busy_timeout=20000;");
     connection
 }
 
@@ -101,6 +100,9 @@ use diesel::connection::SimpleConnection;
 impl DB {
     pub fn conn(&self) -> &DB_CONN_TYPE {
         let connection = &*self.0;
+        if DB_TYPE_NAME == "Sqlite" {
+            connection.batch_execute("PRAGMA busy_timeout=20000;");
+        }
         &*self.0
     }
 }
