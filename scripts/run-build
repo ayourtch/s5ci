@@ -18,15 +18,15 @@ while NUMPROC=$(docker ps | grep -v 'CONTAINER ID' | wc -l); [ ${NUMPROC} -gt ${
    echo ${NOW}: $NUMPROC is more than max allowed $PROC_LIMIT, sleeping for $SLEEPTIME seconds
    sleep $SLEEPTIME
 done
+${S5CI_EXE} review -m "Build ${S5CI_JOB_URL} has started"
 
 if docker run --mount source=CCACHE,target=/CCACHE --shm-size=1024M --name $S5CI_JOB_NAME aytest /start.sh $1 $2 ; then
 	echo Docker Success
-	${S5CI_EXE} review-success -m "Build ${S5CI_JOB_URL} has finished: success"
+	${S5CI_EXE} review -m "Build ${S5CI_JOB_URL} has finished: success"
+	exit 0
 else
 	DOCKER_RES=$?
 	echo Docker run result: ${DOCKER_RES}
-	${S5CI_EXE} review-failure -m "Build ${S5CI_JOB_URL} has finished: failure"
+	${S5CI_EXE} review -v failure -m "Build ${S5CI_JOB_URL} has finished: failure"
+	exit ${DOCKER_RES}
 fi
-# | ts
-sleep 5
-exit 123

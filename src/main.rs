@@ -5,6 +5,7 @@ use std::io::prelude::*;
 use std::net::TcpStream;
 use std::path::Path;
 
+#[macro_use]
 extern crate clap;
 extern crate libc;
 extern crate psutil;
@@ -146,6 +147,25 @@ enum BeforeAfter {
     Before(NaiveDateTime),
     After(NaiveDateTime),
     Any,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+enum GerritVoteAction {
+    success,
+    failure,
+    clear,
+}
+
+impl std::str::FromStr for GerritVoteAction {
+    type Err = ();
+    fn from_str(s: &str) -> Result<GerritVoteAction, ()> {
+        match s {
+            "success" => Ok(GerritVoteAction::success),
+            "failure" => Ok(GerritVoteAction::failure),
+            "clear" => Ok(GerritVoteAction::clear),
+            _ => Err(()),
+        }
+    }
 }
 
 #[allow(non_snake_case)]
@@ -595,8 +615,7 @@ enum LucyCiAction {
     ListJobs,
     RunJob(String),
     GerritCommand(String),
-    ReviewSuccess(String),
-    ReviewFailure(String),
+    MakeReview(Option<GerritVoteAction>, String),
 }
 
 #[derive(Debug, Clone)]
@@ -1015,8 +1034,8 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("review-success")
-                .about("add a +1 review with comment")
+            SubCommand::with_name("review")
+                .about("review with comment and maybe vote")
                 .arg(
                     Arg::with_name("message")
                         .short("m")
@@ -1039,34 +1058,14 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                         .required(true)
                         .env("S5CI_GERRIT_PATCHSET_ID")
                         .takes_value(true),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("review-failure")
-                .about("add a -1 review with comment")
-                .arg(
-                    Arg::with_name("message")
-                        .short("m")
-                        .help("message to add in a review")
-                        .required(true)
-                        .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("changeset-id")
-                        .short("c")
-                        .help("changeset ID")
-                        .required(true)
-                        .env("S5CI_GERRIT_CHANGESET_ID")
+                    Arg::with_name("vote")
+                        .short("v")
+                        .help("vote success, failure, or clear")
+                        .possible_values(&["success","failure", "clear"])
                         .takes_value(true),
                 )
-                .arg(
-                    Arg::with_name("patchset-id")
-                        .short("p")
-                        .help("patchset ID")
-                        .required(true)
-                        .env("S5CI_GERRIT_PATCHSET_ID")
-                        .takes_value(true),
-                ),
         )
         .get_matches();
 
@@ -1096,29 +1095,16 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     if let Some(matches) = matches.subcommand_matches("list-jobs") {
         action = LucyCiAction::ListJobs;
     }
-    if let Some(matches) = matches.subcommand_matches("review-success") {
+    if let Some(matches) = matches.subcommand_matches("review") {
         let msg = matches.value_of("message").unwrap().to_string();
-        action = LucyCiAction::ReviewSuccess(msg);
-        patchset_id = Some(
-            matches
-                .value_of("patchset-id")
-                .unwrap()
-                .to_string()
-                .parse::<u32>()
-                .unwrap(),
-        );
-        changeset_id = Some(
-            matches
-                .value_of("changeset-id")
-                .unwrap()
-                .to_string()
-                .parse::<u32>()
-                .unwrap(),
-        );
-    }
-    if let Some(matches) = matches.subcommand_matches("review-failure") {
-        let msg = matches.value_of("message").unwrap().to_string();
-        action = LucyCiAction::ReviewFailure(msg);
+
+        let vote_value = if matches.value_of("vote").is_some() {
+            let val = value_t!(matches, "vote", GerritVoteAction).unwrap();
+            Some(val)
+        } else {
+            None
+        };
+        action = LucyCiAction::MakeReview(vote_value, msg);
         patchset_id = Some(
             matches
                 .value_of("patchset-id")
@@ -1156,21 +1142,21 @@ fn do_gerrit_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd:
     run_ssh_command(config, cmd);
 }
 
-fn do_review_failure(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, msg: &str) {
+fn do_review(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, maybe_vote: &Option<GerritVoteAction>, msg: &str) {
+    let vote = if let Some(act) = maybe_vote {
+        match act {
+            GerritVoteAction::success => format!(" --code-review +1"),
+            GerritVoteAction::failure => format!(" --code-review -1"),
+            GerritVoteAction::clear => format!(" --code-review 0"),
+        }
+    } else {
+        format!("")
+    };
     let cmd = format!(
-        "gerrit review {},{} --code-review -1 --message \"{}\"",
+        "gerrit review {},{} {} --message \"{}\"",
         cconfig.changeset_id.unwrap(),
         cconfig.patchset_id.unwrap(),
-        msg
-    );
-    run_ssh_command(config, &cmd);
-}
-
-fn do_review_success(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, msg: &str) {
-    let cmd = format!(
-        "gerrit review {},{} --code-review +1 --message \"{}\"",
-        cconfig.changeset_id.unwrap(),
-        cconfig.patchset_id.unwrap(),
+        vote,
         msg
     );
     run_ssh_command(config, &cmd);
@@ -1199,6 +1185,7 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) 
     if let Some(st) = status {
       ret_status = st;
     }
+    println!("Exiting job '{}' with status {}", cmd, &ret_status);
     std::process::exit(ret_status);
 }
 
@@ -1270,7 +1257,6 @@ fn main() {
         LucyCiAction::ListJobs => do_list_jobs(&config, &cconfig),
         LucyCiAction::RunJob(cmd) => do_run_job(&config, &cconfig, &cmd),
         LucyCiAction::GerritCommand(cmd) => do_gerrit_command(&config, &cconfig, &cmd),
-        LucyCiAction::ReviewSuccess(cmd) => do_review_success(&config, &cconfig, &cmd),
-        LucyCiAction::ReviewFailure(cmd) => do_review_failure(&config, &cconfig, &cmd),
+        LucyCiAction::MakeReview(maybe_vote, msg) => do_review(&config, &cconfig, maybe_vote, &msg),
     }
 }
