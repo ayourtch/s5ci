@@ -840,6 +840,17 @@ fn prepare_child_command<'a>(
         .env("S5CI_JOB_NAME", &job_name)
         .env("S5CI_JOB_URL", &get_job_url(config, cconfig, &job_id))
         .env("S5CI_CONFIG", &cconfig.config_path);
+
+    // see if we can stuff the parent job variables
+    let env_pj_id = env::var("S5CI_JOB_ID");
+    let env_pj_name = env::var("S5CI_JOB_NAME");
+    let env_pj_url = env::var("S5CI_JOB_URL");
+    if env_pj_id.is_ok() && env_pj_name.is_ok() && env_pj_url.is_ok() {
+        child = child
+            .env("S5CI_PARENT_JOB_ID", env_pj_id.unwrap())
+            .env("S5CI_PARENT_JOB_NAME", env_pj_name.unwrap())
+            .env("S5CI_PARENT_JOB_URL", env_pj_url.unwrap());
+    }
     return (job_id, child0);
 }
 
