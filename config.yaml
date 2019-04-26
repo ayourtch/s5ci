@@ -37,7 +37,7 @@ triggers:
         command: scripts/run-build {{patchset.ref}} '' # {{regex.patchset}}
               # event: check_build
   retest_request:
-      regex: 'retest (?P<testname>\S+)'
+      regex: 'retest (?P<testname>\w+)'
       action:
         command: scripts/run-build {{patchset.ref}} {{regex.testname}}
   echo_comment:
@@ -45,12 +45,12 @@ triggers:
       action:
         command: scripts/run-echo {{regex.testval}}
   run_two:
-      regex: runtwo (?P<testval>.+)
+      regex: runtwo (?P<testval>\w+)
       action:
         command: scripts/run-two {{patchset.ref}} {{regex.testval}}
 
   test_comment:
-      regex: test (?P<testval>\d+)(:? (?P<secondval>.+))?
+      regex: test (?P<testval>\d+)(:? (?P<secondval>\w+))?
       action:
         event: test_command
 
