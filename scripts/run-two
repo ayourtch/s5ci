@@ -21,7 +21,7 @@ echo Starting the job ... $START_TIME
 export S5CI_CHANGE_REF=$1
 export S5CI_FILTER=$2
 
-${S5CI_EXE} review -v clear -m "Build ${S5CI_JOB_URL} is starting"
+${S5CI_EXE} review -v clear -m "job ${S5CI_JOB_URL} is starting"
 
 ${S5CI_EXE} run-job -c "scripts/run-random ${S5CI_CHANGE_REF} ${S5CI_FILTER}"
 
@@ -29,7 +29,7 @@ ${S5CI_EXE} review -m "Prerequisite job for ${S5CI_JOB_URL} passed"
 
 # we should not reach here if there was error above
 
-if parallel sh -c '${S5CI_EXE} run-job -c "scripts/${0} ${S5CI_CHANGE_REF} ${S5CI_FILTER}"' -- run-build run-test; then
+if parallel -j 2 sh -c '${S5CI_EXE} run-job -c "scripts/${0} ${S5CI_CHANGE_REF} ${S5CI_FILTER}"' -- run-test run-test run-test run-build run-test; then
   ${S5CI_EXE} review -v success -m "All jobs for ${S5CI_JOB_URL} passed"
 else
   ${S5CI_EXE} review -v failure -m "Failure in one of the jobs of ${S5CI_JOB_URL}"
