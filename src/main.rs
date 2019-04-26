@@ -843,28 +843,23 @@ fn prepare_child_command<'a>(
     return (job_id, child0);
 }
 
-fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> String {
+fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) {
     use std::env;
     use std::process::Command;
     let args: Vec<String> = env::args().collect();
+    let env_changeset_id = format!("{}", cconfig.changeset_id.unwrap());
+    let env_patchset_id = format!("{}", cconfig.patchset_id.unwrap());
     let mut child0 = Command::new(&args[0]);
     let mut child = child0
         .arg("run-job")
         .arg("-c")
         .arg(format!("{}", cmd))
-        .env("S5CI_CONFIG", &cconfig.config_path);
-
-    // let (job_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "-master");
-    let env_changeset_id = format!("{}", cconfig.changeset_id.unwrap());
-    let env_patchset_id = format!("{}", cconfig.patchset_id.unwrap());
-    let job_id = format!("foo/1");
-    let child = child
+        .env("S5CI_CONFIG", &cconfig.config_path)
         .env("S5CI_GERRIT_CHANGESET_ID", &env_changeset_id)
         .env("S5CI_GERRIT_PATCHSET_ID", &env_patchset_id);
-    println!("Spawning {:#?} -- {}", child, &job_id);
+    println!("Spawning {:#?}", child);
     let res = child.spawn().expect("failed to execute child");
-    println!("Spawned {}, pid {}", &job_id, res.id());
-    return job_id;
+    println!("Spawned pid {}", res.id());
 }
 
 fn exec_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) -> (String, Option<i32>) {
@@ -963,13 +958,6 @@ fn process_change(
                 cconfig2.changeset_id = Some(change_id);
                 cconfig2.patchset_id = Some(trig.patchset_id);
                 let job_id = spawn_command(config, &cconfig2, &expanded_command);
-                gerrit_spawn_comment_on_change(
-                    config,
-                    cconfig,
-                    change_id,
-                    trig.patchset_id,
-                    &job_id,
-                );
             }
         }
     }
