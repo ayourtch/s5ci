@@ -1,6 +1,6 @@
 table! {
-    comments (uuid) {
-        uuid -> Text,
+    comments (record_uuid) {
+        record_uuid -> Text,
         changeset_id -> Integer,
         comment_id -> Integer,
     }
@@ -14,10 +14,11 @@ table! {
 }
 
 table! {
-    jobs (uuid) {
-        uuid -> Text,
+    jobs (record_uuid) {
+        record_uuid -> Text,
         job_name -> Text,
         id -> Integer,
+        full_job_id -> Text,
         changeset_id -> Integer,
         comment_id -> Integer,
         command -> Text,

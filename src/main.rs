@@ -12,6 +12,7 @@ extern crate psutil;
 extern crate regex;
 extern crate serde_yaml;
 extern crate signal_hook;
+extern crate uuid;
 extern crate yaml_rust;
 #[macro_use]
 extern crate log;
@@ -820,7 +821,7 @@ fn prepare_child_command<'a>(
     child0: &'a mut std::process::Command,
     cmd: &str,
     suffix: &str,
-) -> (String, &'a mut std::process::Command) {
+) -> (String, i32, &'a mut std::process::Command) {
     use regex::Regex;
     use std::env;
     use std::process::Command;
@@ -865,7 +866,7 @@ fn prepare_child_command<'a>(
             .env("S5CI_PARENT_JOB_NAME", env_pj_name.unwrap())
             .env("S5CI_PARENT_JOB_URL", env_pj_url.unwrap());
     }
-    return (job_id, child0);
+    return (cmd_file, job_nr, child0);
 }
 
 fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) {
@@ -920,8 +921,7 @@ fn db_get_next_counter_value_with_min(a_name: &str, a_min: i32) -> Result<i32, S
                     };
                     diesel::insert_into(counters::table)
                         .values(&new_counter)
-                        .execute(conn)
-                        .expect(&format!("Error inserting new counter {}", a_name));
+                        .execute(conn);
                     Ok(curr_value)
                 }
                 1 => {
@@ -967,9 +967,40 @@ fn exec_command(
     cmd: &str,
 ) -> (String, Option<i32>) {
     use std::process::Command;
+    use uuid::Uuid;
+
+    let env_changeset_id = cconfig.changeset_id.unwrap() as i32;
+    let env_patchset_id = cconfig.patchset_id.unwrap() as i32;
     let mut child0 = Command::new("/bin/sh");
     let mut child = child0.arg("-c");
-    let (job_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "");
+    let (job_name, job_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "");
+    let a_full_job_id = format!("{}/{}", &job_name, job_id);
+
+    let my_uuid = Uuid::new_v4().to_simple().to_string();
+
+    let mut new_job = models::job {
+        record_uuid: my_uuid.clone(),
+        job_name: job_name,
+        id: job_id,
+        full_job_id: a_full_job_id.clone(),
+        changeset_id: env_changeset_id,
+        comment_id: env_patchset_id,
+        command: format!("{}", cmd),
+        started_at: Some(now_naive_date_time()),
+        finished_at: None,
+        return_code: None,
+    };
+    let db = get_db();
+    {
+        use diesel::query_dsl::RunQueryDsl;
+        use schema::jobs;
+        use schema::jobs::dsl::*;
+
+        diesel::insert_into(jobs::table)
+            .values(&new_job)
+            .execute(db.conn())
+            .expect(&format!("Error inserting new job {}", &a_full_job_id));
+    }
     println!("Executing {}", &job_id);
     setsid();
     let status = child.status().expect("failed to execute process");
@@ -977,7 +1008,21 @@ fn exec_command(
         Some(code) => println!("Finished {} with status code {}", &job_id, code),
         None => println!("Finished {} due to signal", &job_id),
     }
-    return (job_id, status.code());
+    {
+        use diesel::expression_methods::*;
+        use diesel::query_dsl::QueryDsl;
+        use diesel::query_dsl::RunQueryDsl;
+        use schema::jobs;
+        use schema::jobs::dsl::*;
+
+        let some_ndt_now = Some(now_naive_date_time());
+
+        let updated_rows = diesel::update(jobs.filter(record_uuid.eq(&my_uuid)))
+            .set((finished_at.eq(some_ndt_now), return_code.eq(status.code())))
+            .execute(db.conn())
+            .unwrap();
+    }
+    return (a_full_job_id, status.code());
 }
 
 fn process_change(
@@ -1112,13 +1157,31 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         )
         .subcommand(SubCommand::with_name("list-jobs").about("list jobs"))
         .subcommand(
-            SubCommand::with_name("run-job").about("run a job").arg(
-                Arg::with_name("command")
-                    .short("c")
-                    .help("command to run")
-                    .required(true)
-                    .takes_value(true),
-            ),
+            SubCommand::with_name("run-job")
+                .about("run a job")
+                .arg(
+                    Arg::with_name("command")
+                        .short("c")
+                        .help("command to run")
+                        .required(true)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("changeset-id")
+                        .short("s")
+                        .help("changeset ID")
+                        .required(true)
+                        .env("S5CI_GERRIT_CHANGESET_ID")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("patchset-id")
+                        .short("p")
+                        .help("patchset ID")
+                        .required(true)
+                        .env("S5CI_GERRIT_PATCHSET_ID")
+                        .takes_value(true),
+                ),
         )
         .subcommand(
             SubCommand::with_name("gerrit-command")
@@ -1143,7 +1206,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                 )
                 .arg(
                     Arg::with_name("changeset-id")
-                        .short("c")
+                        .short("s")
                         .help("changeset ID")
                         .required(true)
                         .env("S5CI_GERRIT_CHANGESET_ID")
@@ -1189,6 +1252,22 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     if let Some(matches) = matches.subcommand_matches("run-job") {
         let cmd = matches.value_of("command").unwrap().to_string();
         action = LucyCiAction::RunJob(cmd);
+        patchset_id = Some(
+            matches
+                .value_of("patchset-id")
+                .unwrap()
+                .to_string()
+                .parse::<u32>()
+                .unwrap(),
+        );
+        changeset_id = Some(
+            matches
+                .value_of("changeset-id")
+                .unwrap()
+                .to_string()
+                .parse::<u32>()
+                .unwrap(),
+        );
     }
     if let Some(matches) = matches.subcommand_matches("list-jobs") {
         action = LucyCiAction::ListJobs;
@@ -1268,6 +1347,13 @@ fn do_review(
 fn do_list_jobs(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     let jobs = db_get_all_jobs();
     for j in jobs {
+        if j.finished_at.is_some() {
+            // show jobs finished up to 10 seconds ago
+            let ndt_horizon = ndt_add_seconds(now_naive_date_time(), -10);
+            if j.finished_at.clone().unwrap() < ndt_horizon {
+                continue;
+            }
+        }
         println!("{:#?}", &j);
     }
 }

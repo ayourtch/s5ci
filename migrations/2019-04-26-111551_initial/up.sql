@@ -2,15 +2,16 @@
 
 
 CREATE TABLE comments (
-	uuid VARCHAR(32) NOT NULL PRIMARY KEY,
+	record_uuid VARCHAR(32) NOT NULL PRIMARY KEY,
 	changeset_id INT NOT NULL,
 	comment_id INT NOT NULL
 );
 
 CREATE TABLE jobs (
-	uuid VARCHAR(32) NOT NULL PRIMARY KEY,
+	record_uuid VARCHAR(32) NOT NULL PRIMARY KEY,
 	job_name VARCHAR NOT NULL,
 	id INT NOT NULL,
+	full_job_id VARCHAR NOT NULL,
 	changeset_id INT NOT NULL,
 	comment_id INT NOT NULL,
 	command VARCHAR NOT NULL,
