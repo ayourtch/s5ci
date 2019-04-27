@@ -1048,6 +1048,14 @@ fn finished_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &
     regenerate_html(config, cconfig, job_id, true, true);
 }
 
+fn regenerate_all_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
+    let jobs = db_get_all_jobs();
+    for j in jobs {
+        println!("Regenerate HTML for {}", &j.job_id);
+        regenerate_html(config, cconfig, &j.job_id, false, false);
+    }
+}
+
 fn exec_command(
     config: &LucyCiConfig,
     cconfig: &LucyCiCompiledConfig,
@@ -1514,6 +1522,7 @@ fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     use std::fs;
     let argv_real: Vec<String> = env::args().collect();
     println!("Starting loop at {}", now_naive_date_time());
+    regenerate_all_html(&config, &cconfig);
 
     let sync_horizon_sec: u32 = config
         .server
@@ -1595,6 +1604,8 @@ fn main() {
     env_logger::init();
     let (config, cconfig) = get_configs();
     use LucyCiAction;
+    maybe_compile_template(&config, "job_page").unwrap();
+    maybe_compile_template(&config, "root_job_page").unwrap();
 
     match &cconfig.action {
         LucyCiAction::Loop => do_loop(&config, &cconfig),
