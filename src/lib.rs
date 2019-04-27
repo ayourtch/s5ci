@@ -184,6 +184,7 @@ pub fn db_get_child_jobs(a_parent_job_id: &str) -> Vec<models::job> {
     let db = get_db();
     let results = jobs
         .filter(parent_job_id.eq(a_parent_job_id))
+        .order(started_at.desc())
         .load::<models::job>(db.conn())
         .expect("Error loading jobs");
     results
@@ -194,6 +195,7 @@ pub fn db_get_jobs_by_group_name(a_name: &str) -> Vec<models::job> {
     let db = get_db();
     let results = jobs
         .filter(job_group_name.eq(a_name))
+        .order(job_id.desc())
         .load::<models::job>(db.conn())
         .expect("Error loading jobs");
     results
@@ -204,6 +206,7 @@ pub fn db_get_root_jobs() -> Vec<models::job> {
     let db = get_db();
     let results = jobs
         .filter(parent_job_id.is_null())
+        .order(started_at.desc())
         .load::<models::job>(db.conn())
         .expect("Error loading jobs");
     results
