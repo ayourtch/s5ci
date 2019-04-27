@@ -1,0 +1,23 @@
+
+html {
+	  position: relative;
+	    min-height: 100%;
+    }
+
+    body {
+	      margin: 0;
+	        padding: 0 0 40px 0;
+	}
+
+	/* --------------- header --------------- */
+
+	#header {
+		  background-color: #000000;
+		    height: 40px;
+	    }
+
+	    #header div {
+		      display: inline-block;
+		        height: inherit;
+		}
+

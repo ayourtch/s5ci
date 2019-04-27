@@ -1,18 +1,31 @@
-<a href="/jobs/{{{job_id}}}/">{{job_id}}</a> - {{#status_updated_at}}{{status_updated_at}}: {{status_message}}{{/status_updated_at}}
-<br/>
-{{command}}
-<br/>
-{{started_at}} - {{finished_at}} - {{return_code}} - 
+<tr>
+<td>
 {{#finished_at}}
    <a href="/jobs/{{{job_id}}}/console.txt">
    {{#return_success}}<img src="/html/images/16x16/blue.png"/>{{/return_success}}
    {{^return_success}}<a href="/jobs/{{{job_id}}}/console.txt"><img src="/html/images/16x16/red.png"/>{{/return_success}}</a>
 {{/finished_at}}
 {{^finished_at}}<img src="/html/images/16x16/blue_anime.gif"/>{{/finished_at}}
+</td>
 
+<td>
+<a href="/jobs/{{{job_id}}}/">{{job_id}}</a>
+</td>
+
+ <td>
+{{#status_updated_at}}{{status_updated_at}}: {{status_message}}{{/status_updated_at}}
+</td>
+<!--
+<td>
+{{started_at}} - {{finished_at}} - {{return_code}} - 
+</td>
+-->
+
+<td>
 {{#parent_job_id}}
 [ parent <a href="/jobs/{{{parent_job_id}}}/">{{parent_job_id}}</a> ]
 {{/parent_job_id}}
+</td>
 
-[ group: <a href="/jobs/{{{job_group_name}}}/">{{job_group_name}}</a> ]
+</tr>
 

@@ -1,27 +1,104 @@
 {{> header}}
-Job page
-<p>
-ID: {{job.job_id}}
+<script src="/html/js/console.js"></script>
+<script>
+function document_on_load() {
+  start_console("/jobs/{{job.job_id}}/console.txt", "console_output");
+{{#job.finished_at}}
+  if (reload_timeout) {
+    window.clearTimeout(reload_timeout);
+    reload_timeout = false;
+  }
+{{/job.finished_at}}
+}
 
-<a href="console.txt">console output</a>
+</script>
+{{> layout_header}}
+
+    <div id="menu">
+        <div class="pure-menu">
+            <a class="pure-menu-heading" href="#">S5CI</a>
+
+            <ul class="pure-menu-list">
+
+                <li class="pure-menu-item menu-item-divided small-font">
+                    <a href="/jobs/" class="pure-menu-link">Root jobs</a>
+                </li>
+	    {{#parent_job}}
+                <li class="pure-menu-item menu-item-divided small-font">
+                    <a href="/jobs/{{{job_id}}}" class="pure-menu-link">parent {{>part_ball_nolink}} {{job_group_name}}/{{instance_id}}</a>
+		</li>
+	    {{/parent_job}}
+                <li class="pure-menu-item menu-item-divided small-font">
+                    <a href="/jobs/{{{job.job_group_name}}}" class="pure-menu-link">all {{job.job_group_name}}</a>
+		</li>
+                <li class="pure-menu-item menu-item-divided small-font pure-menu-selected">
+                    <div class="pure-menu-link">{{#job}}{{>part_ball_nolink}}{{job_id}}{{/job}} children</div>
+		</li>
+
+{{#child_jobs}}
+                <li class="pure-menu-item small-font">
+<a href="/jobs/{{{job_id}}}/" class="pure-menu-link">
+{{>part_ball_nolink}}
+{{job_group_name}}/{{instance_id}}
+</a>
+
+		</li>
+{{/child_jobs}}
+
+            </ul>
+        </div>
+    </div>
+   <div id="main">
+        <div class="header">
+            <h1>Job {{job.job_id}}</h1>
+        </div>
+
+        <div class="content">
 
 {{#job}}
-{{>one_job}}
+
+<a class="pure-button" href="/html/monitor.html?/jobs/{{{job.job_id}}}/console.txt">monitor console output</a>
+| <a class="pure-button" href="console.txt">static console output</a>
+
+<div id="console_output" class="row content smaller-font" style="white-space: pre; flex: 1 1 auto; overflow-y: scroll; overflow-x: scroll; font-family: Courier; font-size: 10px; line-height: 1.2em; width:100%; height: 400px; border:2px dotted grey; color: black; display: block; background:#c0e0c0;">
+for console output
+</div>
+
+<h2 class="content-subhead">job info</h2>
+
+<table class="pure-table">
+<tr>
+<th>command</th>
+<td>{{command}}</td>
+</tr>
+
+{{#status_updated_at}}
+<tr>
+<th>status_updated_at</th>
+<td>{{status_updated_at}}</td>
+</tr>
+<tr>
+<th>status_message</th>
+<td>{{status_message}}</td>
+</tr>
+{{/status_updated_at}}
+
+
+<tr> <th>started_at</th> <td>{{started_at}}</td></tr>
+<tr> <th>finished_at</th> <td>{{finished_at}}</td></tr>
+<tr> <th>return_code</th> <td>{{return_code}}</td></tr>
+<tr> <th>changeset_id</th> <td>{{changeset_id}}</td></tr>
+<tr> <th>patchset_id</th> <td>{{patchset_id}}</td></tr>
+</table>
+
+
 {{/job}}
-</p>
-<p>
-parent: {{parent_job.job_id}}
-{{#parent_job}}
-{{>one_job}}
-{{/parent_job}}
+
 </p>
 
-child jobs:
-<ul>
-{{#child_jobs}}
-<li>
-{{>one_job}}
-</li>
-{{/child_jobs}}
-</ul>
+        </div>
+    </div>
+
+
+{{> layout_footer}}
 {{> footer}}
