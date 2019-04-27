@@ -354,6 +354,12 @@ fn run_ssh_command(config: &LucyCiConfig, cmd: &str) -> Result<String, LucySshEr
 fn get_job_url(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) -> String {
     format!("{}/{}/", config.jobs.root_url, job_id)
 }
+fn get_job_name(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) -> String {
+    let re = Regex::new(r"[^A-Za-z0-9_]").unwrap();
+
+    let job_name = re.replace_all(&format!("{}", job_id), "_").to_string();
+    job_name
+}
 
 fn gerrit_spawn_comment_on_change(
     config: &LucyCiConfig,
@@ -833,9 +839,6 @@ fn prepare_child_command<'a>(
     let cmd_file = basename_from_cmd(cmd);
     let job_nr = get_next_job_number(config, &cmd_file);
     let job_id = format!("{}/{}", cmd_file, job_nr);
-    let job_name = re
-        .replace_all(&format!("{}_{}", cmd_file, job_nr), "_")
-        .to_string();
     let log_fname = format!("{}/{}/console{}.txt", config.jobs.rootdir, job_id, suffix);
     println!("LOG file: {}", &log_fname);
     let log_file = open_log_file(&log_fname).unwrap();
@@ -852,7 +855,7 @@ fn prepare_child_command<'a>(
         .env("RUST_BACKTRACE", "1")
         .env("S5CI_EXE", &format!("{}", args[0]))
         .env("S5CI_JOB_ID", &job_id)
-        .env("S5CI_JOB_NAME", &job_name)
+        .env("S5CI_JOB_NAME", &get_job_name(config, cconfig, &job_id))
         .env("S5CI_JOB_URL", &get_job_url(config, cconfig, &job_id))
         .env("S5CI_CONFIG", &cconfig.config_path);
 
