@@ -966,15 +966,16 @@ fn exec_command(
     cconfig: &LucyCiCompiledConfig,
     cmd: &str,
 ) -> (String, Option<i32>) {
-    use std::process::Command;
     use std::env;
+    use std::process::Command;
     use uuid::Uuid;
 
     let env_changeset_id = cconfig.changeset_id.unwrap() as i32;
     let env_patchset_id = cconfig.patchset_id.unwrap() as i32;
     let mut child0 = Command::new("/bin/sh");
     let mut child = child0.arg("-c");
-    let (a_job_group_name, a_instance_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "");
+    let (a_job_group_name, a_instance_id, mut child) =
+        prepare_child_command(config, cconfig, child, cmd, "");
     let a_full_job_id = format!("{}/{}", &a_job_group_name, a_instance_id);
 
     let my_uuid = Uuid::new_v4().to_simple().to_string();
