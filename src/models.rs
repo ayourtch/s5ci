@@ -29,9 +29,10 @@ pub struct counter {
 #[table_name = "jobs"]
 pub struct job {
     pub record_uuid: String,
-    pub job_name: String,
-    pub id: i32,
-    pub full_job_id: String,
+    pub job_group_name: String,
+    pub instance_id: i32,
+    pub job_id: String,
+    pub parent_job_id: Option<String>,
     pub changeset_id: i32,
     pub comment_id: i32,
     pub command: String,

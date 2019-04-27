@@ -16,9 +16,10 @@ table! {
 table! {
     jobs (record_uuid) {
         record_uuid -> Text,
-        job_name -> Text,
-        id -> Integer,
-        full_job_id -> Text,
+        job_group_name -> Text,
+        instance_id -> Integer,
+        job_id -> Text,
+        parent_job_id -> Nullable<Text>,
         changeset_id -> Integer,
         comment_id -> Integer,
         command -> Text,

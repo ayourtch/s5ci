@@ -967,22 +967,26 @@ fn exec_command(
     cmd: &str,
 ) -> (String, Option<i32>) {
     use std::process::Command;
+    use std::env;
     use uuid::Uuid;
 
     let env_changeset_id = cconfig.changeset_id.unwrap() as i32;
     let env_patchset_id = cconfig.patchset_id.unwrap() as i32;
     let mut child0 = Command::new("/bin/sh");
     let mut child = child0.arg("-c");
-    let (job_name, job_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "");
-    let a_full_job_id = format!("{}/{}", &job_name, job_id);
+    let (a_job_group_name, a_instance_id, mut child) = prepare_child_command(config, cconfig, child, cmd, "");
+    let a_full_job_id = format!("{}/{}", &a_job_group_name, a_instance_id);
 
     let my_uuid = Uuid::new_v4().to_simple().to_string();
+    /* in our environment the job ID, if set, is set by parent */
+    let env_pj_id = env::var("S5CI_JOB_ID").ok();
 
     let mut new_job = models::job {
         record_uuid: my_uuid.clone(),
-        job_name: job_name,
-        id: job_id,
-        full_job_id: a_full_job_id.clone(),
+        job_group_name: a_job_group_name,
+        instance_id: a_instance_id,
+        job_id: a_full_job_id.clone(),
+        parent_job_id: env_pj_id.clone(),
         changeset_id: env_changeset_id,
         comment_id: env_patchset_id,
         command: format!("{}", cmd),
@@ -1002,12 +1006,12 @@ fn exec_command(
             .execute(db.conn())
             .expect(&format!("Error inserting new job {}", &a_full_job_id));
     }
-    println!("Executing {}", &job_id);
+    println!("Executing {}", &a_full_job_id);
     setsid();
     let status = child.status().expect("failed to execute process");
     match status.code() {
-        Some(code) => println!("Finished {} with status code {}", &job_id, code),
-        None => println!("Finished {} due to signal", &job_id),
+        Some(code) => println!("Finished {} with status code {}", &a_full_job_id, code),
+        None => println!("Finished {} due to signal", &a_full_job_id),
     }
     {
         use diesel::expression_methods::*;
