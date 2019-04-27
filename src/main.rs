@@ -634,6 +634,7 @@ struct CommentTriggerRegex {
 enum LucyCiAction {
     Loop,
     ListJobs,
+    SetStatus(String, String),
     RunJob(String),
     GerritCommand(String),
     MakeReview(Option<GerritVoteAction>, String),
@@ -1121,6 +1122,8 @@ fn exec_command(
         changeset_id: env_changeset_id,
         comment_id: env_patchset_id,
         command: format!("{}", cmd),
+        status_message: format!(""),
+        status_updated_at: None,
         remote_host: None,
         started_at: Some(now_naive_date_time()),
         finished_at: None,
@@ -1339,6 +1342,25 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                 ),
         )
         .subcommand(
+            SubCommand::with_name("set-status")
+                .about("set the job status to message")
+                .arg(
+                    Arg::with_name("message")
+                        .short("m")
+                        .help("message to add in a review")
+                        .required(true)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("job-id")
+                        .short("j")
+                        .help("job ID (group_name/number)")
+                        .required(true)
+                        .env("S5CI_JOB_ID")
+                        .takes_value(true),
+                ),
+        )
+        .subcommand(
             SubCommand::with_name("review")
                 .about("review with comment and maybe vote")
                 .arg(
@@ -1415,6 +1437,11 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     }
     if let Some(matches) = matches.subcommand_matches("list-jobs") {
         action = LucyCiAction::ListJobs;
+    }
+    if let Some(matches) = matches.subcommand_matches("set-status") {
+        let msg = matches.value_of("message").unwrap().to_string();
+        let job_id = matches.value_of("job-id").unwrap().to_string();
+        action = LucyCiAction::SetStatus(job_id, msg);
     }
     if let Some(matches) = matches.subcommand_matches("review") {
         let msg = matches.value_of("message").unwrap().to_string();
@@ -1520,6 +1547,39 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) 
     }
     println!("Exiting job '{}' with status {}", cmd, &ret_status);
     std::process::exit(ret_status);
+}
+
+fn do_set_job_status(
+    config: &LucyCiConfig,
+    cconfig: &LucyCiCompiledConfig,
+    a_job_id: &str,
+    a_msg: &str,
+) {
+    let j = db_get_job(a_job_id);
+    if j.is_err() {
+        error!("Could not find job {}", a_job_id);
+        return;
+    }
+    let j = j.unwrap();
+
+    {
+        use diesel::expression_methods::*;
+        use diesel::query_dsl::QueryDsl;
+        use diesel::query_dsl::RunQueryDsl;
+        use schema::jobs;
+        use schema::jobs::dsl::*;
+
+        let some_ndt_now = Some(now_naive_date_time());
+        let db = get_db();
+
+        let updated_rows = diesel::update(jobs.filter(job_id.eq(&a_job_id)))
+            .set((
+                status_message.eq(a_msg.to_string()),
+                status_updated_at.eq(some_ndt_now),
+            ))
+            .execute(db.conn())
+            .unwrap();
+    }
 }
 
 fn restart_ourselves() {
@@ -1647,6 +1707,7 @@ fn main() {
         LucyCiAction::Loop => do_loop(&config, &cconfig),
         LucyCiAction::ListJobs => do_list_jobs(&config, &cconfig),
         LucyCiAction::RunJob(cmd) => do_run_job(&config, &cconfig, &cmd),
+        LucyCiAction::SetStatus(job_id, msg) => do_set_job_status(&config, &cconfig, &job_id, &msg),
         LucyCiAction::GerritCommand(cmd) => do_gerrit_command(&config, &cconfig, &cmd),
         LucyCiAction::MakeReview(maybe_vote, msg) => do_review(&config, &cconfig, maybe_vote, &msg),
     }

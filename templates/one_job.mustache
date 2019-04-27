@@ -1,4 +1,8 @@
-<a href="/jobs/{{{job_id}}}/">{{job_id}}</a> - {{started_at}} - {{finished_at}} - {{return_code}} - 
+<a href="/jobs/{{{job_id}}}/">{{job_id}}</a> - {{#status_updated_at}}{{status_updated_at}}: {{status_message}}{{/status_updated_at}}
+<br/>
+{{command}}
+<br/>
+{{started_at}} - {{finished_at}} - {{return_code}} - 
 {{#finished_at}}
    {{#return_success}}OK{{/return_success}}
    {{^return_success}}FAIL{{/return_success}}

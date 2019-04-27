@@ -10,6 +10,7 @@ echo Exiting with code $RET for ${DIGIT}
 
 if [ ${RET} != 0 ]; then
   ${S5CI_EXE} review -v failure  -m "Build ${S5CI_JOB_URL} failed"
+  ${S5CI_EXE} set-status -m "Got an odd number ${DIGIT} so fail"
 fi
 
 exit ${RET}

@@ -17,6 +17,8 @@ CREATE TABLE jobs (
 	comment_id INT NOT NULL,
 	command VARCHAR NOT NULL,
 	remote_host VARCHAR,
+	status_message VARCHAR NOT NULL,
+	status_updated_at datetime,
 	started_at datetime,
 	finished_at datetime,
 	return_success BOOLEAN NOT NULL,

@@ -24,6 +24,8 @@ table! {
         comment_id -> Integer,
         command -> Text,
         remote_host -> Nullable<Text>,
+        status_message -> Text,
+        status_updated_at -> Nullable<Timestamp>,
         started_at -> Nullable<Timestamp>,
         finished_at -> Nullable<Timestamp>,
         return_success -> Bool,
