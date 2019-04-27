@@ -38,6 +38,8 @@ regen-db:
 	diesel migration redo --database-url db/s5ci.sqlite3
 	rustfmt src/schema.rs
 	./dev-scripts/print-model >src/models.rs
+rustfmt:
+	find src -name '*.rs' -exec rustfmt {} \;
 
 build:
 	cargo build
