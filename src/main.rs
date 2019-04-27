@@ -972,6 +972,82 @@ fn db_get_next_counter_value_with_min(a_name: &str, a_min: i32) -> Result<i32, S
     result
 }
 
+use mustache::{MapBuilder, Template};
+
+fn maybe_compile_template(config: &LucyCiConfig, name: &str) -> Result<Template, mustache::Error> {
+    let res = mustache::compile_path(format!("./templates/{}.mustache", name));
+    if res.is_err() {
+        error!("Could not compile template {}: {:#?}", name, &res);
+    }
+    res
+}
+
+fn fill_and_write_template(
+    template: Template,
+    data: MapBuilder,
+    fname: &str,
+) -> std::io::Result<()> {
+    let mut bytes = vec![];
+    let data_built = data.build();
+    template
+        .render_data(&mut bytes, &data_built)
+        .expect("Failed to render");
+    let payload = std::str::from_utf8(&bytes).unwrap();
+    let res = fs::write(&fname, payload);
+    res
+}
+
+fn regenerate_html(
+    config: &LucyCiConfig,
+    cconfig: &LucyCiCompiledConfig,
+    job_id: &str,
+    update_parent: bool,
+    update_children: bool,
+) {
+    use mustache::{Data, MapBuilder};
+    let j = db_get_job(job_id).expect(&format!("Could not get job id {} from db", job_id));
+    let template = maybe_compile_template(config, "job_page").unwrap();
+    let mut data = MapBuilder::new();
+
+    data = data.insert("job", &j).unwrap();
+    if let Some(pjob_id) = &j.parent_job_id {
+        let pj = db_get_job(pjob_id).expect(&format!("Could not get job id {} from db", pjob_id));
+        data = data.insert("parent_job", &pj).unwrap();
+    }
+    let cjs = db_get_child_jobs(job_id);
+    data = data.insert("child_jobs", &cjs).unwrap();
+
+    let fname = format!("{}/{}/page.html", &config.jobs.rootdir, job_id);
+    fill_and_write_template(template, data, &fname).unwrap();
+
+    if update_children {
+        for cj in cjs {
+            regenerate_html(config, cconfig, &cj.job_id, false, false);
+        }
+    }
+
+    if update_parent {
+        if let Some(pjob_id) = &j.parent_job_id {
+            regenerate_html(config, cconfig, pjob_id, false, false);
+        } else {
+            let template = maybe_compile_template(config, "root_job_page").unwrap();
+            let mut data = MapBuilder::new();
+            let rjs = db_get_root_jobs();
+            data = data.insert("child_jobs", &rjs).unwrap();
+            let fname = format!("{}/page.html", &config.jobs.rootdir);
+            fill_and_write_template(template, data, &fname).unwrap();
+        }
+    }
+}
+
+fn starting_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) {
+    regenerate_html(config, cconfig, job_id, true, true);
+}
+
+fn finished_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) {
+    regenerate_html(config, cconfig, job_id, true, true);
+}
+
 fn exec_command(
     config: &LucyCiConfig,
     cconfig: &LucyCiCompiledConfig,
@@ -1005,6 +1081,7 @@ fn exec_command(
         remote_host: None,
         started_at: Some(now_naive_date_time()),
         finished_at: None,
+        return_success: false,
         return_code: None,
     };
     let db = get_db();
@@ -1020,6 +1097,7 @@ fn exec_command(
     }
     println!("Executing {}", &a_full_job_id);
     setsid();
+    starting_job(config, cconfig, &a_full_job_id);
     let status = child.status().expect("failed to execute process");
     match status.code() {
         Some(code) => println!("Finished {} with status code {}", &a_full_job_id, code),
@@ -1033,12 +1111,14 @@ fn exec_command(
         use schema::jobs::dsl::*;
 
         let some_ndt_now = Some(now_naive_date_time());
+        let a_status_success = (status.code().unwrap_or(4242) == 0);
 
         let updated_rows = diesel::update(jobs.filter(record_uuid.eq(&my_uuid)))
-            .set((finished_at.eq(some_ndt_now), return_code.eq(status.code())))
+            .set((finished_at.eq(some_ndt_now), return_success.eq(a_status_success), return_code.eq(status.code())))
             .execute(db.conn())
             .unwrap();
     }
+    finished_job(config, cconfig, &a_full_job_id);
     return (a_full_job_id, status.code());
 }
 

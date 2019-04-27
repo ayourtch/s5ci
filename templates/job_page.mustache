@@ -1,0 +1,24 @@
+{{> header}}
+Job page
+<p>
+ID: {{job.job_id}}
+{{#job}}
+{{>one_job}}
+{{/job}}
+</p>
+<p>
+parent: {{parent_job.job_id}}
+{{#parent_job}}
+{{>one_job}}
+{{/parent_job}}
+</p>
+
+child jobs:
+<ul>
+{{#child_jobs}}
+<li>
+{{>one_job}}
+</li>
+{{/child_jobs}}
+</ul>
+{{> footer}}

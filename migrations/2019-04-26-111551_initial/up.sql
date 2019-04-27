@@ -19,6 +19,7 @@ CREATE TABLE jobs (
 	remote_host VARCHAR,
 	started_at datetime,
 	finished_at datetime,
+	return_success BOOLEAN NOT NULL,
 	return_code INT
 );
 

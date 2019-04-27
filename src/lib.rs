@@ -131,10 +131,69 @@ pub fn flush_stdout() {
     std::io::stdout().flush().unwrap();
 }
 
+macro_rules! define_db_get_even_deleted {
+    ( $fnname: ident, $typ: ty, $types: ident, $idfield: ident, $idtype: ty) => {
+        pub fn $fnname(item_id: $idtype) -> Result<$typ, String> {
+            use schema::$types::dsl::*;
+            let db = get_db();
+            let res = $types
+                .filter($idfield.eq(item_id))
+                .limit(2)
+                .load::<$typ>(db.conn())
+                .expect(&format!("Error loading {}", stringify!($types)));
+            let thing = format!(
+                "{} with {} == {}",
+                stringify!($typ),
+                stringify!($idfield),
+                &item_id
+            );
+            match res.len() {
+                1 => Ok(res[0].clone()),
+                x => {
+                    let thing = format!(
+                        "{} with {} == {}",
+                        stringify!($typ),
+                        stringify!($idfield),
+                        &item_id
+                    );
+                    let msg = if x == 0 {
+                        format!("{} not found even deleted", &thing)
+                    } else {
+                        format!("more than one {} even deleted", &thing)
+                    };
+                    Err(msg)
+                }
+            }
+        }
+    };
+}
+
+define_db_get_even_deleted!(db_get_job, models::job, jobs, job_id, &str);
+
 pub fn db_get_all_jobs() -> Vec<models::job> {
     use schema::jobs::dsl::*;
     let db = get_db();
     let results = jobs
+        .load::<models::job>(db.conn())
+        .expect("Error loading jobs");
+    results
+}
+
+pub fn db_get_child_jobs(a_parent_job_id: &str) -> Vec<models::job> {
+    use schema::jobs::dsl::*;
+    let db = get_db();
+    let results = jobs
+        .filter(parent_job_id.eq(a_parent_job_id))
+        .load::<models::job>(db.conn())
+        .expect("Error loading jobs");
+    results
+}
+
+pub fn db_get_root_jobs() -> Vec<models::job> {
+    use schema::jobs::dsl::*;
+    let db = get_db();
+    let results = jobs
+        .filter(parent_job_id.is_null())
         .load::<models::job>(db.conn())
         .expect("Error loading jobs");
     results

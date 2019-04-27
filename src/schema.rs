@@ -26,6 +26,7 @@ table! {
         remote_host -> Nullable<Text>,
         started_at -> Nullable<Timestamp>,
         finished_at -> Nullable<Timestamp>,
+        return_success -> Bool,
         return_code -> Nullable<Integer>,
     }
 }
