@@ -21,7 +21,7 @@ table! {
         job_id -> Text,
         parent_job_id -> Nullable<Text>,
         changeset_id -> Integer,
-        comment_id -> Integer,
+        patchset_id -> Integer,
         command -> Text,
         remote_host -> Nullable<Text>,
         status_message -> Text,

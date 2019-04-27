@@ -1120,7 +1120,7 @@ fn exec_command(
         job_id: a_full_job_id.clone(),
         parent_job_id: env_pj_id.clone(),
         changeset_id: env_changeset_id,
-        comment_id: env_patchset_id,
+        patchset_id: env_patchset_id,
         command: format!("{}", cmd),
         status_message: format!(""),
         status_updated_at: None,

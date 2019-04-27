@@ -34,7 +34,7 @@ pub struct job {
     pub job_id: String,
     pub parent_job_id: Option<String>,
     pub changeset_id: i32,
-    pub comment_id: i32,
+    pub patchset_id: i32,
     pub command: String,
     pub remote_host: Option<String>,
     pub status_message: String,

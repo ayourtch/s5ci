@@ -14,7 +14,7 @@ CREATE TABLE jobs (
 	job_id VARCHAR NOT NULL,
 	parent_job_id VARCHAR,
 	changeset_id INT NOT NULL,
-	comment_id INT NOT NULL,
+	patchset_id INT NOT NULL,
 	command VARCHAR NOT NULL,
 	remote_host VARCHAR,
 	status_message VARCHAR NOT NULL,
