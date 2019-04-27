@@ -1114,7 +1114,11 @@ fn exec_command(
         let a_status_success = (status.code().unwrap_or(4242) == 0);
 
         let updated_rows = diesel::update(jobs.filter(record_uuid.eq(&my_uuid)))
-            .set((finished_at.eq(some_ndt_now), return_success.eq(a_status_success), return_code.eq(status.code())))
+            .set((
+                finished_at.eq(some_ndt_now),
+                return_success.eq(a_status_success),
+                return_code.eq(status.code()),
+            ))
             .execute(db.conn())
             .unwrap();
     }
