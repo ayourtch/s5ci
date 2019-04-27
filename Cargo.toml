@@ -30,4 +30,5 @@ log = "*"
 env_logger = "*"
 signal-hook = "*"
 uuid = { version = "0.7", features = ["serde", "v4"] }
+exec = "*"
 

@@ -7,6 +7,7 @@ use std::path::Path;
 
 #[macro_use]
 extern crate clap;
+extern crate exec;
 extern crate libc;
 extern crate psutil;
 extern crate regex;
@@ -234,6 +235,12 @@ struct LucyCiJobs {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+struct LucyAutorestartConfig {
+    on_config_change: bool,
+    on_exe_change: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct LucyCiConfig {
     default_auth: LucySshAuth,
     server: LucyCiPollGerrit,
@@ -243,6 +250,7 @@ struct LucyCiConfig {
     triggers: Option<HashMap<String, LucyGerritTrigger>>,
     patchset_extract_regex: String,
     hostname: String,
+    autorestart: LucyAutorestartConfig,
     db_url: String,
     bid_regex: String,
     bid_template: String,
@@ -1387,7 +1395,42 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) 
     std::process::exit(ret_status);
 }
 
+fn restart_ourselves() {
+    use std::env;
+    use std::process;
+    let argv_real: Vec<String> = env::args().collect();
+    let err = exec::Command::new(&argv_real[0])
+        .args(&argv_real[1..])
+        .exec();
+    // normally not reached
+    println!("Error: {}", err);
+    process::exit(1);
+}
+
+fn get_mtime(fname: &str) -> Option<std::time::SystemTime> {
+    let mtime = fs::metadata(fname).ok().map(|x| x.modified().unwrap());
+    mtime
+}
+
+fn file_changed_since(fname: &str, since: Option<std::time::SystemTime>) -> bool {
+    use std::time::{Duration, SystemTime};
+    let new_mtime = get_mtime(fname);
+    let few_seconds = Duration::from_secs(10);
+    if let (Some(old_t), Some(new_t)) = (since, new_mtime) {
+        if new_t.duration_since(old_t).unwrap_or(few_seconds) > few_seconds {
+            return true;
+        }
+    }
+    // be conservative if we didn't have either of mtimes
+    return false;
+}
+
 fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
+    use std::env;
+    use std::fs;
+    let argv_real: Vec<String> = env::args().collect();
+    println!("Starting loop at {}", now_naive_date_time());
+
     let sync_horizon_sec: u32 = config
         .server
         .sync_horizon_sec
@@ -1399,7 +1442,27 @@ fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
         0,
     ));
 
+    let config_mtime = get_mtime(&cconfig.config_path);
+    let exe_mtime = get_mtime(&argv_real[0]);
+
     loop {
+        if config.autorestart.on_config_change
+            && file_changed_since(&cconfig.config_path, config_mtime)
+        {
+            println!(
+                "Config changed, attempt restart at {}...",
+                now_naive_date_time()
+            );
+            restart_ourselves();
+        }
+        if config.autorestart.on_exe_change && file_changed_since(&argv_real[0], exe_mtime) {
+            println!(
+                "Executable changed, attempt restart at {}... ",
+                now_naive_date_time()
+            );
+            restart_ourselves();
+        }
+
         // println!("{:?}", ndt);
         let res_res = do_ssh(&config, &cconfig, before, after);
         let mut abort_sync = false;

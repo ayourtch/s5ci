@@ -66,6 +66,9 @@ jobs:
 
 hostname: gerrit-client
 db_url: db/s5ci.sqlite3
+autorestart:
+        on_config_change: true
+        on_exe_change: true
 
 server:
   address: 136.243.48.188
