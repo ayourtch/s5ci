@@ -22,6 +22,7 @@ table! {
         changeset_id -> Integer,
         comment_id -> Integer,
         command -> Text,
+        remote_host -> Nullable<Text>,
         started_at -> Nullable<Timestamp>,
         finished_at -> Nullable<Timestamp>,
         return_code -> Nullable<Integer>,

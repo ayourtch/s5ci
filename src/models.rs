@@ -35,6 +35,7 @@ pub struct job {
     pub changeset_id: i32,
     pub comment_id: i32,
     pub command: String,
+    pub remote_host: Option<String>,
     pub started_at: Option<NaiveDateTime>,
     pub finished_at: Option<NaiveDateTime>,
     pub return_code: Option<i32>,

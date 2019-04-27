@@ -34,6 +34,11 @@ install-dep: install-rust install-docker install-nginx
 	echo Installed all dependencies
 prepare-image:
 	(cd docker; bash build)
+regen-db:
+	diesel migration redo --database-url db/s5ci.sqlite3
+	rustfmt src/schema.rs
+	./dev-scripts/print-model >src/models.rs
+
 build:
 	cargo build
 

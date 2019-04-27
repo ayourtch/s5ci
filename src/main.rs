@@ -986,6 +986,7 @@ fn exec_command(
         changeset_id: env_changeset_id,
         comment_id: env_patchset_id,
         command: format!("{}", cmd),
+        remote_host: None,
         started_at: Some(now_naive_date_time()),
         finished_at: None,
         return_code: None,

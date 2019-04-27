@@ -15,6 +15,7 @@ CREATE TABLE jobs (
 	changeset_id INT NOT NULL,
 	comment_id INT NOT NULL,
 	command VARCHAR NOT NULL,
+	remote_host VARCHAR,
 	started_at datetime,
 	finished_at datetime,
 	return_code INT
