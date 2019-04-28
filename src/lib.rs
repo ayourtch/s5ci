@@ -212,6 +212,17 @@ pub fn db_get_root_jobs() -> Vec<models::job> {
     results
 }
 
+pub fn db_get_active_jobs() -> Vec<models::job> {
+    use schema::jobs::dsl::*;
+    let db = get_db();
+    let results = jobs
+        .filter(finished_at.is_null())
+        .order(started_at.desc())
+        .load::<models::job>(db.conn())
+        .expect("Error loading jobs");
+    results
+}
+
 pub fn now_naive_date_time() -> chrono::NaiveDateTime {
     /* return the "now" value of naivedatetime */
     use chrono::*;

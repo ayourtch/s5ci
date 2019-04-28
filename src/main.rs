@@ -1017,6 +1017,15 @@ fn regenerate_root_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     fill_and_write_template(template, data, &fname).unwrap();
 }
 
+fn regenerate_active_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
+    let template = maybe_compile_template(config, "active_job_page").unwrap();
+    let mut data = MapBuilder::new();
+    let rjs = db_get_active_jobs();
+    data = data.insert("child_jobs", &rjs).unwrap();
+    let fname = format!("{}/active.html", &config.jobs.rootdir);
+    fill_and_write_template(template, data, &fname).unwrap();
+}
+
 fn regenerate_html(
     config: &LucyCiConfig,
     cconfig: &LucyCiCompiledConfig,
@@ -1060,22 +1069,22 @@ fn regenerate_html(
     );
 }
 
-fn starting_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) {
+fn regenerate_job_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) {
     let mut groups = HashMap::new();
     regenerate_html(config, cconfig, job_id, true, true, &mut groups);
     for (group_name, count) in groups {
         println!("Regenerating group {} with {} jobs", &group_name, count);
         regenerate_group_html(config, cconfig, &group_name);
     }
+    regenerate_active_html(config, cconfig);
+}
+
+fn starting_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) {
+    regenerate_job_html(config, cconfig, job_id);
 }
 
 fn finished_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) {
-    let mut groups = HashMap::new();
-    regenerate_html(config, cconfig, job_id, true, true, &mut groups);
-    for (group_name, count) in groups {
-        println!("Regenerating group {} with {} jobs", &group_name, count);
-        regenerate_group_html(config, cconfig, &group_name);
-    }
+    regenerate_job_html(config, cconfig, job_id);
 }
 
 fn regenerate_all_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
@@ -1090,6 +1099,7 @@ fn regenerate_all_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
         regenerate_group_html(config, cconfig, &group_name);
     }
     regenerate_root_html(config, cconfig);
+    regenerate_active_html(config, cconfig);
 }
 
 fn exec_command(
@@ -1580,6 +1590,7 @@ fn do_set_job_status(
             .execute(db.conn())
             .unwrap();
     }
+    regenerate_job_html(config, cconfig, &a_job_id);
 }
 
 fn restart_ourselves() {
@@ -1701,6 +1712,7 @@ fn main() {
     use LucyCiAction;
     maybe_compile_template(&config, "job_page").unwrap();
     maybe_compile_template(&config, "root_job_page").unwrap();
+    maybe_compile_template(&config, "active_job_page").unwrap();
     maybe_compile_template(&config, "group_job_page").unwrap();
 
     match &cconfig.action {

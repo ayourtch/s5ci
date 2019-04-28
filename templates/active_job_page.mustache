@@ -12,17 +12,17 @@ function document_on_load() {
             <a class="pure-menu-heading" href="#">S5CI</a>
 
             <ul class="pure-menu-list">
-                <li class="pure-menu-item menu-item-divided small-font">
-                    <a href="/jobs/active.html" class="pure-menu-link">active jobs</a>
-                </li>
 
                 <li class="pure-menu-item menu-item-divided pure-menu-selected small-font">
-                    <a href="#" class="pure-menu-link">root jobs</a>
+                    <a href="#" class="pure-menu-link">active jobs</a>
                 </li>
 
 {{#child_jobs}}
 {{> part_joblist_menu}}
 {{/child_jobs}}
+                <li class="pure-menu-item menu-item-divided small-font">
+                    <a href="/jobs/" class="pure-menu-link">root jobs</a>
+                </li>
 
             </ul>
         </div>
@@ -30,7 +30,7 @@ function document_on_load() {
 
     <div id="main">
         <div class="header">
-            <h1>Last triggered jobs</h1>
+            <h1>Currently active jobs</h1>
         </div>
 
         <div class="content">
@@ -40,6 +40,7 @@ function document_on_load() {
 <th>*</th>
 <th>job</th>
 <th>status</th>
+<th>parent job</th>
 </tr>
 {{#child_jobs}}
 
@@ -55,6 +56,16 @@ function document_on_load() {
 <td class="smaller-font">
 {{#status_updated_at}}{{status_updated_at}}:<br/> {{status_message}}{{/status_updated_at}}
 </td>
+
+<td>
+{{#parent_job_id}}
+<a href="/jobs/{{{parent_job_id}}}/">{{parent_job_id}}</a>
+{{/parent_job_id}}
+{{^parent_job_id}}
+-
+{{/parent_job_id}}
+</td>
+
 
 </tr>
 {{/child_jobs}}
