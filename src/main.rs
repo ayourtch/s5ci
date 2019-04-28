@@ -904,6 +904,35 @@ fn db_get_next_counter_value(a_name: &str) -> Result<i32, String> {
     db_get_next_counter_value_with_min(a_name, 0)
 }
 
+fn get_lock_path(a_name: &str) -> String {
+    let lock_path = format!("/tmp/{}.lock", &a_name);
+    lock_path
+}
+
+fn lock_named(a_name: &str) -> Result<(), String> {
+    let lock_path = get_lock_path(a_name);
+    let max_retry_count = 5;
+    let mut retry_count = max_retry_count;
+    while std::fs::create_dir(&lock_path).is_err() {
+        if retry_count == 0 {
+            return Err(format!("Failed to lock {} after several tries", a_name));
+        }
+        // wait for sometime
+        s5ci::thread_sleep_ms(300 * (1 + max_retry_count - retry_count));
+        retry_count = retry_count - 1;
+    }
+    Ok(())
+}
+
+fn unlock_named(a_name: &str) -> Result<(), String> {
+    let lock_path = get_lock_path(a_name);
+    if std::fs::remove_dir(&lock_path).is_ok() {
+        Ok(())
+    } else {
+        Err(format!("error unlocking {}", a_name))
+    }
+}
+
 fn db_get_next_counter_value_with_min(a_name: &str, a_min: i32) -> Result<i32, String> {
     use diesel::connection::Connection;
     use diesel::expression_methods::*;
@@ -916,6 +945,7 @@ fn db_get_next_counter_value_with_min(a_name: &str, a_min: i32) -> Result<i32, S
     let db = get_db();
     let conn = db.conn();
     let mut result: Result<i32, String> = Err(format!("result unset"));
+    lock_named(&a_name).unwrap();
 
     conn.transaction::<_, Error, _>(|| {
         let res = counters
@@ -969,7 +999,7 @@ fn db_get_next_counter_value_with_min(a_name: &str, a_min: i32) -> Result<i32, S
             result = Ok(db_get_next_counter_value_with_min(a_name, a_min).unwrap());
         }
     }
-
+    unlock_named(&a_name).unwrap();
     result
 }
 
