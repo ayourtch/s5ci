@@ -252,8 +252,6 @@ struct LucyCiConfig {
     hostname: String,
     autorestart: LucyAutorestartConfig,
     db_url: String,
-    bid_regex: String,
-    bid_template: String,
     jobs: LucyCiJobs,
 }
 
@@ -367,58 +365,6 @@ fn get_job_name(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &
 
     let job_name = re.replace_all(&format!("{}", job_id), "_").to_string();
     job_name
-}
-
-fn gerrit_spawn_comment_on_change(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
-    change_id: u32,
-    patch_set_id: u32,
-    job_id: &str,
-) -> Result<String, LucySshError> {
-    let data = mustache::MapBuilder::new()
-        .insert("config", config)
-        .unwrap()
-        .insert_str("job_id", format!("{}", job_id))
-        .insert_str(
-            "job_url",
-            format!("{}", get_job_url(config, cconfig, job_id)),
-        )
-        .build();
-    let mut bytes = vec![];
-
-    cconfig.bid_template.render_data(&mut bytes, &data)?;
-    let message = String::from_utf8_lossy(&bytes);
-
-    let cmd = &format!(
-        "gerrit review {},{} --message '{}'",
-        change_id, patch_set_id, message
-    );
-    run_ssh_command(config, &cmd)
-}
-
-fn gerrit_bid_for_work(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
-    change_id: u32,
-    patch_set_id: u32,
-    bid_id: &str,
-) -> Result<String, LucySshError> {
-    let data = mustache::MapBuilder::new()
-        .insert("config", config)
-        .unwrap()
-        .insert_str("bid_id", format!("{}", bid_id))
-        .build();
-    let mut bytes = vec![];
-
-    cconfig.bid_template.render_data(&mut bytes, &data)?;
-    let message = String::from_utf8_lossy(&bytes);
-
-    let cmd = &format!(
-        "gerrit review {},{} --message '{}'",
-        change_id, patch_set_id, message
-    );
-    run_ssh_command(config, &cmd)
 }
 
 fn gerrit_query_changes(
@@ -644,9 +590,7 @@ enum LucyCiAction {
 struct LucyCiCompiledConfig {
     config_path: String,
     patchset_extract_regex: Regex,
-    bid_regex: Regex,
     trigger_regexes: Vec<CommentTriggerRegex>,
-    bid_template: mustache::Template,
     trigger_command_templates: HashMap<String, mustache::Template>,
     action: LucyCiAction,
     changeset_id: Option<u32>,
@@ -678,45 +622,6 @@ fn get_trigger_command_templates(config: &LucyCiConfig) -> HashMap<String, musta
             }
         }
     }
-    out
-}
-
-#[derive(Debug, Clone)]
-struct CommentBid {
-    comment_index: u32,
-    bid_id: String,
-    hostname: String,
-}
-
-fn get_comment_bids(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
-    comments_vec: &Vec<GerritComment>,
-    startline_ts: i64,
-) -> HashMap<String, CommentBid> {
-    let mut out: HashMap<String, CommentBid> = HashMap::new();
-    for (i, comment) in comments_vec.iter().enumerate() {
-        if let Some(rem) = cconfig.bid_regex.captures(&comment.message) {
-            if let (Some(bid), Some(host)) = (rem.name("bid_id"), rem.name("hostname")) {
-                debug!(
-                    "Found bid for id {} from host {}",
-                    bid.as_str(),
-                    host.as_str()
-                );
-                let bid_id = bid.as_str();
-                if !out.contains_key(bid_id) {
-                    let new_bid = CommentBid {
-                        comment_index: i as u32,
-                        bid_id: bid_id.to_string(),
-                        hostname: host.as_str().to_string(),
-                    };
-
-                    out.insert(bid_id.to_string(), new_bid);
-                }
-            }
-        }
-    }
-
     out
 }
 
@@ -1219,20 +1124,6 @@ fn process_change(
     before_when: Option<NaiveDateTime>,
     after_when: Option<NaiveDateTime>,
 ) {
-    /* Go through the change patchsets and comments,
-    * with the following heuristics:
-
-    1) accumulate:
-       - triggers
-       - our and others first-bids
-       - our actions
-    2) for triggers with "singleton" flag, filter out all but last trigger
-
-    3) remove the triggers reacted upon
-       - if not our first-bid exists -> sort them into "to check" triggers
-       - if our action exists - remove
-
-    */
     let mut triggers: Vec<CommentTrigger> = vec![];
 
     // eprintln!("Processing change: {:#?}", cs);
@@ -1443,8 +1334,6 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     set_db_url(&config.db_url);
     let trigger_regexes = get_trigger_regexes(&config);
     let patchset_regex = Regex::new(&config.patchset_extract_regex).unwrap();
-    let bid_regex = Regex::new(&config.bid_regex).unwrap();
-    let bid_template = mustache::compile_str(&config.bid_template).unwrap();
     let trigger_command_templates = get_trigger_command_templates(&config);
     let mut changeset_id: Option<u32> = None;
     let mut patchset_id: Option<u32> = None;
@@ -1514,9 +1403,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     let cconfig = LucyCiCompiledConfig {
         config_path: yaml_fname.to_string(),
         patchset_extract_regex: patchset_regex,
-        bid_regex: bid_regex,
         trigger_regexes: trigger_regexes,
-        bid_template: bid_template,
         trigger_command_templates: trigger_command_templates,
         action: action,
         changeset_id: changeset_id,
