@@ -250,6 +250,7 @@ struct LucyCiConfig {
     triggers: Option<HashMap<String, LucyGerritTrigger>>,
     patchset_extract_regex: String,
     hostname: String,
+    install_rootdir: String,
     autorestart: LucyAutorestartConfig,
     db_url: String,
     jobs: LucyCiJobs,
@@ -911,7 +912,10 @@ fn db_get_next_counter_value_with_min(a_name: &str, a_min: i32) -> Result<i32, S
 use mustache::{MapBuilder, Template};
 
 fn maybe_compile_template(config: &LucyCiConfig, name: &str) -> Result<Template, mustache::Error> {
-    let res = mustache::compile_path(format!("./templates/{}.mustache", name));
+    let res = mustache::compile_path(format!(
+        "{}/templates/{}.mustache",
+        &config.install_rootdir, name
+    ));
     if res.is_err() {
         error!("Could not compile template {}: {:#?}", name, &res);
     }

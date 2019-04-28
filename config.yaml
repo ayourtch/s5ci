@@ -60,8 +60,10 @@ jobs:
         rootdir: /var/www/html/jobs
         root_url: http://s5ci-dev.myvpp.net/jobs
 
+install_rootdir: /home/ubuntu/s5ci
+
 hostname: gerrit-client
-db_url: db/s5ci.sqlite3
+db_url: /home/ubuntu/s5ci/db/s5ci.sqlite3
 autorestart:
         on_config_change: true
         on_exe_change: true
