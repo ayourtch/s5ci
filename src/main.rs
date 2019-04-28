@@ -247,6 +247,7 @@ struct LucyCiConfig {
     default_query: LucyGerritQuery,
     default_batch_command: Option<String>,
     default_sync_horizon_sec: Option<u32>,
+    command_rootdir: String,
     triggers: Option<HashMap<String, LucyGerritTrigger>>,
     patchset_extract_regex: String,
     hostname: String,
@@ -596,6 +597,7 @@ struct LucyCiCompiledConfig {
     action: LucyCiAction,
     changeset_id: Option<u32>,
     patchset_id: Option<u32>,
+    real_s5ci_exe: String,
 }
 
 fn get_trigger_regexes(config: &LucyCiConfig) -> Vec<CommentTriggerRegex> {
@@ -618,6 +620,7 @@ fn get_trigger_command_templates(config: &LucyCiConfig) -> HashMap<String, musta
     if let Some(triggers) = &config.triggers {
         for (name, trig) in triggers {
             if let LucyTriggerAction::command(cmd) = &trig.action {
+                let full_cmd = format!("{}/{}", &config.command_rootdir, &cmd);
                 let template = mustache::compile_str(cmd).unwrap();
                 out.insert(name.clone(), template);
             }
@@ -720,19 +723,42 @@ fn get_min_job_counter(config: &LucyCiConfig, jobname: &str) -> i32 {
     file_count as i32
 }
 
+fn get_workspace_path(config: &LucyCiConfig, job_id: &str) -> String {
+    format!("{}/{}/workspace", &config.jobs.rootdir, job_id)
+}
+
+fn get_job_console_log_path(config: &LucyCiConfig, job_id: &str) -> String {
+    format!("{}/{}/console.txt", &config.jobs.rootdir, job_id)
+}
+
+fn get_existing_workspace_path(config: &LucyCiConfig, job_id: &str) -> String {
+    let workspace_path = get_workspace_path(config, job_id);
+    let path = Path::new(&workspace_path);
+    if !path.is_dir() {
+        panic!(format!(
+            "Path {} does not exist or is not directory",
+            &workspace_path
+        ));
+    }
+    workspace_path
+}
+
 fn get_next_job_number(config: &LucyCiConfig, jobname: &str) -> i32 {
     use std::fs;
     let a_min = get_min_job_counter(config, jobname);
     let job_number = db_get_next_counter_value_with_min(jobname, a_min).unwrap();
+    let job_id = format!("{}/{}", jobname, job_number);
 
     let jobpath = format!("{}/{}", &config.jobs.rootdir, jobname);
     let path = Path::new(&jobpath);
     if !path.is_dir() {
-        fs::create_dir(&jobpath).unwrap();
+        fs::create_dir(&path).unwrap();
     }
-    let new_path = format!("{}/{}", jobpath, job_number);
+    let new_path = format!("{}/{}", &config.jobs.rootdir, job_id);
     println!("CREATING DIR {}", &new_path);
     fs::create_dir(&new_path).unwrap();
+    let workspace_path = get_workspace_path(config, &job_id);
+    fs::create_dir(&workspace_path).unwrap();
     job_number
 }
 
@@ -768,8 +794,24 @@ fn prepare_child_command<'a>(
         .stdout(log_file)
         .stderr(log_file_stderr)
         .env("RUST_BACKTRACE", "1")
-        .env("S5CI_EXE", &format!("{}", args[0]))
+        .env(
+            "PATH",
+            &format!(
+                "{}:{}",
+                &config.command_rootdir,
+                std::env::var("PATH").unwrap_or("".to_string())
+            ),
+        )
+        .env("S5CI_EXE", &cconfig.real_s5ci_exe)
         .env("S5CI_JOB_ID", &job_id)
+        .env(
+            "S5CI_WORKSPACE",
+            &get_existing_workspace_path(config, &job_id),
+        )
+        .env(
+            "S5CI_CONSOLE_LOG",
+            &get_job_console_log_path(config, &job_id),
+        )
         .env("S5CI_JOB_NAME", &get_job_name(config, cconfig, &job_id))
         .env("S5CI_JOB_URL", &get_job_url(config, cconfig, &job_id))
         .env("S5CI_CONFIG", &cconfig.config_path);
@@ -1058,6 +1100,9 @@ fn exec_command(
         prepare_child_command(config, cconfig, child, cmd, "");
     let a_full_job_id = format!("{}/{}", &a_job_group_name, a_instance_id);
 
+    /* change dir to job workspace */
+    std::env::set_current_dir(&get_existing_workspace_path(config, &a_full_job_id)).unwrap();
+
     let my_uuid = Uuid::new_v4().to_simple().to_string();
     /* in our environment the job ID, if set, is set by parent */
     let env_pj_id = env::var("S5CI_JOB_ID").ok();
@@ -1331,11 +1376,25 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         )
         .get_matches();
 
-    let yaml_fname = &matches.value_of("config").unwrap();
-    let s = fs::read_to_string(yaml_fname).unwrap();
+    let yaml_fname = &matches.value_of("config").unwrap().to_string();
+    // canonicalize config name
+    let yaml_fname = std::fs::canonicalize(yaml_fname)
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+
+    let s = fs::read_to_string(&yaml_fname).unwrap();
     let config: LucyCiConfig = serde_yaml::from_str(&s).unwrap();
     debug!("Config: {:#?}", &config);
     set_db_url(&config.db_url);
+
+    let args: Vec<String> = std::env::args().collect();
+    let real_s5ci_exe = std::fs::canonicalize(args[0].clone())
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
     let trigger_regexes = get_trigger_regexes(&config);
     let patchset_regex = Regex::new(&config.patchset_extract_regex).unwrap();
     let trigger_command_templates = get_trigger_command_templates(&config);
@@ -1412,6 +1471,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         action: action,
         changeset_id: changeset_id,
         patchset_id: patchset_id,
+        real_s5ci_exe: real_s5ci_exe,
     };
     debug!("C-Config: {:#?}", &cconfig);
     (config, cconfig)

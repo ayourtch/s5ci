@@ -12,6 +12,11 @@ trap '' QUIT
 trap '' ABRT
 trap handler_exit EXIT
 
+# run a timestamped version of console log as well for this job
+(tail -f ${S5CI_CONSOLE_LOG} | ts > ${S5CI_WORKSPACE}/console-timestamp.txt) &
+
+cd ${S5CI_WORKSPACE}
+
 echo run-two $1
 env
 START_TIME=`date`
@@ -24,14 +29,14 @@ export S5CI_FILTER=$2
 ${S5CI_EXE} review -v clear -m "job ${S5CI_JOB_URL} is starting"
 ${S5CI_EXE} set-status -m "run preliminary checks"
 
-${S5CI_EXE} run-job -c "scripts/run-random ${S5CI_CHANGE_REF} ${S5CI_FILTER}"
+${S5CI_EXE} run-job -c "run-random ${S5CI_CHANGE_REF} ${S5CI_FILTER}"
 
 ${S5CI_EXE} review -m "Prerequisite job for ${S5CI_JOB_URL} passed"
 
 # we should not reach here if there was error above
 ${S5CI_EXE} set-status -m "run main test at `date`"
 
-if parallel -j 2 sh -c '${S5CI_EXE} run-job -c "scripts/${0} ${S5CI_CHANGE_REF} ${S5CI_FILTER}"' -- run-test run-test run-test run-build run-test run-test run-test; then
+if parallel -j 2 sh -c '${S5CI_EXE} run-job -c "${0} ${S5CI_CHANGE_REF} ${S5CI_FILTER}"' -- run-test run-test run-test run-build run-test run-test run-test; then
   ${S5CI_EXE} review -v success -m "All jobs for ${S5CI_JOB_URL} passed"
 else
   RET=$?

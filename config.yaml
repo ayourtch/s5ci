@@ -20,34 +20,37 @@ default_query:
 # default_batch_command: scripts/format-output
 default_sync_horizon_sec: 8640000
 
+# where to resolve the relative command paths from
+command_rootdir: /home/ubuntu/s5ci/scripts
+
 triggers:
   patchset_upload:
       regex: ^Uploaded patch set (?P<patchset>\d+)$
       # action:
       #  event: check_build
       action:
-        command: scripts/run-build {{patchset.ref}} '' # {{regex.patchset}}
+        command: run-build {{patchset.ref}} '' # {{regex.patchset}}
   faulure_recheck_request:
       regex: 'XXXXXfailure' # a crude infinite retry
       action:
-        command: scripts/run-build {{patchset.ref}} '' # {{regex.patchset}}
+        command: run-build {{patchset.ref}} '' # {{regex.patchset}}
   recheck_request:
       regex: 'recheck'
       action:
-        command: scripts/run-build {{patchset.ref}} '' # {{regex.patchset}}
+        command: run-build {{patchset.ref}} '' # {{regex.patchset}}
               # event: check_build
   retest_request:
       regex: 'retest (?P<testname>\w+)'
       action:
-        command: scripts/run-build {{patchset.ref}} {{regex.testname}}
+        command: run-build {{patchset.ref}} {{regex.testname}}
   echo_comment:
       regex: echo (?P<testval>.+)
       action:
-        command: scripts/run-echo {{regex.testval}}
+        command: run-echo {{regex.testval}}
   run_two:
       regex: runtwo (?P<testval>\w+)
       action:
-        command: scripts/run-two {{patchset.ref}} {{regex.testval}}
+        command: run-two {{patchset.ref}} {{regex.testval}}
 
   test_comment:
       regex: test (?P<testval>\d+)(:? (?P<secondval>\w+))?
