@@ -169,6 +169,13 @@ macro_rules! define_db_get_even_deleted {
 }
 
 define_db_get_even_deleted!(db_get_job, models::job, jobs, job_id, &str);
+define_db_get_even_deleted!(
+    db_get_comment_by_changeset_id,
+    models::comment,
+    comments,
+    changeset_id,
+    i32
+);
 
 pub fn db_get_all_jobs() -> Vec<models::job> {
     use schema::jobs::dsl::*;
