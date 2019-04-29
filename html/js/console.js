@@ -4,6 +4,12 @@ var console_url = "";
 var console_element_id = "console";
 var reload_timeout = false;
 
+function lengthInUtf8Bytes(str) {
+  // Matches only the 10.. bytes that are non-initial characters in a multi-byte sequence.
+   var m = encodeURIComponent(str).match(/%[89ABab]/g);
+   return str.length + (m ? m.length : 0);
+}
+
 function reqListener () {
 	var d = document.getElementById(console_element_id);
 	var resp = this.responseText;
@@ -16,7 +22,7 @@ function reqListener () {
 		// console.log("response len: " + resp.length);
 		// console.log("console_data len: " + console_data.length);
 		var output_text = this.responseText.replace(/</g,"&lt;").replace(/>/g,"&gt;");
-		ch = document.createElement("p")
+		ch = document.createElement("div")
 		ch.style.fontsize = "10px";
 		ch2 = document.createElement("div")
 		ch.innerHTML = output_text;
@@ -34,7 +40,7 @@ function load_some() {
 	oReq.addEventListener("load", reqListener);
 	var get_url = console_url;
 	oReq.open("GET", get_url);
-	var start_len = console_data.length;
+	var start_len = lengthInUtf8Bytes(console_data);
 	if (start_len > 0) {
 	  var range = "" + start_len + "-";
 	  oReq.setRequestHeader("Range", "bytes=" + range);
