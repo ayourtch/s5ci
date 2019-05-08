@@ -9,6 +9,11 @@ default_auth:
 #   username: foo
 #   password: bar
 
+default_vote:
+        success: --code-review +1
+        failure: --code-review -1
+        clear: --code-review 0
+
 default_query:
         # query: status:open project:vpp limit:4
         # filter: (status:new OR status:open) project:vpp limit:1

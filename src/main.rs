@@ -234,6 +234,13 @@ struct LucyGerritQuery {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+struct LucyGerritVote {
+    success: String,
+    failure: String,
+    clear: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 enum LucyTriggerAction {
     event(String),
     command(String),
@@ -263,6 +270,7 @@ struct LucyCiConfig {
     default_auth: LucySshAuth,
     server: LucyCiPollGerrit,
     default_query: LucyGerritQuery,
+    default_vote: LucyGerritVote,
     default_batch_command: Option<String>,
     default_sync_horizon_sec: Option<u32>,
     command_rootdir: String,
