@@ -241,6 +241,7 @@ enum LucyTriggerAction {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct LucyGerritTrigger {
+    project: Option<String>,
     regex: String,
     action: LucyTriggerAction,
 }
@@ -1306,8 +1307,18 @@ fn process_change(
             if let Some(cfgt) = &config.triggers {
                 final_triggers.retain(|x| {
                     let ctrig = &cfgt[&x.trigger_name];
+                    let mut retain = true;
+                    if let Some(proj) = &ctrig.project {
+                        if let Some(cs_proj) = &cs.project {
+                            if cs_proj != proj {
+                                retain = false;
+                            }
+                        } else {
+                            retain = false;
+                        }
+                    }
                     if let LucyTriggerAction::command(cmd) = &ctrig.action {
-                        true
+                        retain
                     } else {
                         false
                     }
