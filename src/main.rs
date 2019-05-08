@@ -201,10 +201,27 @@ enum LucySshAuth {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+struct LucyCiDirectSshPoll {
+    auth: Option<LucySshAuth>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct LucyCiShellPoll {
+    command: String,
+    args: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+enum LucyCiPollType {
+    direct_ssh(LucyCiDirectSshPoll),
+    shell(LucyCiShellPoll),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct LucyCiPollGerrit {
     address: std::net::IpAddr,
     port: u16,
-    auth: Option<LucySshAuth>,
+    poll_type: LucyCiPollType,
     poll_wait_ms: Option<u64>,
     syncing_poll_wait_ms: Option<u64>,
     sync_horizon_sec: Option<u32>,
@@ -306,6 +323,41 @@ impl From<mustache::Error> for LucySshError {
 }
 
 fn run_ssh_command(config: &LucyCiConfig, cmd: &str) -> Result<String, LucySshError> {
+    match &config.server.poll_type {
+        LucyCiPollType::direct_ssh(x) => run_ssh_command_direct(config, cmd),
+        LucyCiPollType::shell(x) => run_ssh_command_shell(config, x, cmd),
+    }
+}
+
+fn run_ssh_command_shell(
+    config: &LucyCiConfig,
+    sc: &LucyCiShellPoll,
+    cmd: &str,
+) -> Result<String, LucySshError> {
+    use std::env;
+    use std::process::{Command, Stdio};
+
+    let child = Command::new("/usr/bin/ssh")
+        .args(&sc.args)
+        .arg(format!("{}", cmd))
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("failed to execute child");
+
+    let output = child.wait_with_output().expect("failed to wait on child");
+
+    //  assert!(output.status.success());
+    let exit_status = output.status.code().unwrap();
+    if exit_status != 0 {
+        let txt = String::from_utf8_lossy(&output.stderr);
+        Err(LucySshError::RemoteError(exit_status, txt.to_string()))
+    } else {
+        let txt = String::from_utf8_lossy(&output.stdout);
+        Ok(txt.to_string())
+    }
+}
+
+fn run_ssh_command_direct(config: &LucyCiConfig, cmd: &str) -> Result<String, LucySshError> {
     // Connect to the local SSH server
     let tcp = TcpStream::connect(config.server.get_server_address_port())?; // .unwrap();
     let ssh_auth = &config.default_auth;
