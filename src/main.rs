@@ -66,7 +66,7 @@ struct GerritComment {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct GerritApproval {
     r#type: String,
-    description: String,
+    description: Option<String>,
     value: String,
     grantedOn: i64,
     by: GerritOwner,
@@ -743,6 +743,7 @@ fn get_comment_triggers(
     config: &LucyCiConfig,
     cconfig: &LucyCiCompiledConfig,
     changeset_id: i32,
+    max_pset: u32,
     comments_vec: &Vec<GerritComment>,
     startline_ts: i64,
 ) -> Vec<CommentTrigger> {
@@ -789,10 +790,17 @@ fn get_comment_triggers(
                     }
 
                     if !captures["patchset"].parse::<u32>().is_ok() {
-                        error!(
-                            "unparseable patchset in {:#?}: {:#?}",
-                            &comment, &patchset_str
-                        );
+                        if !comment
+                            .message
+                            .starts_with("Change has been successfully merged by ")
+                        {
+                            error!(
+                                "unparseable patchset in {:#?}: {:#?}",
+                                &comment, &patchset_str
+                            );
+                        } else {
+                            captures.insert("patchset".into(), format!("{}", &max_pset));
+                        }
                     }
                     let patchset_id = captures["patchset"].parse::<u32>().unwrap();
                     let trigger_name = format!("{}", &tr.name);
@@ -1284,6 +1292,7 @@ fn process_change(
     after_when: Option<NaiveDateTime>,
 ) {
     let mut triggers: Vec<CommentTrigger> = vec![];
+    let mut max_pset = 0;
 
     // eprintln!("Processing change: {:#?}", cs);
     if let Some(startline) = after_when {
@@ -1303,6 +1312,9 @@ fn process_change(
                 }
                 psmap.insert(format!("{}", &pset.number), pset.clone());
                 psmap.insert(format!("{}", &pset.revision), pset.clone());
+                if pset.number > max_pset {
+                    max_pset = pset.number;
+                }
             }
 
             // eprintln!("Patchset map: {:#?}", &psmap);
@@ -1310,7 +1322,7 @@ fn process_change(
         if let Some(comments_vec) = &cs.comments {
             let change_id = cs.number.unwrap() as i32;
             let all_triggers =
-                get_comment_triggers(config, cconfig, change_id, comments_vec, startline_ts);
+                get_comment_triggers(config, cconfig, change_id, max_pset, comments_vec, startline_ts);
             let mut final_triggers = all_triggers.clone();
             if let Some(cfgt) = &config.triggers {
                 final_triggers.retain(|x| {
@@ -1339,13 +1351,12 @@ fn process_change(
                     .trigger_command_templates
                     .get(&trig.trigger_name)
                     .unwrap();
-                let patchset = psmap.get(&format!("{}", trig.patchset_id)).unwrap();
-                let data = mustache::MapBuilder::new()
-                    .insert("patchset", &patchset)
-                    .unwrap()
-                    .insert("regex", &trig.captures)
-                    .unwrap()
-                    .build();
+                let mut data = mustache::MapBuilder::new();
+                if let Some(patchset) = psmap.get(&format!("{}", trig.patchset_id)) {
+                    data = data.insert("patchset", &patchset).unwrap();
+                }
+                data = data.insert("regex", &trig.captures).unwrap();
+                let data = data.build();
                 let mut bytes = vec![];
 
                 template.render_data(&mut bytes, &data).unwrap();
@@ -1611,20 +1622,30 @@ fn do_review(
 ) {
     let vote = if let Some(act) = maybe_vote {
         match act {
-            GerritVoteAction::success => format!(" --code-review +1"),
-            GerritVoteAction::failure => format!(" --code-review -1"),
-            GerritVoteAction::clear => format!(" --code-review 0"),
+            GerritVoteAction::success => format!(" {}", &config.default_vote.success),
+            GerritVoteAction::failure => format!(" {}", &config.default_vote.failure),
+            GerritVoteAction::clear => format!(" {}", &config.default_vote.clear),
         }
     } else {
         format!("")
     };
-    let cmd = format!(
-        "gerrit review {},{} {} --message \"{}\"",
-        cconfig.changeset_id.unwrap(),
-        cconfig.patchset_id.unwrap(),
-        vote,
-        msg
-    );
+    let patchset_id = cconfig.patchset_id.unwrap();
+    let cmd = if patchset_id == 0 {
+        format!(
+            "gerrit review {} {} --message \"{}\"",
+            cconfig.changeset_id.unwrap(),
+            vote,
+            msg
+        )
+    } else {
+        format!(
+            "gerrit review {},{} {} --message \"{}\"",
+            cconfig.changeset_id.unwrap(),
+            patchset_id,
+            vote,
+            msg
+        )
+    };
     run_ssh_command(config, &cmd);
 }
 
