@@ -652,6 +652,7 @@ enum LucyCiAction {
 #[derive(Debug, Clone)]
 struct LucyCiCompiledConfig {
     config_path: String,
+    sandbox_level: u32,
     patchset_extract_regex: Regex,
     trigger_regexes: Vec<CommentTriggerRegex>,
     trigger_command_templates: HashMap<String, mustache::Template>,
@@ -932,6 +933,7 @@ fn prepare_child_command<'a>(
         )
         .env("S5CI_JOB_NAME", &get_job_name(config, cconfig, &job_id))
         .env("S5CI_JOB_URL", &get_job_url(config, cconfig, &job_id))
+        .env("S5CI_SANDBOX_LEVEL", format!("{}", cconfig.sandbox_level))
         .env("S5CI_CONFIG", &cconfig.config_path);
 
     // see if we can stuff the parent job variables
@@ -962,8 +964,15 @@ fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &st
         .env("S5CI_GERRIT_CHANGESET_ID", &env_changeset_id)
         .env("S5CI_GERRIT_PATCHSET_ID", &env_patchset_id);
     println!("Spawning {:#?}", child);
-    let res = child.spawn().expect("failed to execute child");
-    println!("Spawned pid {}", res.id());
+    if cconfig.sandbox_level < 2 {
+        let res = child.spawn().expect("failed to execute child");
+        println!("Spawned pid {}", res.id());
+    } else {
+        println!(
+            "Sandbox level {}, not actually spawning a child",
+            &cconfig.sandbox_level
+        );
+    }
 }
 
 fn db_get_next_counter_value(a_name: &str) -> Result<i32, String> {
@@ -1415,6 +1424,14 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                 .takes_value(true)
                 .help("Set custom config file"),
         )
+        .arg(
+            Arg::with_name("sandbox-level")
+                .short("s")
+                .env("S5CI_SANDBOX_LEVEL")
+                .default_value("0")
+                .possible_values(&["0", "1", "2", "3"])
+                .help("Sandbox - inhibit various actions"),
+        )
         .subcommand(SubCommand::with_name("list-jobs").about("list jobs"))
         .subcommand(
             SubCommand::with_name("run-job")
@@ -1533,6 +1550,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     let trigger_command_templates = get_trigger_command_templates(&config);
     let mut changeset_id: Option<u32> = None;
     let mut patchset_id: Option<u32> = None;
+    let sandbox_level = value_t!(matches, "sandbox-level", u32).unwrap_or(0);
 
     let mut action = LucyCiAction::Loop;
 
@@ -1598,6 +1616,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
 
     let cconfig = LucyCiCompiledConfig {
         config_path: yaml_fname.to_string(),
+        sandbox_level: sandbox_level,
         patchset_extract_regex: patchset_regex,
         trigger_regexes: trigger_regexes,
         trigger_command_templates: trigger_command_templates,
@@ -1620,11 +1639,20 @@ fn do_review(
     maybe_vote: &Option<GerritVoteAction>,
     msg: &str,
 ) {
-    let vote = if let Some(act) = maybe_vote {
-        match act {
+    let mut vote = if let Some(act) = maybe_vote {
+        let active_vote = match act {
             GerritVoteAction::success => format!(" {}", &config.default_vote.success),
             GerritVoteAction::failure => format!(" {}", &config.default_vote.failure),
             GerritVoteAction::clear => format!(" {}", &config.default_vote.clear),
+        };
+        if cconfig.sandbox_level > 1 {
+            error!(
+                "Sandbox level {}, ignoring the voting arg '{}'",
+                cconfig.sandbox_level, &active_vote
+            );
+            format!("")
+        } else {
+            active_vote
         }
     } else {
         format!("")
@@ -1646,7 +1674,14 @@ fn do_review(
             msg
         )
     };
-    run_ssh_command(config, &cmd);
+    if cconfig.sandbox_level > 0 {
+        error!(
+            "Sandbox level {}, not running command '{}'",
+            cconfig.sandbox_level, &cmd
+        );
+    } else {
+        run_ssh_command(config, &cmd);
+    }
 }
 
 fn do_list_jobs(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
