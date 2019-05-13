@@ -250,6 +250,7 @@ enum LucyTriggerAction {
 struct LucyGerritTrigger {
     project: Option<String>,
     regex: String,
+    suppress_regex: Option<String>,
     action: LucyTriggerAction,
 }
 
@@ -636,6 +637,7 @@ pub fn collect_zombies() -> i32 {
 #[derive(Debug, Clone)]
 struct CommentTriggerRegex {
     r: Regex,
+    r_suppress: Option<Regex>,
     name: String,
 }
 
@@ -667,8 +669,10 @@ fn get_trigger_regexes(config: &LucyCiConfig) -> Vec<CommentTriggerRegex> {
     if let Some(triggers) = &config.triggers {
         for (name, trig) in triggers {
             let r = Regex::new(&trig.regex).unwrap();
+            let r_suppress = trig.suppress_regex.clone().map(|x| Regex::new(&x).unwrap());
             out.push(CommentTriggerRegex {
                 r: r,
+                r_suppress: r_suppress.clone(),
                 name: name.clone(),
             });
         }
@@ -738,6 +742,8 @@ struct CommentTrigger {
     trigger_name: String,
     patchset_id: u32,
     captures: HashMap<String, String>,
+    is_suppress: bool,
+    is_suppressed: bool,
 }
 
 fn get_comment_triggers(
@@ -775,8 +781,8 @@ fn get_comment_triggers(
                 }
             }
             for tr in trigger_regexes {
-                let mut captures: HashMap<String, String> = HashMap::new();
                 if tr.r.is_match(&comment.message) {
+                    let mut captures: HashMap<String, String> = HashMap::new();
                     captures.insert("patchset".into(), format!("{}", &patchset_str));
                     // eprintln!("        Comment matched regex {}", &tr.name);
                     // try to extract the patchset from the start of comment
@@ -810,8 +816,52 @@ fn get_comment_triggers(
                         trigger_name: trigger_name,
                         captures: captures,
                         patchset_id: patchset_id,
+                        is_suppress: false,
+                        is_suppressed: false,
                     };
                     out.push(trig);
+                }
+                if let Some(r_suppress) = &tr.r_suppress {
+                    if r_suppress.is_match(&comment.message) {
+                        let mut captures: HashMap<String, String> = HashMap::new();
+                        captures.insert("patchset".into(), format!("{}", &patchset_str));
+                        // eprintln!("        Comment matched regex {}", &tr.name);
+                        // try to extract the patchset from the start of comment
+                        for m in r_suppress.captures(&comment.message) {
+                            for maybe_name in tr.r.capture_names() {
+                                if let Some(name) = maybe_name {
+                                    if let Some(val) = m.name(&name) {
+                                        captures.insert(name.to_string(), val.as_str().to_string());
+                                    }
+                                }
+                            }
+                        }
+
+                        if !captures["patchset"].parse::<u32>().is_ok() {
+                            if !comment
+                                .message
+                                .starts_with("Change has been successfully merged by ")
+                            {
+                                error!(
+                                    "unparseable patchset in {:#?}: {:#?}",
+                                    &comment, &patchset_str
+                                );
+                            } else {
+                                captures.insert("patchset".into(), format!("{}", &max_pset));
+                            }
+                        }
+                        let patchset_id = captures["patchset"].parse::<u32>().unwrap();
+                        let trigger_name = format!("{}", &tr.name);
+                        let trig = CommentTrigger {
+                            comment_index: i as u32,
+                            trigger_name: trigger_name,
+                            captures: captures,
+                            patchset_id: patchset_id,
+                            is_suppress: true,
+                            is_suppressed: false,
+                        };
+                        out.push(trig);
+                    }
                 }
             }
         }
@@ -1330,13 +1380,29 @@ fn process_change(
         }
         if let Some(comments_vec) = &cs.comments {
             let change_id = cs.number.unwrap() as i32;
-            let all_triggers =
-                get_comment_triggers(config, cconfig, change_id, max_pset, comments_vec, startline_ts);
+            let all_triggers = get_comment_triggers(
+                config,
+                cconfig,
+                change_id,
+                max_pset,
+                comments_vec,
+                startline_ts,
+            );
             let mut final_triggers = all_triggers.clone();
+            let mut suppress_map: HashMap<(String, u32), bool> = HashMap::new();
+            for mut ctrig in final_triggers.iter_mut().rev() {
+                let key = (ctrig.trigger_name.clone(), ctrig.patchset_id);
+                if ctrig.is_suppress {
+                    suppress_map.insert(key, true);
+                } else if suppress_map.contains_key(&key) {
+                    ctrig.is_suppressed = true;
+                    suppress_map.remove(&key);
+                }
+            }
             if let Some(cfgt) = &config.triggers {
                 final_triggers.retain(|x| {
                     let ctrig = &cfgt[&x.trigger_name];
-                    let mut retain = true;
+                    let mut retain = !x.is_suppressed;
                     if let Some(proj) = &ctrig.project {
                         if let Some(cs_proj) = &cs.project {
                             if cs_proj != proj {
@@ -1352,6 +1418,8 @@ fn process_change(
                         false
                     }
                 });
+                // now purge all the suppressing triggers themselves
+                final_triggers.retain(|x| !x.is_suppress);
             }
             // eprintln!("all triggers: {:#?}", &final_triggers);
             eprintln!("final triggers: {:#?}", &final_triggers);
@@ -1374,6 +1442,9 @@ fn process_change(
                 let mut cconfig2 = cconfig.clone();
                 cconfig2.changeset_id = Some(change_id);
                 cconfig2.patchset_id = Some(trig.patchset_id);
+                if (trig.is_suppress || trig.is_suppressed) {
+                    panic!(format!("bug: job is not runnable: {:#?}", &trig));
+                }
                 let job_id = spawn_command(config, &cconfig2, &expanded_command);
             }
         }

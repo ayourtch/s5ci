@@ -49,7 +49,9 @@ triggers:
       action:
         command: run-build {{patchset.ref}} {{regex.testname}}
   echo_comment:
-      regex: echo (?P<testval>.+)
+      regex: \secho (?P<testval>.+)
+      # optional suppress_regex will delete the about-to-be-started jobs of the same name
+      suppress_regex: Build http
       action:
         command: run-echo {{regex.testval}}
   run_two:
