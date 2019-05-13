@@ -202,7 +202,7 @@ pub fn db_get_jobs_by_group_name(a_name: &str) -> Vec<models::job> {
     let db = get_db();
     let results = jobs
         .filter(job_group_name.eq(a_name))
-        .order(job_id.desc())
+        .order(started_at.desc())
         .load::<models::job>(db.conn())
         .expect("Error loading jobs");
     results
