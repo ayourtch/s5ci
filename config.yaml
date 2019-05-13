@@ -64,6 +64,19 @@ triggers:
       action:
         event: test_command
 
+cron_triggers:
+  every_minute:
+      #            sec  min   hour   day of month   month   day of week   year
+      cron:        "0    *     *          *           *          *          * "
+      action:
+         command: run-cron once-per-minute
+  funky:
+      cron:        "0   30   9,12,15     1,15       May-Aug  Mon,Wed,Fri  2018/2"
+      action:
+         command: run-cron some-funky
+
+
+
 patchset_extract_regex: '(?s)^Patch Set (?P<patchset>\d+):'
 
 jobs:

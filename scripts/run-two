@@ -17,6 +17,8 @@ trap handler_exit EXIT
 
 cd ${S5CI_WORKSPACE}
 
+cat /home/ubuntu/s5ci/scripts/run-two
+
 echo run-two $1
 env
 START_TIME=`date`

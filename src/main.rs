@@ -27,6 +27,7 @@ use std::fs;
 #[macro_use]
 extern crate serde_derive;
 
+extern crate cron;
 extern crate mustache;
 extern crate serde;
 extern crate serde_json;
@@ -255,6 +256,12 @@ struct LucyGerritTrigger {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+struct LucyCronTrigger {
+    cron: String,
+    action: LucyTriggerAction,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct LucyCiJobs {
     rootdir: String,
     root_url: String,
@@ -276,6 +283,7 @@ struct LucyCiConfig {
     default_sync_horizon_sec: Option<u32>,
     command_rootdir: String,
     triggers: Option<HashMap<String, LucyGerritTrigger>>,
+    cron_triggers: Option<HashMap<String, LucyCronTrigger>>,
     patchset_extract_regex: String,
     hostname: String,
     install_rootdir: String,
@@ -641,6 +649,29 @@ struct CommentTriggerRegex {
     name: String,
 }
 
+struct CronTriggerSchedule {
+    schedule: cron::Schedule,
+    _cron: String,
+    name: String,
+}
+
+impl std::fmt::Debug for CronTriggerSchedule {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "CronTriggerSchedule [name: {}]", &self.name)
+    }
+}
+
+impl std::clone::Clone for CronTriggerSchedule {
+    fn clone(&self) -> Self {
+        use std::str::FromStr;
+        CronTriggerSchedule {
+            schedule: cron::Schedule::from_str(&self._cron).unwrap(),
+            _cron: self._cron.clone(),
+            name: self.name.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 enum LucyCiAction {
     Loop,
@@ -658,6 +689,7 @@ struct LucyCiCompiledConfig {
     patchset_extract_regex: Regex,
     trigger_regexes: Vec<CommentTriggerRegex>,
     trigger_command_templates: HashMap<String, mustache::Template>,
+    cron_trigger_schedules: Vec<CronTriggerSchedule>,
     action: LucyCiAction,
     changeset_id: Option<u32>,
     patchset_id: Option<u32>,
@@ -673,6 +705,25 @@ fn get_trigger_regexes(config: &LucyCiConfig) -> Vec<CommentTriggerRegex> {
             out.push(CommentTriggerRegex {
                 r: r,
                 r_suppress: r_suppress.clone(),
+                name: name.clone(),
+            });
+        }
+    }
+
+    out
+}
+
+fn get_cron_trigger_schedules(config: &LucyCiConfig) -> Vec<CronTriggerSchedule> {
+    let mut out = vec![];
+    if let Some(cron_triggers) = &config.cron_triggers {
+        for (name, trig) in cron_triggers {
+            use cron::Schedule;
+            use std::str::FromStr;
+
+            let schedule = cron::Schedule::from_str(&trig.cron).unwrap();
+            out.push(CronTriggerSchedule {
+                schedule: schedule,
+                _cron: trig.cron.clone(),
                 name: name.clone(),
             });
         }
@@ -1617,6 +1668,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         .unwrap()
         .to_string();
     let trigger_regexes = get_trigger_regexes(&config);
+    let cron_trigger_schedules = get_cron_trigger_schedules(&config);
     let patchset_regex = Regex::new(&config.patchset_extract_regex).unwrap();
     let trigger_command_templates = get_trigger_command_templates(&config);
     let mut changeset_id: Option<u32> = None;
@@ -1691,6 +1743,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         patchset_extract_regex: patchset_regex,
         trigger_regexes: trigger_regexes,
         trigger_command_templates: trigger_command_templates,
+        cron_trigger_schedules: cron_trigger_schedules,
         action: action,
         changeset_id: changeset_id,
         patchset_id: patchset_id,
@@ -1853,10 +1906,56 @@ fn file_changed_since(fname: &str, since: Option<std::time::SystemTime>) -> bool
     return false;
 }
 
+fn process_cron_triggers(
+    config: &LucyCiConfig,
+    cconfig: &LucyCiCompiledConfig,
+    since: &NaiveDateTime,
+    now: &NaiveDateTime,
+) -> NaiveDateTime {
+    // use chrono::Local;
+    use chrono::{DateTime, Local, TimeZone};
+
+    let dt_since = Local.from_local_datetime(&since).unwrap();
+    let ndt_max_cron = ndt_add_seconds(now.clone(), 3600 * 24); /* within 24h we will surely have a poll */
+    let dt_max_cron = Local.from_local_datetime(&ndt_max_cron).unwrap();
+    let mut dt_now = Local.from_local_datetime(&now).unwrap();
+    let mut dt_next_cron = Local.from_local_datetime(&ndt_max_cron).unwrap();
+
+    for sched in &cconfig.cron_trigger_schedules {
+        let mut skip = 0;
+        let next_0 = sched.schedule.after(&dt_since).nth(0);
+        println!("NEXT0: {:?}", &next_0);
+        let next_0 = next_0.unwrap_or(dt_max_cron.clone());
+        if (next_0 < dt_now) {
+            // run cron command
+            error!("CRON: FIXME running {}", &sched.name);
+            skip = 1;
+        } else {
+            debug!(
+                "CRON not running {} as {} is in the future",
+                &sched.name, &next_0
+            );
+        }
+        for d in sched.schedule.after(&dt_since).skip(skip) {
+            if d < dt_now {
+                /* in the past, no need to deal with this one */
+                continue;
+            }
+            if d > dt_next_cron {
+                /* later than next cron, stop looking */
+                break;
+            }
+            dt_next_cron = d;
+        }
+    }
+    let ndt_next_cron = dt_next_cron.naive_local();
+    debug!("CRON: Next cron occurence: {}", &ndt_next_cron);
+    return ndt_add_seconds(ndt_next_cron, -1); /* one second earlier to catch the next occurence */
+}
+
 fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     use std::env;
     use std::fs;
-    let argv_real: Vec<String> = env::args().collect();
     println!("Starting loop at {}", now_naive_date_time());
     regenerate_all_html(&config, &cconfig);
 
@@ -1871,8 +1970,10 @@ fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
         0,
     ));
 
+    let mut cron_timestamp = now_naive_date_time();
+    let mut poll_timestamp = now_naive_date_time();
     let config_mtime = get_mtime(&cconfig.config_path);
-    let exe_mtime = get_mtime(&argv_real[0]);
+    let exe_mtime = get_mtime(&cconfig.real_s5ci_exe);
 
     loop {
         if config.autorestart.on_config_change
@@ -1884,55 +1985,80 @@ fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
             );
             restart_ourselves();
         }
-        if config.autorestart.on_exe_change && file_changed_since(&argv_real[0], exe_mtime) {
+        if config.autorestart.on_exe_change && file_changed_since(&cconfig.real_s5ci_exe, exe_mtime)
+        {
             println!(
                 "Executable changed, attempt restart at {}... ",
                 now_naive_date_time()
             );
             restart_ourselves();
         }
-
-        // println!("{:?}", ndt);
-        let res_res = do_ssh(&config, &cconfig, before, after);
-        let mut abort_sync = false;
-        if let Ok(res) = res_res {
-            if let Some(stats) = res.stats {
-                abort_sync = run_batch_command(&config, &before, &after, &stats, &res.output);
-            }
-            for cs in res.changes {
-                process_change(&config, &cconfig, &cs, before, after);
-            }
-            before = res.before_when;
-            after = res.after_when;
-            if abort_sync {
-                before = None;
-                eprintln!("process terminated with status 42, aborting the back-sync");
-            }
-            if let Some(before_time) = before.clone() {
-                if before_time.timestamp()
-                    < now_naive_date_time().timestamp() - sync_horizon_sec as i64
-                {
-                    eprintln!(
-                        "Time {} is beyond the horizon of {} seconds from now, finish sync",
-                        &before_time, sync_horizon_sec
-                    );
-                    before = None;
+        let ndt_now = now_naive_date_time();
+        if ndt_now > poll_timestamp {
+            // println!("{:?}", ndt);
+            let res_res = do_ssh(&config, &cconfig, before, after);
+            let mut abort_sync = false;
+            if let Ok(res) = res_res {
+                if let Some(stats) = res.stats {
+                    abort_sync = run_batch_command(&config, &before, &after, &stats, &res.output);
                 }
+                for cs in res.changes {
+                    process_change(&config, &cconfig, &cs, before, after);
+                }
+                before = res.before_when;
+                after = res.after_when;
+                if abort_sync {
+                    before = None;
+                    eprintln!("process terminated with status 42, aborting the back-sync");
+                }
+                if let Some(before_time) = before.clone() {
+                    if before_time.timestamp()
+                        < now_naive_date_time().timestamp() - sync_horizon_sec as i64
+                    {
+                        eprintln!(
+                            "Time {} is beyond the horizon of {} seconds from now, finish sync",
+                            &before_time, sync_horizon_sec
+                        );
+                        before = None;
+                    }
+                }
+            } else {
+                eprintln!("Error doing ssh: {:?}", &res_res);
             }
+            let mut wait_time_ms = config.server.poll_wait_ms.unwrap_or(300000);
+            if before.is_some() {
+                wait_time_ms = config.server.syncing_poll_wait_ms.unwrap_or(wait_time_ms);
+            }
+            poll_timestamp = ndt_add_ms(poll_timestamp, wait_time_ms as i64-10);
         } else {
-            eprintln!("Error doing ssh: {:?}", &res_res);
+            debug!("Poll timestamp {} is in the future, not polling", &poll_timestamp);
         }
-        let mut wait_time_ms = config.server.poll_wait_ms.unwrap_or(300000);
-        let mut wait_name = "poll_wait_ms";
-        if before.is_some() {
-            wait_time_ms = config.server.syncing_poll_wait_ms.unwrap_or(wait_time_ms);
-            wait_name = "syncing_poll_wait_ms";
+
+        if ndt_now > ndt_add_seconds(cron_timestamp, 1) {
+            cron_timestamp = process_cron_triggers(config, cconfig, &cron_timestamp, &ndt_now);
+        } else {
+            debug!(
+                "Cron timestamp {} is in the future, no cron processing this time",
+                &cron_timestamp
+            );
         }
+
+        let mut next_timestamp = ndt_add_seconds(cron_timestamp, 2);
+        if poll_timestamp < next_timestamp {
+            next_timestamp = poll_timestamp;
+        }
+
+        let wait_time_ms = next_timestamp
+            .signed_duration_since(now_naive_date_time())
+            .num_milliseconds() + 1;
 
         collect_zombies();
         // ps();
         // eprintln!("Sleeping for {} msec ({})", wait_time_ms, wait_name);
-        s5ci::thread_sleep_ms(wait_time_ms);
+        debug!("Sleeping for {} ms", wait_time_ms);
+        if wait_time_ms > 0 {
+            s5ci::thread_sleep_ms(wait_time_ms as u64);
+        }
     }
 }
 

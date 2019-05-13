@@ -237,6 +237,19 @@ pub fn now_naive_date_time() -> chrono::NaiveDateTime {
     ndt
 }
 
+pub fn ndt_add_ms(ndt: chrono::NaiveDateTime, msec: i64) -> chrono::NaiveDateTime {
+    use chrono::prelude::*;
+    use chrono::*;
+    ndt.checked_add_signed(Duration::milliseconds(msec))
+        .unwrap()
+}
+
+pub fn ndt_add_ms_safe(ndt: chrono::NaiveDateTime, msec: i64) -> Option<chrono::NaiveDateTime> {
+    use chrono::prelude::*;
+    use chrono::*;
+    ndt.checked_add_signed(Duration::milliseconds(msec))
+}
+
 pub fn ndt_add_seconds(ndt: chrono::NaiveDateTime, sec: i32) -> chrono::NaiveDateTime {
     use chrono::prelude::*;
     use chrono::*;

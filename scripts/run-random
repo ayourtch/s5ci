@@ -6,6 +6,7 @@ if echo ${DIGIT} | egrep -e '[02468]' --; then
 else
   RET=$?
 fi
+exit 0
 echo Exiting with code $RET for ${DIGIT}
 
 if [ ${RET} != 0 ]; then
