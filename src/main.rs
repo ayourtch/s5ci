@@ -1555,6 +1555,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                 .help("Sandbox - inhibit various actions"),
         )
         .subcommand(SubCommand::with_name("list-jobs").about("list jobs"))
+        .subcommand(SubCommand::with_name("check-config").about("check config, return 0 if ok"))
         .subcommand(
             SubCommand::with_name("run-job")
                 .about("run a job")
@@ -1703,6 +1704,10 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     }
     if let Some(matches) = matches.subcommand_matches("list-jobs") {
         action = LucyCiAction::ListJobs;
+    }
+    if let Some(matches) = matches.subcommand_matches("check-config") {
+        // we already checked the config when loading. So if we are here, just exit with success
+        std::process::exit(0);
     }
     if let Some(matches) = matches.subcommand_matches("set-status") {
         let msg = matches.value_of("message").unwrap().to_string();
