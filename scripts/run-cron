@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eux
+date
+ls
+pwd
+echo "Running CRON job $1"

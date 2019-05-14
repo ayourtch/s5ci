@@ -2029,9 +2029,12 @@ fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
             if before.is_some() {
                 wait_time_ms = config.server.syncing_poll_wait_ms.unwrap_or(wait_time_ms);
             }
-            poll_timestamp = ndt_add_ms(poll_timestamp, wait_time_ms as i64-10);
+            poll_timestamp = ndt_add_ms(poll_timestamp, wait_time_ms as i64 - 10);
         } else {
-            debug!("Poll timestamp {} is in the future, not polling", &poll_timestamp);
+            debug!(
+                "Poll timestamp {} is in the future, not polling",
+                &poll_timestamp
+            );
         }
 
         if ndt_now > ndt_add_seconds(cron_timestamp, 1) {
@@ -2050,7 +2053,8 @@ fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
 
         let wait_time_ms = next_timestamp
             .signed_duration_since(now_naive_date_time())
-            .num_milliseconds() + 1;
+            .num_milliseconds()
+            + 1;
 
         collect_zombies();
         // ps();
