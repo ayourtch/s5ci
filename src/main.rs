@@ -1193,7 +1193,7 @@ fn maybe_compile_template(config: &LucyCiConfig, name: &str) -> Result<Template,
 }
 
 fn fill_and_write_template(
-    template: Template,
+    template: &Template,
     data: MapBuilder,
     fname: &str,
 ) -> std::io::Result<()> {
@@ -1207,6 +1207,8 @@ fn fill_and_write_template(
     res
 }
 
+const jobs_per_page: usize = 20;
+
 fn regenerate_group_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, group_name: &str) {
     let template = maybe_compile_template(config, "group_job_page").unwrap();
     let mut data = MapBuilder::new();
@@ -1214,16 +1216,59 @@ fn regenerate_group_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, 
     data = data.insert("job_group_name", &group_name).unwrap();
     data = data.insert("child_jobs", &jobs).unwrap();
     let fname = format!("{}/{}/index.html", &config.jobs.rootdir, group_name);
-    fill_and_write_template(template, data, &fname).unwrap();
+    fill_and_write_template(&template, data, &fname).unwrap();
 }
 
 fn regenerate_root_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     let template = maybe_compile_template(config, "root_job_page").unwrap();
-    let mut data = MapBuilder::new();
     let rjs = db_get_root_jobs();
-    data = data.insert("child_jobs", &rjs).unwrap();
+    let total_jobs = rjs.len();
+    let max_n_first_page_jobs = total_jobs % jobs_per_page + jobs_per_page;
+    let n_nonfirst_pages = if total_jobs > max_n_first_page_jobs { (total_jobs - max_n_first_page_jobs) / jobs_per_page } else { 0 };
+    let n_first_page_jobs = if total_jobs > max_n_first_page_jobs { max_n_first_page_jobs } else { total_jobs };
+
+    let mut data = MapBuilder::new();
     let fname = format!("{}/index.html", &config.jobs.rootdir);
-    fill_and_write_template(template, data, &fname).unwrap();
+    if n_first_page_jobs < total_jobs {
+        let first_prev_page_number = (total_jobs - n_first_page_jobs) / jobs_per_page;
+        let mut prev_page_number = first_prev_page_number;
+        let prev_page_name = format!("index_{}.html", prev_page_number);
+        data = data.insert("prev_page_name", &prev_page_name).unwrap();
+
+        loop {
+            let mut data_n = MapBuilder::new();
+            let curr_page_number = prev_page_number;
+            if curr_page_number == 0 {
+                break;
+            }
+            prev_page_number = prev_page_number - 1;
+            let next_page_number = curr_page_number + 1;
+            if prev_page_number > 0 {
+                let prev_page_name = format!("index_{}.html", prev_page_number);
+                data_n = data_n.insert("prev_page_name", &prev_page_name).unwrap();
+            }
+            let next_page_name = if next_page_number <= first_prev_page_number {
+                format!("index_{}.html", next_page_number)
+            } else {
+                format!("index.html")
+            };
+            data_n = data_n.insert("next_page_name", &next_page_name).unwrap();
+            let start_job =
+                n_first_page_jobs + (n_nonfirst_pages - curr_page_number) * jobs_per_page;
+            let end_job = start_job + jobs_per_page;
+
+            let cjobs = rjs[start_job..end_job].to_vec();
+
+            data_n = data_n.insert("child_jobs", &cjobs).unwrap();
+
+            let fname = format!("{}/index_{}.html", &config.jobs.rootdir, curr_page_number);
+            debug!("writing template {}", &fname);
+            fill_and_write_template(&template, data_n, &fname).unwrap();
+        }
+    }
+    let cjobs = rjs[0..n_first_page_jobs].to_vec();
+    data = data.insert("child_jobs", &cjobs).unwrap();
+    fill_and_write_template(&template, data, &fname).unwrap();
 }
 
 fn regenerate_active_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
@@ -1232,7 +1277,7 @@ fn regenerate_active_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig)
     let rjs = db_get_active_jobs();
     data = data.insert("child_jobs", &rjs).unwrap();
     let fname = format!("{}/active.html", &config.jobs.rootdir);
-    fill_and_write_template(template, data, &fname).unwrap();
+    fill_and_write_template(&template, data, &fname).unwrap();
 }
 
 fn regenerate_html(
@@ -1257,7 +1302,7 @@ fn regenerate_html(
     data = data.insert("child_jobs", &cjs).unwrap();
 
     let fname = format!("{}/{}/index.html", &config.jobs.rootdir, job_id);
-    fill_and_write_template(template, data, &fname).unwrap();
+    fill_and_write_template(&template, data, &fname).unwrap();
 
     if update_children {
         for cj in cjs {
@@ -1300,7 +1345,7 @@ fn regenerate_all_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     let jobs = db_get_all_jobs();
     let mut groups = HashMap::new();
     for j in jobs {
-        println!("Regenerate HTML for {}", &j.job_id);
+        // println!("Regenerate HTML for {}", &j.job_id);
         regenerate_html(config, cconfig, &j.job_id, false, false, &mut groups);
     }
     for (group_name, count) in groups {
@@ -1378,13 +1423,13 @@ fn exec_command(
                 /* done */
                 maybe_status = Some(status);
                 break;
-            },
+            }
             Ok(None) => {
                 debug!("Status not ready yet from pid {}", child_spawned.id());
-            },
+            }
             Err(e) => {
                 panic!("Error attempting to wait: {:?}", e);
-            },
+            }
         }
         s5ci::thread_sleep_ms(5000);
     }
