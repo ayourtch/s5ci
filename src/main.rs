@@ -1929,7 +1929,7 @@ fn process_cron_triggers(
     for sched in &cconfig.cron_trigger_schedules {
         let mut skip = 0;
         let next_0 = sched.schedule.after(&dt_since).nth(0);
-        println!("NEXT0: {:?}", &next_0);
+        println!("NEXT {} cron: {:?}", &sched.name, &next_0);
         let next_0 = next_0.unwrap_or(dt_max_cron.clone());
         if (next_0 < dt_now) {
             // run cron command
