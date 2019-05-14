@@ -1054,8 +1054,8 @@ fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &st
     use std::env;
     use std::process::Command;
     let args: Vec<String> = env::args().collect();
-    let env_changeset_id = format!("{}", cconfig.changeset_id.unwrap());
-    let env_patchset_id = format!("{}", cconfig.patchset_id.unwrap());
+    let env_changeset_id = format!("{}", cconfig.changeset_id.unwrap_or(0));
+    let env_patchset_id = format!("{}", cconfig.patchset_id.unwrap_or(0));
     let mut child0 = Command::new(&args[0]);
     let mut child = child0
         .arg("run-job")
