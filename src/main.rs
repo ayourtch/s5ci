@@ -1928,7 +1928,14 @@ fn process_cron_triggers(
         let next_0 = next_0.unwrap_or(dt_max_cron.clone());
         if (next_0 < dt_now) {
             // run cron command
-            error!("CRON: FIXME running {}", &sched.name);
+            debug!("CRON: attempting to run {}", &sched.name);
+            if let Some(triggers) = &config.cron_triggers {
+                if let Some(ctrig) = triggers.get(&sched.name) {
+                    if let LucyTriggerAction::command(cmd) = &ctrig.action {
+                        let job_id = spawn_command(config, cconfig, &cmd);
+                    }
+                }
+            }
             skip = 1;
         } else {
             debug!(

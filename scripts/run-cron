@@ -4,3 +4,5 @@ date
 ls
 pwd
 echo "Running CRON job $1"
+sleep 180
+echo "Finished running cron job $1"
