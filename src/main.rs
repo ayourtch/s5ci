@@ -1385,10 +1385,12 @@ fn exec_command(
         job_group_name: a_job_group_name,
         instance_id: a_instance_id,
         job_id: a_full_job_id.clone(),
+        job_pid: mypid() as i32,
         parent_job_id: env_pj_id.clone(),
         changeset_id: env_changeset_id,
         patchset_id: env_patchset_id,
         command: format!("{}", cmd),
+        command_pid: None,
         status_message: format!(""),
         status_updated_at: None,
         remote_host: None,
@@ -1410,10 +1412,22 @@ fn exec_command(
     }
     println!("Executing {}", &a_full_job_id);
     setsid();
-    starting_job(config, cconfig, &a_full_job_id);
     let mut child_spawned = child.spawn().expect("failed to execute process");
-    // let status = child.status().expect("failed to execute process");
-    //
+    {
+        use diesel::expression_methods::*;
+        use diesel::query_dsl::QueryDsl;
+        use diesel::query_dsl::RunQueryDsl;
+        use schema::jobs;
+        use schema::jobs::dsl::*;
+
+        let updated_rows = diesel::update(jobs.filter(record_uuid.eq(&my_uuid)))
+            .set((
+                command_pid.eq(Some(child_spawned.id() as i32)),
+            ))
+            .execute(db.conn())
+            .unwrap();
+    }
+    starting_job(config, cconfig, &a_full_job_id);
     use std::process::ExitStatus;
     let mut maybe_status: Option<ExitStatus> = None;
 

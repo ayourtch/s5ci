@@ -12,10 +12,12 @@ CREATE TABLE jobs (
 	job_group_name VARCHAR NOT NULL,
 	instance_id INT NOT NULL,
 	job_id VARCHAR NOT NULL,
+	job_pid INT NOT NULL,
 	parent_job_id VARCHAR,
 	changeset_id INT NOT NULL,
 	patchset_id INT NOT NULL,
 	command VARCHAR NOT NULL,
+	command_pid INT,
 	remote_host VARCHAR,
 	status_message VARCHAR NOT NULL,
 	status_updated_at datetime,
@@ -28,6 +30,9 @@ CREATE TABLE jobs (
 CREATE TABLE counters (
 	name VARCHAR NOT NULL PRIMARY KEY,
 	value INT NOT NULL
-)
+);
 
-
+CREATE TABLE timestamps (
+	name VARCHAR NOT NULL PRIMARY KEY,
+	value datetime NOT NULL
+);

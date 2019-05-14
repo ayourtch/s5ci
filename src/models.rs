@@ -32,10 +32,12 @@ pub struct job {
     pub job_group_name: String,
     pub instance_id: i32,
     pub job_id: String,
+    pub job_pid: i32,
     pub parent_job_id: Option<String>,
     pub changeset_id: i32,
     pub patchset_id: i32,
     pub command: String,
+    pub command_pid: Option<i32>,
     pub remote_host: Option<String>,
     pub status_message: String,
     pub status_updated_at: Option<NaiveDateTime>,
@@ -43,4 +45,11 @@ pub struct job {
     pub finished_at: Option<NaiveDateTime>,
     pub return_success: bool,
     pub return_code: Option<i32>,
+}
+
+#[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone)]
+#[table_name = "timestamps"]
+pub struct timestamp {
+    pub name: String,
+    pub value: NaiveDateTime,
 }

@@ -19,10 +19,12 @@ table! {
         job_group_name -> Text,
         instance_id -> Integer,
         job_id -> Text,
+        job_pid -> Integer,
         parent_job_id -> Nullable<Text>,
         changeset_id -> Integer,
         patchset_id -> Integer,
         command -> Text,
+        command_pid -> Nullable<Integer>,
         remote_host -> Nullable<Text>,
         status_message -> Text,
         status_updated_at -> Nullable<Timestamp>,
@@ -33,4 +35,11 @@ table! {
     }
 }
 
-allow_tables_to_appear_in_same_query!(comments, counters, jobs,);
+table! {
+    timestamps (name) {
+        name -> Text,
+        value -> Timestamp,
+    }
+}
+
+allow_tables_to_appear_in_same_query!(comments, counters, jobs, timestamps,);
