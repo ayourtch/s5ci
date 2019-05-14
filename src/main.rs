@@ -1366,7 +1366,29 @@ fn exec_command(
     println!("Executing {}", &a_full_job_id);
     setsid();
     starting_job(config, cconfig, &a_full_job_id);
-    let status = child.status().expect("failed to execute process");
+    let mut child_spawned = child.spawn().expect("failed to execute process");
+    // let status = child.status().expect("failed to execute process");
+    //
+    use std::process::ExitStatus;
+    let mut maybe_status: Option<ExitStatus> = None;
+
+    loop {
+        match child_spawned.try_wait() {
+            Ok(Some(status)) => {
+                /* done */
+                maybe_status = Some(status);
+                break;
+            },
+            Ok(None) => {
+                debug!("Status not ready yet from pid {}", child_spawned.id());
+            },
+            Err(e) => {
+                panic!("Error attempting to wait: {:?}", e);
+            },
+        }
+        s5ci::thread_sleep_ms(5000);
+    }
+    let status = maybe_status.unwrap();
     match status.code() {
         Some(code) => println!("Finished {} with status code {}", &a_full_job_id, code),
         None => println!("Finished {} due to signal", &a_full_job_id),
