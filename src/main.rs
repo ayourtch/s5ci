@@ -602,6 +602,14 @@ fn mypid() -> pid_t {
     pid
 }
 
+fn kill_process(pid: i32) {
+    unsafe {
+        let pg_id = libc::getpgid(pid as pid_t);
+        libc::kill(-pg_id, libc::SIGTERM);
+    }
+    // maybe call  s5ci::thread_sleep_ms() and then kill -9 ?
+}
+
 fn setsid() -> pid_t {
     use libc::setsid;
     let pid = unsafe { setsid() };
@@ -676,6 +684,7 @@ impl std::clone::Clone for CronTriggerSchedule {
 struct LucyCiRunJobArgs {
     cmd: String,
     omit_if_ok: bool,
+    kill_previous: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -1093,7 +1102,7 @@ fn get_lock_path(a_name: &str) -> String {
 
 fn lock_named(a_name: &str) -> Result<(), String> {
     let lock_path = get_lock_path(a_name);
-    let max_retry_count = 5;
+    let max_retry_count = 20;
     let mut retry_count = max_retry_count;
     while std::fs::create_dir(&lock_path).is_err() {
         if retry_count == 0 {
@@ -1665,6 +1674,11 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                         .help("omit the run if previous is a successful run of the same job type on the same change+patch")
                 )
                 .arg(
+                    Arg::with_name("kill-previous")
+                        .short("k")
+                        .help("kill previous job of this type on the same change+patch if it is still running")
+                )
+                .arg(
                     Arg::with_name("changeset-id")
                         .short("s")
                         .help("changeset ID")
@@ -1799,7 +1813,12 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                 .unwrap(),
         );
         let omit_if_ok = matches.is_present("omit-if-ok");
-        action = LucyCiAction::RunJob(LucyCiRunJobArgs { cmd, omit_if_ok });
+        let kill_previous = matches.is_present("kill-previous");
+        action = LucyCiAction::RunJob(LucyCiRunJobArgs {
+            cmd,
+            omit_if_ok,
+            kill_previous,
+        });
     }
     if let Some(matches) = matches.subcommand_matches("list-jobs") {
         action = LucyCiAction::ListJobs;
@@ -1926,11 +1945,11 @@ fn do_list_jobs(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     }
 }
 fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, args: &LucyCiRunJobArgs) {
-    use signal_hook::{iterator::Signals, SIGABRT, SIGHUP, SIGINT, SIGPIPE, SIGQUIT};
+    use signal_hook::{iterator::Signals, SIGABRT, SIGHUP, SIGINT, SIGPIPE, SIGQUIT, SIGTERM};
     use std::{error::Error, thread};
     let cmd = &args.cmd;
 
-    let signals = Signals::new(&[SIGINT, SIGPIPE, SIGHUP, SIGQUIT, SIGABRT]).unwrap();
+    let signals = Signals::new(&[SIGINT, SIGPIPE, SIGHUP, SIGQUIT, SIGABRT, SIGTERM]).unwrap();
 
     thread::spawn(move || {
         for sig in signals.forever() {
@@ -1938,17 +1957,28 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, args: &Lucy
         }
     });
     println!("Requested to run job '{}'", cmd);
+    let group_name = basename_from_cmd(cmd);
+    let jobs = db_get_jobs_by_group_name_and_csps(
+        &group_name,
+        cconfig.changeset_id.unwrap(),
+        cconfig.patchset_id.unwrap(),
+    );
     if args.omit_if_ok {
-        let group_name = basename_from_cmd(cmd);
-        let jobs = db_get_jobs_by_group_name_and_csps(
-            &group_name,
-            cconfig.changeset_id.unwrap(),
-            cconfig.patchset_id.unwrap(),
-        );
         if jobs.len() > 0 {
             if jobs[0].return_success {
                 println!("Requested to omit if success, existing success job: {:?}, exit no-op with success", &jobs[0]);
                 std::process::exit(0);
+            }
+        }
+    }
+    if args.kill_previous {
+        if jobs.len() > 0 {
+            if let Some(pid) = jobs[0].command_pid {
+                println!(
+                    "Requested to kill previous job, sending signal to pid {} from job {:?}",
+                    pid, &jobs[0]
+                );
+                kill_process(pid);
             }
         }
     }
