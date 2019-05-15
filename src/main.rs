@@ -673,11 +673,17 @@ impl std::clone::Clone for CronTriggerSchedule {
 }
 
 #[derive(Debug, Clone)]
+struct LucyCiRunJobArgs {
+    cmd: String,
+    omit_if_ok: bool,
+}
+
+#[derive(Debug, Clone)]
 enum LucyCiAction {
     Loop,
     ListJobs,
     SetStatus(String, String),
-    RunJob(String),
+    RunJob(LucyCiRunJobArgs),
     GerritCommand(String),
     MakeReview(Option<GerritVoteAction>, String),
 }
@@ -1224,8 +1230,16 @@ fn regenerate_root_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     let rjs = db_get_root_jobs();
     let total_jobs = rjs.len();
     let max_n_first_page_jobs = total_jobs % jobs_per_page + jobs_per_page;
-    let n_nonfirst_pages = if total_jobs > max_n_first_page_jobs { (total_jobs - max_n_first_page_jobs) / jobs_per_page } else { 0 };
-    let n_first_page_jobs = if total_jobs > max_n_first_page_jobs { max_n_first_page_jobs } else { total_jobs };
+    let n_nonfirst_pages = if total_jobs > max_n_first_page_jobs {
+        (total_jobs - max_n_first_page_jobs) / jobs_per_page
+    } else {
+        0
+    };
+    let n_first_page_jobs = if total_jobs > max_n_first_page_jobs {
+        max_n_first_page_jobs
+    } else {
+        total_jobs
+    };
 
     let mut data = MapBuilder::new();
     let fname = format!("{}/index.html", &config.jobs.rootdir);
@@ -1421,9 +1435,7 @@ fn exec_command(
         use schema::jobs::dsl::*;
 
         let updated_rows = diesel::update(jobs.filter(record_uuid.eq(&my_uuid)))
-            .set((
-                command_pid.eq(Some(child_spawned.id() as i32)),
-            ))
+            .set((command_pid.eq(Some(child_spawned.id() as i32)),))
             .execute(db.conn())
             .unwrap();
     }
@@ -1648,6 +1660,11 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                         .takes_value(true),
                 )
                 .arg(
+                    Arg::with_name("omit-if-ok")
+                        .short("o")
+                        .help("omit the run if previous is a successful run of the same job type on the same change+patch")
+                )
+                .arg(
                     Arg::with_name("changeset-id")
                         .short("s")
                         .help("changeset ID")
@@ -1765,7 +1782,6 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     }
     if let Some(matches) = matches.subcommand_matches("run-job") {
         let cmd = matches.value_of("command").unwrap().to_string();
-        action = LucyCiAction::RunJob(cmd);
         patchset_id = Some(
             matches
                 .value_of("patchset-id")
@@ -1782,6 +1798,8 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
                 .parse::<u32>()
                 .unwrap(),
         );
+        let omit_if_ok = matches.is_present("omit-if-ok");
+        action = LucyCiAction::RunJob(LucyCiRunJobArgs { cmd, omit_if_ok });
     }
     if let Some(matches) = matches.subcommand_matches("list-jobs") {
         action = LucyCiAction::ListJobs;
@@ -1907,9 +1925,10 @@ fn do_list_jobs(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
         println!("{:#?}", &j);
     }
 }
-fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) {
+fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, args: &LucyCiRunJobArgs) {
     use signal_hook::{iterator::Signals, SIGABRT, SIGHUP, SIGINT, SIGPIPE, SIGQUIT};
     use std::{error::Error, thread};
+    let cmd = &args.cmd;
 
     let signals = Signals::new(&[SIGINT, SIGPIPE, SIGHUP, SIGQUIT, SIGABRT]).unwrap();
 
@@ -1919,6 +1938,20 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) 
         }
     });
     println!("Requested to run job '{}'", cmd);
+    if args.omit_if_ok {
+        let group_name = basename_from_cmd(cmd);
+        let jobs = db_get_jobs_by_group_name_and_csps(
+            &group_name,
+            cconfig.changeset_id.unwrap(),
+            cconfig.patchset_id.unwrap(),
+        );
+        if jobs.len() > 0 {
+            if jobs[0].return_success {
+                println!("Requested to omit if success, existing success job: {:?}, exit no-op with success", &jobs[0]);
+                std::process::exit(0);
+            }
+        }
+    }
     let (job_id, status) = exec_command(config, cconfig, cmd);
     let mut ret_status = 4242;
     if let Some(st) = status {

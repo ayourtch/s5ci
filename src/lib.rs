@@ -208,6 +208,22 @@ pub fn db_get_jobs_by_group_name(a_name: &str) -> Vec<models::job> {
     results
 }
 
+pub fn db_get_jobs_by_group_name_and_csps(a_name: &str, cs: u32, ps: u32) -> Vec<models::job> {
+    use schema::jobs::dsl::*;
+    let db = get_db();
+    let results = jobs
+        .filter(
+            job_group_name
+                .eq(a_name)
+                .and(changeset_id.eq(cs as i32))
+                .and(patchset_id.eq(ps as i32)),
+        )
+        .order(started_at.desc())
+        .load::<models::job>(db.conn())
+        .expect("Error loading jobs");
+    results
+}
+
 pub fn db_get_root_jobs() -> Vec<models::job> {
     use schema::jobs::dsl::*;
     let db = get_db();
