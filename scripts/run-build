@@ -1,10 +1,21 @@
-#!/bin/sh -eux
+#!/bin/sh
+set -eux
 
-trap '' INT
+trap cleanup INT
 trap '' PIPE
 trap '' HUP
-trap '' QUIT
-trap '' ABRT
+trap cleanup QUIT
+trap cleanup ABRT
+trap cleanup TERM
+
+cleanup()
+{
+	echo "Caught signal, cleaning up"
+docker kill ${S5CI_JOB_NAME}
+        echo "Done cleanup"
+	exit 4242
+}
+
 
 echo run-build $1
 env
@@ -19,13 +30,36 @@ while NUMPROC=$(docker ps | grep -v 'CONTAINER ID' | wc -l); [ ${NUMPROC} -gt ${
    sleep $SLEEPTIME
 done
 ${S5CI_EXE} review -m "Build ${S5CI_JOB_URL} has started"
+echo $$
 
-if docker run --mount source=CCACHE,target=/CCACHE --shm-size=1024M --name $S5CI_JOB_NAME aytest /start.sh $1 $2 ; then
+docker rm $S5CI_JOB_NAME || true
+
+docker run --init --mount source=CCACHE,target=/CCACHE --shm-size=1024M --name $S5CI_JOB_NAME aytest /start.sh $1 $2 &
+DOCKER_PID=$!
+
+# quietly monitor
+set +x
+while (true); do
+ sleep 5
+ COUNT=$(ps -ef | grep $DOCKER_PID | grep -v grep | wc -l)
+ if [ $COUNT -eq 0 ]; then
+	 break
+ fi
+done
+# become loud again
+set -x
+
+wait ${DOCKER_PID}
+DOCKER_RES=$?
+
+echo DOCKER RESULT: ${DOCKER_RES}
+
+# if docker run --mount source=CCACHE,target=/CCACHE --shm-size=1024M --name $S5CI_JOB_NAME aytest /start.sh $1 $2 ; then
+if [ $DOCKER_RES -eq 0 ] ; then
 	echo Docker Success
 	${S5CI_EXE} review -m "Build ${S5CI_JOB_URL} has finished: success"
 	exit 0
 else
-	DOCKER_RES=$?
 	echo Docker run result: ${DOCKER_RES}
 	${S5CI_EXE} review -v failure -m "Build ${S5CI_JOB_URL} has finished: failure"
 	exit ${DOCKER_RES}

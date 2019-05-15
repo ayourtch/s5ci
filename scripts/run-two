@@ -38,7 +38,9 @@ ${S5CI_EXE} review -m "Prerequisite job for ${S5CI_JOB_URL} passed"
 # we should not reach here if there was error above
 ${S5CI_EXE} set-status -m "run main test at `date`"
 
-if parallel -j 2 sh -c '${S5CI_EXE} run-job -c "${0} ${S5CI_CHANGE_REF} ${S5CI_FILTER}"' -- run-test run-test run-test run-build run-test run-test run-test; then
+# if parallel -j 2 sh -c '${S5CI_EXE} run-job -c "${0} ${S5CI_CHANGE_REF} ${S5CI_FILTER}"' -- run-test run-test run-test run-build run-test run-test run-test; then
+# if parallel -j 2 sh -c '${S5CI_EXE} run-job -k -c "${0} ${S5CI_CHANGE_REF} ${S5CI_FILTER}"' -- run-test run-build; then
+if parallel -j 2 sh -c '${S5CI_EXE} run-job -k -c "${0} ${S5CI_CHANGE_REF} ${S5CI_FILTER}"' -- run-build; then
   ${S5CI_EXE} review -v success -m "All jobs for ${S5CI_JOB_URL} passed"
 else
   RET=$?
