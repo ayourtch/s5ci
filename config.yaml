@@ -65,9 +65,9 @@ triggers:
         event: test_command
 
 cron_triggers:
-  every_minute:
+  every_half_hour:
       #            sec  min   hour   day of month   month   day of week   year
-      cron:        "0    *     *          *           *          *          * "
+      cron:        "0    0,30     *          *           *          *          * "
       action:
          command: run-cron once-per-minute
   funky:

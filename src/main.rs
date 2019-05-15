@@ -1972,13 +1972,19 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, args: &Lucy
         }
     }
     if args.kill_previous {
-        if jobs.len() > 0 {
+        if jobs.len() > 0 && jobs[0].finished_at.is_none() {
             if let Some(pid) = jobs[0].command_pid {
                 println!(
                     "Requested to kill previous job, sending signal to pid {} from job {:?}",
                     pid, &jobs[0]
                 );
                 kill_process(pid);
+                do_set_job_status(
+                    config,
+                    cconfig,
+                    &jobs[0].job_id,
+                    "Terminated by the next job instance",
+                );
             }
         }
     }
