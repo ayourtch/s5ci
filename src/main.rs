@@ -693,6 +693,7 @@ enum LucyCiAction {
     ListJobs,
     SetStatus(String, String),
     RunJob(LucyCiRunJobArgs),
+    KillJob(String),
     GerritCommand(String),
     MakeReview(Option<GerritVoteAction>, String),
 }
@@ -1659,6 +1660,17 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         .subcommand(SubCommand::with_name("list-jobs").about("list jobs"))
         .subcommand(SubCommand::with_name("check-config").about("check config, return 0 if ok"))
         .subcommand(
+            SubCommand::with_name("kill-job")
+                .about("kill a running job")
+                .arg(
+                    Arg::with_name("job-id")
+                        .short("j")
+                        .help("job-id to kill")
+                        .required(true)
+                        .takes_value(true),
+                )
+                )
+        .subcommand(
             SubCommand::with_name("run-job")
                 .about("run a job")
                 .arg(
@@ -1793,6 +1805,10 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     if let Some(matches) = matches.subcommand_matches("gerrit-command") {
         let cmd = matches.value_of("command").unwrap().to_string();
         action = LucyCiAction::GerritCommand(cmd);
+    }
+    if let Some(matches) = matches.subcommand_matches("kill-job") {
+        let jobid = matches.value_of("job-id").unwrap().to_string();
+        action = LucyCiAction::KillJob(jobid);
     }
     if let Some(matches) = matches.subcommand_matches("run-job") {
         let cmd = matches.value_of("command").unwrap().to_string();
@@ -2252,6 +2268,7 @@ fn main() {
     match &cconfig.action {
         LucyCiAction::Loop => do_loop(&config, &cconfig),
         LucyCiAction::ListJobs => do_list_jobs(&config, &cconfig),
+        LucyCiAction::KillJob(job_id) => do_kill_job(&config, &cconfig, &job_id, "S5CI CLI"),
         LucyCiAction::RunJob(cmd) => do_run_job(&config, &cconfig, &cmd),
         LucyCiAction::SetStatus(job_id, msg) => do_set_job_status(&config, &cconfig, &job_id, &msg),
         LucyCiAction::GerritCommand(cmd) => do_gerrit_command(&config, &cconfig, &cmd),
