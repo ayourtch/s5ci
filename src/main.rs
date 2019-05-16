@@ -1944,6 +1944,30 @@ fn do_list_jobs(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
         println!("{:#?}", &j);
     }
 }
+fn do_kill_job(
+    config: &LucyCiConfig,
+    cconfig: &LucyCiCompiledConfig,
+    jobid: &str,
+    terminator: &str,
+) {
+    let job = db_get_job(jobid).unwrap();
+    if job.finished_at.is_none() {
+        if let Some(pid) = job.command_pid {
+            println!(
+                "Requested to kill a job, sending signal to pid {} from job {:?}",
+                pid, &job
+            );
+            kill_process(pid);
+            do_set_job_status(
+                config,
+                cconfig,
+                &job.job_id,
+                &format!("Terminated by the {}", terminator),
+            );
+        }
+    }
+}
+
 fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, args: &LucyCiRunJobArgs) {
     use signal_hook::{iterator::Signals, SIGABRT, SIGHUP, SIGINT, SIGPIPE, SIGQUIT, SIGTERM};
     use std::{error::Error, thread};
@@ -1973,19 +1997,7 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, args: &Lucy
     }
     if args.kill_previous {
         if jobs.len() > 0 && jobs[0].finished_at.is_none() {
-            if let Some(pid) = jobs[0].command_pid {
-                println!(
-                    "Requested to kill previous job, sending signal to pid {} from job {:?}",
-                    pid, &jobs[0]
-                );
-                kill_process(pid);
-                do_set_job_status(
-                    config,
-                    cconfig,
-                    &jobs[0].job_id,
-                    "Terminated by the next job instance",
-                );
-            }
+            do_kill_job(config, cconfig, &jobs[0].job_id, "next job");
         }
     }
     let (job_id, status) = exec_command(config, cconfig, cmd);
