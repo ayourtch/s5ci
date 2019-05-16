@@ -281,6 +281,7 @@ struct LucyCiConfig {
     default_vote: LucyGerritVote,
     default_batch_command: Option<String>,
     default_sync_horizon_sec: Option<u32>,
+    default_regex_trigger_delay_sec: Option<u32>,
     command_rootdir: String,
     triggers: Option<HashMap<String, LucyGerritTrigger>>,
     cron_triggers: Option<HashMap<String, LucyCronTrigger>>,
@@ -1510,7 +1511,8 @@ fn process_change(
 
     // eprintln!("Processing change: {:#?}", cs);
     if let Some(startline) = after_when {
-        let startline_ts = startline.timestamp() - 1;
+        let startline_ts =
+            startline.timestamp() - 1 + config.default_regex_trigger_delay_sec.unwrap_or(0) as i64;
         let mut psmap: HashMap<String, GerritPatchSet> = HashMap::new();
 
         if let Some(psets) = &cs.patchSets {
@@ -2165,6 +2167,10 @@ fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     let mut poll_timestamp = now_naive_date_time();
     let config_mtime = get_mtime(&cconfig.config_path);
     let exe_mtime = get_mtime(&cconfig.real_s5ci_exe);
+
+    if let Some(trigger_delay_sec) = config.default_regex_trigger_delay_sec {
+        println!("default_regex_trigger_delay_sec = {}, all regex trigger reactions will be delayed by that", trigger_delay_sec)
+    }
 
     loop {
         if config.autorestart.on_config_change

@@ -24,6 +24,7 @@ default_query:
     # ? per_change_command
 # default_batch_command: scripts/format-output
 default_sync_horizon_sec: 8640000
+default_regex_trigger_delay_sec: 60
 
 # where to resolve the relative command paths from
 command_rootdir: /home/ubuntu/s5ci/scripts
