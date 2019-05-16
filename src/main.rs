@@ -704,6 +704,8 @@ struct LucyCiCompiledConfig {
     config_path: String,
     sandbox_level: u32,
     patchset_extract_regex: Regex,
+    unsafe_char_regex: Regex,
+    unsafe_start_regex: Regex,
     trigger_regexes: Vec<CommentTriggerRegex>,
     trigger_command_templates: HashMap<String, mustache::Template>,
     cron_trigger_schedules: Vec<CronTriggerSchedule>,
@@ -814,6 +816,17 @@ struct CommentTrigger {
     is_suppressed: bool,
 }
 
+// make anything other than -/_ or alphanum an underscore
+fn safe_or_underscores(cconfig: &LucyCiCompiledConfig, val: &str) -> String {
+    cconfig
+        .unsafe_start_regex
+        .replace_all(
+            &cconfig.unsafe_char_regex.replace_all(val, "_").to_string(),
+            "_",
+        )
+        .to_string()
+}
+
 fn get_comment_triggers(
     config: &LucyCiConfig,
     cconfig: &LucyCiCompiledConfig,
@@ -834,7 +847,7 @@ fn get_comment_triggers(
                 /* already saw it */
                 continue;
             }
-            let mut patchset_str = format!("");
+            let mut safe_patchset_str = "".to_string();
             /*
             eprintln!(
                 "    comment at {} by {}: {}",
@@ -845,20 +858,21 @@ fn get_comment_triggers(
             */
             if let Some(rem) = cconfig.patchset_extract_regex.captures(&comment.message) {
                 if let Some(ps) = rem.name("patchset") {
-                    patchset_str = format!("{}", ps.as_str());
+                    safe_patchset_str = safe_or_underscores(cconfig, ps.as_str());
                 }
             }
             for tr in trigger_regexes {
                 if tr.r.is_match(&comment.message) {
                     let mut captures: HashMap<String, String> = HashMap::new();
-                    captures.insert("patchset".into(), format!("{}", &patchset_str));
+                    captures.insert("patchset".into(), safe_patchset_str.clone());
                     // eprintln!("        Comment matched regex {}", &tr.name);
                     // try to extract the patchset from the start of comment
                     for m in tr.r.captures(&comment.message) {
                         for maybe_name in tr.r.capture_names() {
                             if let Some(name) = maybe_name {
                                 if let Some(val) = m.name(&name) {
-                                    captures.insert(name.to_string(), val.as_str().to_string());
+                                    let safe_val = safe_or_underscores(cconfig, val.as_str());
+                                    captures.insert(name.to_string(), safe_val);
                                 }
                             }
                         }
@@ -871,7 +885,7 @@ fn get_comment_triggers(
                         {
                             error!(
                                 "unparseable patchset in {:#?}: {:#?}",
-                                &comment, &patchset_str
+                                &comment, &safe_patchset_str
                             );
                         } else {
                             captures.insert("patchset".into(), format!("{}", &max_pset));
@@ -892,14 +906,15 @@ fn get_comment_triggers(
                 if let Some(r_suppress) = &tr.r_suppress {
                     if r_suppress.is_match(&comment.message) {
                         let mut captures: HashMap<String, String> = HashMap::new();
-                        captures.insert("patchset".into(), format!("{}", &patchset_str));
+                        captures.insert("patchset".into(), safe_patchset_str.clone());
                         // eprintln!("        Comment matched regex {}", &tr.name);
                         // try to extract the patchset from the start of comment
                         for m in r_suppress.captures(&comment.message) {
                             for maybe_name in tr.r.capture_names() {
                                 if let Some(name) = maybe_name {
                                     if let Some(val) = m.name(&name) {
-                                        captures.insert(name.to_string(), val.as_str().to_string());
+                                        let safe_val = safe_or_underscores(cconfig, val.as_str());
+                                        captures.insert(name.to_string(), safe_val);
                                     }
                                 }
                             }
@@ -912,7 +927,7 @@ fn get_comment_triggers(
                             {
                                 error!(
                                     "unparseable patchset in {:#?}: {:#?}",
-                                    &comment, &patchset_str
+                                    &comment, &safe_patchset_str
                                 );
                             } else {
                                 captures.insert("patchset".into(), format!("{}", &max_pset));
@@ -1012,7 +1027,7 @@ fn prepare_child_command<'a>(
     use std::process::Stdio;
     let args: Vec<String> = env::args().collect();
 
-    let re = Regex::new(r"[^A-Za-z0-9_]").unwrap();
+    // let re = Regex::new(r"[^A-Za-z0-9_]").unwrap();
 
     let cmd_file = basename_from_cmd(cmd);
     let job_nr = get_next_job_number(config, &cmd_file);
@@ -1797,7 +1812,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         .to_string();
     let trigger_regexes = get_trigger_regexes(&config);
     let cron_trigger_schedules = get_cron_trigger_schedules(&config);
-    let patchset_regex = Regex::new(&config.patchset_extract_regex).unwrap();
+    let patchset_extract_regex = Regex::new(&config.patchset_extract_regex).unwrap();
     let trigger_command_templates = get_trigger_command_templates(&config);
     let mut changeset_id: Option<u32> = None;
     let mut patchset_id: Option<u32> = None;
@@ -1879,17 +1894,22 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         );
     }
 
+    let unsafe_char_regex = Regex::new(r"([^-/_A-Za-z0-9])").unwrap();
+    let unsafe_start_regex = Regex::new(r"^[^_A-Za-z0-9]").unwrap();
+
     let cconfig = LucyCiCompiledConfig {
         config_path: yaml_fname.to_string(),
-        sandbox_level: sandbox_level,
-        patchset_extract_regex: patchset_regex,
-        trigger_regexes: trigger_regexes,
-        trigger_command_templates: trigger_command_templates,
-        cron_trigger_schedules: cron_trigger_schedules,
-        action: action,
-        changeset_id: changeset_id,
-        patchset_id: patchset_id,
-        real_s5ci_exe: real_s5ci_exe,
+        sandbox_level,
+        patchset_extract_regex,
+        unsafe_char_regex,
+        unsafe_start_regex,
+        trigger_regexes,
+        trigger_command_templates,
+        cron_trigger_schedules,
+        action,
+        changeset_id,
+        patchset_id,
+        real_s5ci_exe,
     };
     debug!("C-Config: {:#?}", &cconfig);
     (config, cconfig)
