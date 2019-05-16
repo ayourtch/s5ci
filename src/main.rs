@@ -1076,8 +1076,8 @@ fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &st
     let mut child = child0
         .arg("run-job")
         .arg("-c")
-        .arg("-k")
         .arg(format!("{}", cmd))
+        .arg("-k")
         .env("S5CI_CONFIG", &cconfig.config_path)
         .env("S5CI_GERRIT_CHANGESET_ID", &env_changeset_id)
         .env("S5CI_GERRIT_PATCHSET_ID", &env_patchset_id);
