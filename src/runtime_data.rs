@@ -1,4 +1,4 @@
-use crate::s5ci_config::GerritVoteAction;
+use crate::s5ci_config::*;
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -78,4 +78,46 @@ pub struct s5ciRuntimeData {
     pub changeset_id: Option<u32>,
     pub patchset_id: Option<u32>,
     pub real_s5ci_exe: String,
+}
+
+pub fn get_cron_trigger_schedules(config: &s5ciConfig) -> Vec<CronTriggerSchedule> {
+    let mut out = vec![];
+    if let Some(cron_triggers) = &config.cron_triggers {
+        for (name, trig) in cron_triggers {
+            out.push(CronTriggerSchedule::from_str(&trig.cron, &name));
+        }
+    }
+
+    out
+}
+
+pub fn get_trigger_regexes(config: &s5ciConfig) -> Vec<CommentTriggerRegex> {
+    let mut out = vec![];
+    if let Some(triggers) = &config.triggers {
+        for (name, trig) in triggers {
+            let r = Regex::new(&trig.regex).unwrap();
+            let r_suppress = trig.suppress_regex.clone().map(|x| Regex::new(&x).unwrap());
+            out.push(CommentTriggerRegex {
+                r: r,
+                r_suppress: r_suppress.clone(),
+                name: name.clone(),
+            });
+        }
+    }
+
+    out
+}
+
+pub fn get_trigger_command_templates(config: &s5ciConfig) -> HashMap<String, mustache::Template> {
+    let mut out = HashMap::new();
+    if let Some(triggers) = &config.triggers {
+        for (name, trig) in triggers {
+            if let s5TriggerAction::command(cmd) = &trig.action {
+                let full_cmd = format!("{}/{}", &config.command_rootdir, &cmd);
+                let template = mustache::compile_str(cmd).unwrap();
+                out.insert(name.clone(), template);
+            }
+        }
+    }
+    out
 }

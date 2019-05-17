@@ -60,47 +60,6 @@ fn get_job_name(config: &s5ciConfig, rtdt: &s5ciRuntimeData, job_id: &str) -> St
     job_name
 }
 
-fn get_trigger_regexes(config: &s5ciConfig) -> Vec<CommentTriggerRegex> {
-    let mut out = vec![];
-    if let Some(triggers) = &config.triggers {
-        for (name, trig) in triggers {
-            let r = Regex::new(&trig.regex).unwrap();
-            let r_suppress = trig.suppress_regex.clone().map(|x| Regex::new(&x).unwrap());
-            out.push(CommentTriggerRegex {
-                r: r,
-                r_suppress: r_suppress.clone(),
-                name: name.clone(),
-            });
-        }
-    }
-
-    out
-}
-
-fn get_cron_trigger_schedules(config: &s5ciConfig) -> Vec<CronTriggerSchedule> {
-    let mut out = vec![];
-    if let Some(cron_triggers) = &config.cron_triggers {
-        for (name, trig) in cron_triggers {
-            out.push(CronTriggerSchedule::from_str(&trig.cron, &name));
-        }
-    }
-
-    out
-}
-
-fn get_trigger_command_templates(config: &s5ciConfig) -> HashMap<String, mustache::Template> {
-    let mut out = HashMap::new();
-    if let Some(triggers) = &config.triggers {
-        for (name, trig) in triggers {
-            if let s5TriggerAction::command(cmd) = &trig.action {
-                let full_cmd = format!("{}/{}", &config.command_rootdir, &cmd);
-                let template = mustache::compile_str(cmd).unwrap();
-                out.insert(name.clone(), template);
-            }
-        }
-    }
-    out
-}
 
 fn db_get_changeset_last_comment_id(a_changeset_id: i32) -> i32 {
     let comment = db_get_comment_by_changeset_id(a_changeset_id);
