@@ -38,11 +38,13 @@ mod gerrit_types;
 mod s5ci_config;
 mod run_ssh_command;
 mod unix_process;
+mod runtime_data;
 
 use crate::gerrit_types::*;
 use crate::s5ci_config::*;
 use crate::run_ssh_command::*;
 use crate::unix_process::*;
+use crate::runtime_data::*;
 
 use s5ci::*;
 
@@ -213,70 +215,6 @@ fn run_batch_command(
 }
 
 
-#[derive(Debug, Clone)]
-struct CommentTriggerRegex {
-    r: Regex,
-    r_suppress: Option<Regex>,
-    name: String,
-}
-
-struct CronTriggerSchedule {
-    schedule: cron::Schedule,
-    _cron: String,
-    name: String,
-}
-
-impl std::fmt::Debug for CronTriggerSchedule {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "CronTriggerSchedule [name: {}]", &self.name)
-    }
-}
-
-impl std::clone::Clone for CronTriggerSchedule {
-    fn clone(&self) -> Self {
-        use std::str::FromStr;
-        CronTriggerSchedule {
-            schedule: cron::Schedule::from_str(&self._cron).unwrap(),
-            _cron: self._cron.clone(),
-            name: self.name.clone(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct s5ciRunJobArgs {
-    cmd: String,
-    omit_if_ok: bool,
-    kill_previous: bool,
-}
-
-#[derive(Debug, Clone)]
-enum s5ciAction {
-    Loop,
-    ListJobs,
-    SetStatus(String, String),
-    RunJob(s5ciRunJobArgs),
-    KillJob(String),
-    GerritCommand(String),
-    MakeReview(Option<GerritVoteAction>, String),
-}
-
-#[derive(Debug, Clone)]
-struct s5ciRuntimeData {
-    config_path: String,
-    sandbox_level: u32,
-    patchset_extract_regex: Regex,
-    unsafe_char_regex: Regex,
-    unsafe_start_regex: Regex,
-    trigger_regexes: Vec<CommentTriggerRegex>,
-    trigger_command_templates: HashMap<String, mustache::Template>,
-    cron_trigger_schedules: Vec<CronTriggerSchedule>,
-    action: s5ciAction,
-    changeset_id: Option<u32>,
-    patchset_id: Option<u32>,
-    real_s5ci_exe: String,
-}
-
 fn get_trigger_regexes(config: &s5ciConfig) -> Vec<CommentTriggerRegex> {
     let mut out = vec![];
     if let Some(triggers) = &config.triggers {
@@ -298,15 +236,7 @@ fn get_cron_trigger_schedules(config: &s5ciConfig) -> Vec<CronTriggerSchedule> {
     let mut out = vec![];
     if let Some(cron_triggers) = &config.cron_triggers {
         for (name, trig) in cron_triggers {
-            use cron::Schedule;
-            use std::str::FromStr;
-
-            let schedule = cron::Schedule::from_str(&trig.cron).unwrap();
-            out.push(CronTriggerSchedule {
-                schedule: schedule,
-                _cron: trig.cron.clone(),
-                name: name.clone(),
-            });
+            out.push(CronTriggerSchedule::from_str(&trig.cron, &name));
         }
     }
 
