@@ -1,15 +1,14 @@
-use std::io;
+use crate::gerrit_types::*;
+use crate::s5ci_config::*;
+use chrono::NaiveDateTime;
+use mustache;
 use serde_json;
 use ssh2;
 use ssh2::Session;
-use mustache;
-use crate::s5ci_config::*;
-use chrono::NaiveDateTime;
-use std::path::Path;
-use std::net::TcpStream;
+use std::io;
 use std::io::Read;
-use crate::gerrit_types::*;
-
+use std::net::TcpStream;
+use std::path::Path;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct s5SshResult {
