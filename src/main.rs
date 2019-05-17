@@ -92,7 +92,7 @@ fn gerrit_query_changes(
     run_ssh_command(config, &cmd)
 }
 
-fn do_ssh(
+fn poll_gerrit_over_ssh(
     config: &s5ciConfig,
     rtdt: &s5ciRuntimeData,
     before_when: Option<NaiveDateTime>,
@@ -1714,7 +1714,7 @@ fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
         let ndt_now = now_naive_date_time();
         if ndt_now > poll_timestamp {
             // println!("{:?}", ndt);
-            let res_res = do_ssh(&config, &rtdt, before, after);
+            let res_res = poll_gerrit_over_ssh(&config, &rtdt, before, after);
             let mut abort_sync = false;
             if let Ok(res) = res_res {
                 if let Some(stats) = res.stats {
