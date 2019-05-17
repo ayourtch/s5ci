@@ -8,7 +8,6 @@ pub enum BeforeAfter {
     Any,
 }
 
-
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct s5SshAuthPubkeyFile {
@@ -134,7 +133,6 @@ pub struct s5ciConfig {
 
 impl s5ciPollGerrit {
     pub fn get_server_address_port(self: &Self) -> String {
-    format!("{}:{}", self.address, self.port)
+        format!("{}:{}", self.address, self.port)
     }
 }
-
