@@ -11,7 +11,6 @@ extern crate exec;
 extern crate libc;
 extern crate psutil;
 extern crate regex;
-extern crate serde_yaml;
 extern crate signal_hook;
 extern crate uuid;
 extern crate yaml_rust;
@@ -26,172 +25,21 @@ use std::fs;
 
 #[macro_use]
 extern crate serde_derive;
+extern crate serde;
+extern crate serde_json;
+extern crate serde_yaml;
 
 extern crate cron;
 extern crate mustache;
-extern crate serde;
-extern crate serde_json;
 
 use chrono::NaiveDateTime;
 
 mod gerrit_types;
+mod s5ci_config;
 use crate::gerrit_types::*;
+use crate::s5ci_config::*;
 
 use s5ci::*;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-enum BeforeAfter {
-    Before(NaiveDateTime),
-    After(NaiveDateTime),
-    Any,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-enum GerritVoteAction {
-    success,
-    failure,
-    clear,
-}
-
-impl std::str::FromStr for GerritVoteAction {
-    type Err = ();
-    fn from_str(s: &str) -> Result<GerritVoteAction, ()> {
-        match s {
-            "success" => Ok(GerritVoteAction::success),
-            "failure" => Ok(GerritVoteAction::failure),
-            "clear" => Ok(GerritVoteAction::clear),
-            _ => Err(()),
-        }
-    }
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5SshAuthPubkeyFile {
-    username: String,
-    pubkey: Option<String>,
-    privatekey: String,
-    passphrase: Option<String>,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5SshAuthPassword {
-    username: String,
-    password: String,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5SshAuthAgent {
-    username: String,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-enum s5SshAuth {
-    auth_pubkey_file(s5SshAuthPubkeyFile),
-    auth_password(s5SshAuthPassword),
-    auth_agent(s5SshAuthAgent),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5ciDirectSshPoll {
-    auth: Option<s5SshAuth>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5ciShellPoll {
-    command: String,
-    args: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-enum s5ciPollType {
-    direct_ssh(s5ciDirectSshPoll),
-    shell(s5ciShellPoll),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5ciPollGerrit {
-    address: std::net::IpAddr,
-    port: u16,
-    poll_type: s5ciPollType,
-    poll_wait_ms: Option<u64>,
-    syncing_poll_wait_ms: Option<u64>,
-    sync_horizon_sec: Option<u32>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5GerritQuery {
-    filter: String,
-    options: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5GerritVote {
-    success: String,
-    failure: String,
-    clear: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-enum s5TriggerAction {
-    event(String),
-    command(String),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5GerritTrigger {
-    project: Option<String>,
-    regex: String,
-    suppress_regex: Option<String>,
-    action: s5TriggerAction,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5CronTrigger {
-    cron: String,
-    action: s5TriggerAction,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5ciJobs {
-    rootdir: String,
-    root_url: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5AutorestartConfig {
-    on_config_change: bool,
-    on_exe_change: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct s5ciConfig {
-    default_auth: s5SshAuth,
-    server: s5ciPollGerrit,
-    default_query: s5GerritQuery,
-    default_vote: s5GerritVote,
-    default_batch_command: Option<String>,
-    default_sync_horizon_sec: Option<u32>,
-    default_regex_trigger_delay_sec: Option<u32>,
-    command_rootdir: String,
-    triggers: Option<HashMap<String, s5GerritTrigger>>,
-    cron_triggers: Option<HashMap<String, s5CronTrigger>>,
-    patchset_extract_regex: String,
-    hostname: String,
-    install_rootdir: String,
-    autorestart: s5AutorestartConfig,
-    db_url: String,
-    jobs: s5ciJobs,
-}
-
-impl s5ciPollGerrit {
-    fn get_server_address_port(self: &Self) -> String {
-        format!("{}:{}", self.address, self.port)
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct s5SshResult {
