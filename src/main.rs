@@ -46,10 +46,10 @@ use crate::unix_process::*;
 
 use s5ci::*;
 
-fn get_job_url(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, job_id: &str) -> String {
+fn get_job_url(config: &s5ciConfig, rtdt: &s5ciRuntimeData, job_id: &str) -> String {
     format!("{}/{}/", config.jobs.root_url, job_id)
 }
-fn get_job_name(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, job_id: &str) -> String {
+fn get_job_name(config: &s5ciConfig, rtdt: &s5ciRuntimeData, job_id: &str) -> String {
     let re = Regex::new(r"[^A-Za-z0-9_]").unwrap();
 
     let job_name = re.replace_all(&format!("{}", job_id), "_").to_string();
@@ -92,7 +92,7 @@ fn gerrit_query_changes(
 
 fn do_ssh(
     config: &s5ciConfig,
-    cconfig: &s5ciCompiledConfig,
+    rtdt: &s5ciRuntimeData,
     before_when: Option<NaiveDateTime>,
     after_when: Option<NaiveDateTime>,
 ) -> Result<s5SshResult, s5SshError> {
@@ -262,7 +262,7 @@ enum s5ciAction {
 }
 
 #[derive(Debug, Clone)]
-struct s5ciCompiledConfig {
+struct s5ciRuntimeData {
     config_path: String,
     sandbox_level: u32,
     patchset_extract_regex: Regex,
@@ -379,11 +379,11 @@ struct CommentTrigger {
 }
 
 // make anything other than -/_ or alphanum an underscore
-fn safe_or_underscores(cconfig: &s5ciCompiledConfig, val: &str) -> String {
-    cconfig
+fn safe_or_underscores(rtdt: &s5ciRuntimeData, val: &str) -> String {
+    rtdt
         .unsafe_start_regex
         .replace_all(
-            &cconfig.unsafe_char_regex.replace_all(val, "_").to_string(),
+            &rtdt.unsafe_char_regex.replace_all(val, "_").to_string(),
             "_",
         )
         .to_string()
@@ -391,13 +391,13 @@ fn safe_or_underscores(cconfig: &s5ciCompiledConfig, val: &str) -> String {
 
 fn get_comment_triggers(
     config: &s5ciConfig,
-    cconfig: &s5ciCompiledConfig,
+    rtdt: &s5ciRuntimeData,
     changeset_id: i32,
     max_pset: u32,
     comments_vec: &Vec<GerritComment>,
     startline_ts: i64,
 ) -> Vec<CommentTrigger> {
-    let trigger_regexes = &cconfig.trigger_regexes;
+    let trigger_regexes = &rtdt.trigger_regexes;
     let mut out = vec![];
 
     let last_seen_comment_id = db_get_changeset_last_comment_id(changeset_id);
@@ -418,9 +418,9 @@ fn get_comment_triggers(
                 comment.message
             );
             */
-            if let Some(rem) = cconfig.patchset_extract_regex.captures(&comment.message) {
+            if let Some(rem) = rtdt.patchset_extract_regex.captures(&comment.message) {
                 if let Some(ps) = rem.name("patchset") {
-                    safe_patchset_str = safe_or_underscores(cconfig, ps.as_str());
+                    safe_patchset_str = safe_or_underscores(rtdt, ps.as_str());
                 }
             }
             for tr in trigger_regexes {
@@ -433,7 +433,7 @@ fn get_comment_triggers(
                         for maybe_name in tr.r.capture_names() {
                             if let Some(name) = maybe_name {
                                 if let Some(val) = m.name(&name) {
-                                    let safe_val = safe_or_underscores(cconfig, val.as_str());
+                                    let safe_val = safe_or_underscores(rtdt, val.as_str());
                                     captures.insert(name.to_string(), safe_val);
                                 }
                             }
@@ -475,7 +475,7 @@ fn get_comment_triggers(
                             for maybe_name in tr.r.capture_names() {
                                 if let Some(name) = maybe_name {
                                     if let Some(val) = m.name(&name) {
-                                        let safe_val = safe_or_underscores(cconfig, val.as_str());
+                                        let safe_val = safe_or_underscores(rtdt, val.as_str());
                                         captures.insert(name.to_string(), safe_val);
                                     }
                                 }
@@ -578,7 +578,7 @@ fn get_next_job_number(config: &s5ciConfig, jobname: &str) -> i32 {
 
 fn prepare_child_command<'a>(
     config: &s5ciConfig,
-    cconfig: &s5ciCompiledConfig,
+    rtdt: &s5ciRuntimeData,
     child0: &'a mut std::process::Command,
     cmd: &str,
     suffix: &str,
@@ -616,7 +616,7 @@ fn prepare_child_command<'a>(
                 std::env::var("PATH").unwrap_or("".to_string())
             ),
         )
-        .env("S5CI_EXE", &cconfig.real_s5ci_exe)
+        .env("S5CI_EXE", &rtdt.real_s5ci_exe)
         .env("S5CI_JOB_ID", &job_id)
         .env(
             "S5CI_WORKSPACE",
@@ -626,10 +626,10 @@ fn prepare_child_command<'a>(
             "S5CI_CONSOLE_LOG",
             &get_job_console_log_path(config, &job_id),
         )
-        .env("S5CI_JOB_NAME", &get_job_name(config, cconfig, &job_id))
-        .env("S5CI_JOB_URL", &get_job_url(config, cconfig, &job_id))
-        .env("S5CI_SANDBOX_LEVEL", format!("{}", cconfig.sandbox_level))
-        .env("S5CI_CONFIG", &cconfig.config_path);
+        .env("S5CI_JOB_NAME", &get_job_name(config, rtdt, &job_id))
+        .env("S5CI_JOB_URL", &get_job_url(config, rtdt, &job_id))
+        .env("S5CI_SANDBOX_LEVEL", format!("{}", rtdt.sandbox_level))
+        .env("S5CI_CONFIG", &rtdt.config_path);
 
     // see if we can stuff the parent job variables
     let env_pj_id = env::var("S5CI_JOB_ID");
@@ -644,29 +644,29 @@ fn prepare_child_command<'a>(
     return (cmd_file, job_nr, child0);
 }
 
-fn spawn_command(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, cmd: &str) {
+fn spawn_command(config: &s5ciConfig, rtdt: &s5ciRuntimeData, cmd: &str) {
     use std::env;
     use std::process::Command;
     let args: Vec<String> = env::args().collect();
-    let env_changeset_id = format!("{}", cconfig.changeset_id.unwrap_or(0));
-    let env_patchset_id = format!("{}", cconfig.patchset_id.unwrap_or(0));
+    let env_changeset_id = format!("{}", rtdt.changeset_id.unwrap_or(0));
+    let env_patchset_id = format!("{}", rtdt.patchset_id.unwrap_or(0));
     let mut child0 = Command::new(&args[0]);
     let mut child = child0
         .arg("run-job")
         .arg("-c")
         .arg(format!("{}", cmd))
         .arg("-k")
-        .env("S5CI_CONFIG", &cconfig.config_path)
+        .env("S5CI_CONFIG", &rtdt.config_path)
         .env("S5CI_GERRIT_CHANGESET_ID", &env_changeset_id)
         .env("S5CI_GERRIT_PATCHSET_ID", &env_patchset_id);
     println!("Spawning {:#?}", child);
-    if cconfig.sandbox_level < 2 {
+    if rtdt.sandbox_level < 2 {
         let res = child.spawn().expect("failed to execute child");
         println!("Spawned pid {}", res.id());
     } else {
         println!(
             "Sandbox level {}, not actually spawning a child",
-            &cconfig.sandbox_level
+            &rtdt.sandbox_level
         );
     }
 }
@@ -804,7 +804,7 @@ fn fill_and_write_template(
 
 const jobs_per_page: usize = 20;
 
-fn regenerate_group_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, group_name: &str) {
+fn regenerate_group_html(config: &s5ciConfig, rtdt: &s5ciRuntimeData, group_name: &str) {
     let template = maybe_compile_template(config, "group_job_page").unwrap();
     let mut data = MapBuilder::new();
     let jobs = db_get_jobs_by_group_name(group_name);
@@ -814,7 +814,7 @@ fn regenerate_group_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, grou
     fill_and_write_template(&template, data, &fname).unwrap();
 }
 
-fn regenerate_root_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
+fn regenerate_root_html(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
     let template = maybe_compile_template(config, "root_job_page").unwrap();
     let rjs = db_get_root_jobs();
     let total_jobs = rjs.len();
@@ -874,7 +874,7 @@ fn regenerate_root_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
     fill_and_write_template(&template, data, &fname).unwrap();
 }
 
-fn regenerate_active_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
+fn regenerate_active_html(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
     let template = maybe_compile_template(config, "active_job_page").unwrap();
     let mut data = MapBuilder::new();
     let rjs = db_get_active_jobs();
@@ -885,7 +885,7 @@ fn regenerate_active_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
 
 fn regenerate_html(
     config: &s5ciConfig,
-    cconfig: &s5ciCompiledConfig,
+    rtdt: &s5ciRuntimeData,
     job_id: &str,
     update_parent: bool,
     update_children: bool,
@@ -909,15 +909,15 @@ fn regenerate_html(
 
     if update_children {
         for cj in cjs {
-            regenerate_html(config, cconfig, &cj.job_id, false, false, groups);
+            regenerate_html(config, rtdt, &cj.job_id, false, false, groups);
         }
     }
 
     if update_parent {
         if let Some(pjob_id) = &j.parent_job_id {
-            regenerate_html(config, cconfig, pjob_id, false, false, groups);
+            regenerate_html(config, rtdt, pjob_id, false, false, groups);
         } else {
-            regenerate_root_html(config, cconfig);
+            regenerate_root_html(config, rtdt);
         }
     }
     groups.insert(
@@ -926,54 +926,54 @@ fn regenerate_html(
     );
 }
 
-fn regenerate_job_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, job_id: &str) {
+fn regenerate_job_html(config: &s5ciConfig, rtdt: &s5ciRuntimeData, job_id: &str) {
     let mut groups = HashMap::new();
-    regenerate_html(config, cconfig, job_id, true, true, &mut groups);
+    regenerate_html(config, rtdt, job_id, true, true, &mut groups);
     for (group_name, count) in groups {
         println!("Regenerating group {} with {} jobs", &group_name, count);
-        regenerate_group_html(config, cconfig, &group_name);
+        regenerate_group_html(config, rtdt, &group_name);
     }
-    regenerate_active_html(config, cconfig);
+    regenerate_active_html(config, rtdt);
 }
 
-fn starting_job(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, job_id: &str) {
-    regenerate_job_html(config, cconfig, job_id);
+fn starting_job(config: &s5ciConfig, rtdt: &s5ciRuntimeData, job_id: &str) {
+    regenerate_job_html(config, rtdt, job_id);
 }
 
-fn finished_job(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, job_id: &str) {
-    regenerate_job_html(config, cconfig, job_id);
+fn finished_job(config: &s5ciConfig, rtdt: &s5ciRuntimeData, job_id: &str) {
+    regenerate_job_html(config, rtdt, job_id);
 }
 
-fn regenerate_all_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
+fn regenerate_all_html(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
     let jobs = db_get_all_jobs();
     let mut groups = HashMap::new();
     for j in jobs {
         // println!("Regenerate HTML for {}", &j.job_id);
-        regenerate_html(config, cconfig, &j.job_id, false, false, &mut groups);
+        regenerate_html(config, rtdt, &j.job_id, false, false, &mut groups);
     }
     for (group_name, count) in groups {
         println!("Regenerating group {} with {} jobs", &group_name, count);
-        regenerate_group_html(config, cconfig, &group_name);
+        regenerate_group_html(config, rtdt, &group_name);
     }
-    regenerate_root_html(config, cconfig);
-    regenerate_active_html(config, cconfig);
+    regenerate_root_html(config, rtdt);
+    regenerate_active_html(config, rtdt);
 }
 
 fn exec_command(
     config: &s5ciConfig,
-    cconfig: &s5ciCompiledConfig,
+    rtdt: &s5ciRuntimeData,
     cmd: &str,
 ) -> (String, Option<i32>) {
     use std::env;
     use std::process::Command;
     use uuid::Uuid;
 
-    let env_changeset_id = cconfig.changeset_id.unwrap() as i32;
-    let env_patchset_id = cconfig.patchset_id.unwrap() as i32;
+    let env_changeset_id = rtdt.changeset_id.unwrap() as i32;
+    let env_patchset_id = rtdt.patchset_id.unwrap() as i32;
     let mut child0 = Command::new("/bin/sh");
     let mut child = child0.arg("-c");
     let (a_job_group_name, a_instance_id, mut child) =
-        prepare_child_command(config, cconfig, child, cmd, "");
+        prepare_child_command(config, rtdt, child, cmd, "");
     let a_full_job_id = format!("{}/{}", &a_job_group_name, a_instance_id);
 
     /* change dir to job workspace */
@@ -1028,7 +1028,7 @@ fn exec_command(
             .execute(db.conn())
             .unwrap();
     }
-    starting_job(config, cconfig, &a_full_job_id);
+    starting_job(config, rtdt, &a_full_job_id);
     use std::process::ExitStatus;
     let mut maybe_status: Option<ExitStatus> = None;
 
@@ -1072,13 +1072,13 @@ fn exec_command(
             .execute(db.conn())
             .unwrap();
     }
-    finished_job(config, cconfig, &a_full_job_id);
+    finished_job(config, rtdt, &a_full_job_id);
     return (a_full_job_id, status.code());
 }
 
 fn process_change(
     config: &s5ciConfig,
-    cconfig: &s5ciCompiledConfig,
+    rtdt: &s5ciRuntimeData,
     cs: &GerritChangeSet,
     before_when: Option<NaiveDateTime>,
     after_when: Option<NaiveDateTime>,
@@ -1120,7 +1120,7 @@ fn process_change(
             let change_id = cs.number.unwrap() as i32;
             let all_triggers = get_comment_triggers(
                 config,
-                cconfig,
+                rtdt,
                 change_id,
                 max_pset,
                 comments_vec,
@@ -1162,7 +1162,7 @@ fn process_change(
             // eprintln!("all triggers: {:#?}", &final_triggers);
             eprintln!("final triggers: {:#?}", &final_triggers);
             for trig in &final_triggers {
-                let template = cconfig
+                let template = rtdt
                     .trigger_command_templates
                     .get(&trig.trigger_name)
                     .unwrap();
@@ -1177,13 +1177,13 @@ fn process_change(
                 template.render_data(&mut bytes, &data).unwrap();
                 let expanded_command = String::from_utf8_lossy(&bytes);
                 let change_id = cs.number.unwrap();
-                let mut cconfig2 = cconfig.clone();
-                cconfig2.changeset_id = Some(change_id);
-                cconfig2.patchset_id = Some(trig.patchset_id);
+                let mut rtdt2 = rtdt.clone();
+                rtdt2.changeset_id = Some(change_id);
+                rtdt2.patchset_id = Some(trig.patchset_id);
                 if (trig.is_suppress || trig.is_suppressed) {
                     panic!(format!("bug: job is not runnable: {:#?}", &trig));
                 }
-                let job_id = spawn_command(config, &cconfig2, &expanded_command);
+                let job_id = spawn_command(config, &rtdt2, &expanded_command);
             }
         }
     }
@@ -1218,7 +1218,7 @@ fn ps() {
     }
 }
 
-fn get_configs() -> (s5ciConfig, s5ciCompiledConfig) {
+fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
     let matches = App::new("S5CI - S<imple> CI")
         .version("0.5")
         .author("Andrew Yourtchenko <ayourtch@gmail.com>")
@@ -1463,7 +1463,7 @@ fn get_configs() -> (s5ciConfig, s5ciCompiledConfig) {
     let unsafe_char_regex = Regex::new(r"([^-/_A-Za-z0-9])").unwrap();
     let unsafe_start_regex = Regex::new(r"^[^_A-Za-z0-9]").unwrap();
 
-    let cconfig = s5ciCompiledConfig {
+    let rtdt = s5ciRuntimeData {
         config_path: yaml_fname.to_string(),
         sandbox_level,
         patchset_extract_regex,
@@ -1477,17 +1477,17 @@ fn get_configs() -> (s5ciConfig, s5ciCompiledConfig) {
         patchset_id,
         real_s5ci_exe,
     };
-    debug!("C-Config: {:#?}", &cconfig);
-    (config, cconfig)
+    debug!("C-Config: {:#?}", &rtdt);
+    (config, rtdt)
 }
 
-fn do_gerrit_command(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, cmd: &str) {
+fn do_gerrit_command(config: &s5ciConfig, rtdt: &s5ciRuntimeData, cmd: &str) {
     run_ssh_command(config, cmd);
 }
 
 fn do_review(
     config: &s5ciConfig,
-    cconfig: &s5ciCompiledConfig,
+    rtdt: &s5ciRuntimeData,
     maybe_vote: &Option<GerritVoteAction>,
     msg: &str,
 ) {
@@ -1497,10 +1497,10 @@ fn do_review(
             GerritVoteAction::failure => format!(" {}", &config.default_vote.failure),
             GerritVoteAction::clear => format!(" {}", &config.default_vote.clear),
         };
-        if cconfig.sandbox_level > 1 {
+        if rtdt.sandbox_level > 1 {
             error!(
                 "Sandbox level {}, ignoring the voting arg '{}'",
-                cconfig.sandbox_level, &active_vote
+                rtdt.sandbox_level, &active_vote
             );
             format!("")
         } else {
@@ -1509,34 +1509,34 @@ fn do_review(
     } else {
         format!("")
     };
-    let patchset_id = cconfig.patchset_id.unwrap();
+    let patchset_id = rtdt.patchset_id.unwrap();
     let cmd = if patchset_id == 0 {
         format!(
             "gerrit review {} {} --message \"{}\"",
-            cconfig.changeset_id.unwrap(),
+            rtdt.changeset_id.unwrap(),
             vote,
             msg
         )
     } else {
         format!(
             "gerrit review {},{} {} --message \"{}\"",
-            cconfig.changeset_id.unwrap(),
+            rtdt.changeset_id.unwrap(),
             patchset_id,
             vote,
             msg
         )
     };
-    if cconfig.sandbox_level > 0 {
+    if rtdt.sandbox_level > 0 {
         error!(
             "Sandbox level {}, not running command '{}'",
-            cconfig.sandbox_level, &cmd
+            rtdt.sandbox_level, &cmd
         );
     } else {
         run_ssh_command(config, &cmd);
     }
 }
 
-fn do_list_jobs(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
+fn do_list_jobs(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
     let jobs = db_get_all_jobs();
     for j in jobs {
         if j.finished_at.is_some() {
@@ -1551,7 +1551,7 @@ fn do_list_jobs(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
 }
 fn do_kill_job(
     config: &s5ciConfig,
-    cconfig: &s5ciCompiledConfig,
+    rtdt: &s5ciRuntimeData,
     jobid: &str,
     terminator: &str,
 ) {
@@ -1565,7 +1565,7 @@ fn do_kill_job(
             kill_process(pid);
             do_set_job_status(
                 config,
-                cconfig,
+                rtdt,
                 &job.job_id,
                 &format!("Terminated by the {}", terminator),
             );
@@ -1573,7 +1573,7 @@ fn do_kill_job(
     }
 }
 
-fn do_run_job(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, args: &s5ciRunJobArgs) {
+fn do_run_job(config: &s5ciConfig, rtdt: &s5ciRuntimeData, args: &s5ciRunJobArgs) {
     use signal_hook::{iterator::Signals, SIGABRT, SIGHUP, SIGINT, SIGPIPE, SIGQUIT, SIGTERM};
     use std::{error::Error, thread};
     let cmd = &args.cmd;
@@ -1589,8 +1589,8 @@ fn do_run_job(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, args: &s5ciRunJ
     let group_name = basename_from_cmd(cmd);
     let jobs = db_get_jobs_by_group_name_and_csps(
         &group_name,
-        cconfig.changeset_id.unwrap(),
-        cconfig.patchset_id.unwrap(),
+        rtdt.changeset_id.unwrap(),
+        rtdt.patchset_id.unwrap(),
     );
     if args.omit_if_ok {
         if jobs.len() > 0 {
@@ -1602,10 +1602,10 @@ fn do_run_job(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, args: &s5ciRunJ
     }
     if args.kill_previous {
         if jobs.len() > 0 && jobs[0].finished_at.is_none() {
-            do_kill_job(config, cconfig, &jobs[0].job_id, "next job");
+            do_kill_job(config, rtdt, &jobs[0].job_id, "next job");
         }
     }
-    let (job_id, status) = exec_command(config, cconfig, cmd);
+    let (job_id, status) = exec_command(config, rtdt, cmd);
     let mut ret_status = 4242;
     if let Some(st) = status {
         ret_status = st;
@@ -1616,7 +1616,7 @@ fn do_run_job(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, args: &s5ciRunJ
 
 fn do_set_job_status(
     config: &s5ciConfig,
-    cconfig: &s5ciCompiledConfig,
+    rtdt: &s5ciRuntimeData,
     a_job_id: &str,
     a_msg: &str,
 ) {
@@ -1645,7 +1645,7 @@ fn do_set_job_status(
             .execute(db.conn())
             .unwrap();
     }
-    regenerate_job_html(config, cconfig, &a_job_id);
+    regenerate_job_html(config, rtdt, &a_job_id);
 }
 
 fn restart_ourselves() {
@@ -1680,7 +1680,7 @@ fn file_changed_since(fname: &str, since: Option<std::time::SystemTime>) -> bool
 
 fn process_cron_triggers(
     config: &s5ciConfig,
-    cconfig: &s5ciCompiledConfig,
+    rtdt: &s5ciRuntimeData,
     since: &NaiveDateTime,
     now: &NaiveDateTime,
 ) -> NaiveDateTime {
@@ -1693,7 +1693,7 @@ fn process_cron_triggers(
     let mut dt_now = Local.from_local_datetime(&now).unwrap();
     let mut dt_next_cron = Local.from_local_datetime(&ndt_max_cron).unwrap();
 
-    for sched in &cconfig.cron_trigger_schedules {
+    for sched in &rtdt.cron_trigger_schedules {
         let mut skip = 0;
         let next_0 = sched.schedule.after(&dt_since).nth(0);
         println!("NEXT {} cron: {:?}", &sched.name, &next_0);
@@ -1704,7 +1704,7 @@ fn process_cron_triggers(
             if let Some(triggers) = &config.cron_triggers {
                 if let Some(ctrig) = triggers.get(&sched.name) {
                     if let s5TriggerAction::command(cmd) = &ctrig.action {
-                        let job_id = spawn_command(config, cconfig, &cmd);
+                        let job_id = spawn_command(config, rtdt, &cmd);
                     }
                 }
             }
@@ -1732,11 +1732,11 @@ fn process_cron_triggers(
     return ndt_add_seconds(ndt_next_cron, -1); /* one second earlier to catch the next occurence */
 }
 
-fn do_loop(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
+fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
     use std::env;
     use std::fs;
     println!("Starting loop at {}", now_naive_date_time());
-    regenerate_all_html(&config, &cconfig);
+    regenerate_all_html(&config, &rtdt);
 
     let sync_horizon_sec: u32 = config
         .server
@@ -1751,8 +1751,8 @@ fn do_loop(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
 
     let mut cron_timestamp = now_naive_date_time();
     let mut poll_timestamp = now_naive_date_time();
-    let config_mtime = get_mtime(&cconfig.config_path);
-    let exe_mtime = get_mtime(&cconfig.real_s5ci_exe);
+    let config_mtime = get_mtime(&rtdt.config_path);
+    let exe_mtime = get_mtime(&rtdt.real_s5ci_exe);
 
     if let Some(trigger_delay_sec) = config.default_regex_trigger_delay_sec {
         println!("default_regex_trigger_delay_sec = {}, all regex trigger reactions will be delayed by that", trigger_delay_sec)
@@ -1765,7 +1765,7 @@ fn do_loop(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
             }
         }
         if config.autorestart.on_config_change
-            && file_changed_since(&cconfig.config_path, config_mtime)
+            && file_changed_since(&rtdt.config_path, config_mtime)
         {
             println!(
                 "Config changed, attempt restart at {}...",
@@ -1773,7 +1773,7 @@ fn do_loop(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
             );
             restart_ourselves();
         }
-        if config.autorestart.on_exe_change && file_changed_since(&cconfig.real_s5ci_exe, exe_mtime)
+        if config.autorestart.on_exe_change && file_changed_since(&rtdt.real_s5ci_exe, exe_mtime)
         {
             println!(
                 "Executable changed, attempt restart at {}... ",
@@ -1784,14 +1784,14 @@ fn do_loop(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
         let ndt_now = now_naive_date_time();
         if ndt_now > poll_timestamp {
             // println!("{:?}", ndt);
-            let res_res = do_ssh(&config, &cconfig, before, after);
+            let res_res = do_ssh(&config, &rtdt, before, after);
             let mut abort_sync = false;
             if let Ok(res) = res_res {
                 if let Some(stats) = res.stats {
                     abort_sync = run_batch_command(&config, &before, &after, &stats, &res.output);
                 }
                 for cs in res.changes {
-                    process_change(&config, &cconfig, &cs, before, after);
+                    process_change(&config, &rtdt, &cs, before, after);
                 }
                 before = res.before_when;
                 after = res.after_when;
@@ -1826,7 +1826,7 @@ fn do_loop(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
         }
 
         if ndt_now > ndt_add_seconds(cron_timestamp, 1) {
-            cron_timestamp = process_cron_triggers(config, cconfig, &cron_timestamp, &ndt_now);
+            cron_timestamp = process_cron_triggers(config, rtdt, &cron_timestamp, &ndt_now);
         } else {
             debug!(
                 "Cron timestamp {} is in the future, no cron processing this time",
@@ -1856,20 +1856,20 @@ fn do_loop(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
 
 fn main() {
     env_logger::init();
-    let (config, cconfig) = get_configs();
+    let (config, rtdt) = get_configs();
     use s5ciAction;
     maybe_compile_template(&config, "job_page").unwrap();
     maybe_compile_template(&config, "root_job_page").unwrap();
     maybe_compile_template(&config, "active_job_page").unwrap();
     maybe_compile_template(&config, "group_job_page").unwrap();
 
-    match &cconfig.action {
-        s5ciAction::Loop => do_loop(&config, &cconfig),
-        s5ciAction::ListJobs => do_list_jobs(&config, &cconfig),
-        s5ciAction::KillJob(job_id) => do_kill_job(&config, &cconfig, &job_id, "S5CI CLI"),
-        s5ciAction::RunJob(cmd) => do_run_job(&config, &cconfig, &cmd),
-        s5ciAction::SetStatus(job_id, msg) => do_set_job_status(&config, &cconfig, &job_id, &msg),
-        s5ciAction::GerritCommand(cmd) => do_gerrit_command(&config, &cconfig, &cmd),
-        s5ciAction::MakeReview(maybe_vote, msg) => do_review(&config, &cconfig, maybe_vote, &msg),
+    match &rtdt.action {
+        s5ciAction::Loop => do_loop(&config, &rtdt),
+        s5ciAction::ListJobs => do_list_jobs(&config, &rtdt),
+        s5ciAction::KillJob(job_id) => do_kill_job(&config, &rtdt, &job_id, "S5CI CLI"),
+        s5ciAction::RunJob(cmd) => do_run_job(&config, &rtdt, &cmd),
+        s5ciAction::SetStatus(job_id, msg) => do_set_job_status(&config, &rtdt, &job_id, &msg),
+        s5ciAction::GerritCommand(cmd) => do_gerrit_command(&config, &rtdt, &cmd),
+        s5ciAction::MakeReview(maybe_vote, msg) => do_review(&config, &rtdt, maybe_vote, &msg),
     }
 }
