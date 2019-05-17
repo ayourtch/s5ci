@@ -52,3 +52,31 @@ pub fn collect_zombies() -> i32 {
         count
     }
 }
+fn print_process(p: &psutil::process::Process) {
+    println!(
+        "{:>5} {:>5} {:^5} {:>8.2} {:>8.2} {:.100}",
+        p.pid,
+        p.ppid,
+        p.state.to_string(),
+        p.utime,
+        p.stime,
+        p.cmdline()
+            .unwrap_or_else(|_| Some("no-command-line".to_string()))
+            .unwrap_or_else(|| format!("[{}]", p.comm))
+    );
+}
+
+fn ps() {
+    println!(
+        "{:>5} {:>5} {:^5} {:>8} {:>8} {:.100}",
+        "PID", "PPID", "STATE", "UTIME", "STIME", "CMD"
+    );
+
+    if let Ok(processes) = &psutil::process::all() {
+        for p in processes {
+            print_process(p);
+        }
+    } else {
+        println!("--- could not do ps ---");
+    }
+}
