@@ -60,7 +60,7 @@ use crate::unix_process::*;
 
 use s5ci::*;
 
-fn process_change(
+fn process_gerrit_change(
     config: &s5ciConfig,
     rtdt: &s5ciRuntimeData,
     cs: &GerritChangeSet,
@@ -385,7 +385,7 @@ fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
             let res_res = poll_gerrit_over_ssh(&config, &rtdt, before, after);
             if let Ok(res) = res_res {
                 for cs in res.changes {
-                    process_change(&config, &rtdt, &cs, before, after);
+                    process_gerrit_change(&config, &rtdt, &cs, before, after);
                 }
                 before = res.before_when;
                 after = res.after_when;
