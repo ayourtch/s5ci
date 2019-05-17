@@ -3,8 +3,10 @@ use crate::database::db_set_changeset_last_comment_id;
 use crate::gerrit_types::*;
 use crate::runtime_data::s5ciRuntimeData;
 use crate::s5ci_config::s5ciConfig;
+use crate::s5ci_config::s5TriggerAction;
 use chrono::NaiveDateTime;
 use std::collections::HashMap;
+use crate::job_mgmt::spawn_command;
 
 #[derive(Debug, Clone)]
 pub struct CommentTrigger {
@@ -151,4 +153,121 @@ pub fn get_comment_triggers_from_comments(
     db_set_changeset_last_comment_id(changeset_id, comments_vec.len() as i32);
 
     out
+}
+
+
+pub fn process_gerrit_change(
+    config: &s5ciConfig,
+    rtdt: &s5ciRuntimeData,
+    cs: &GerritChangeSet,
+    before_when: Option<NaiveDateTime>,
+    after_when: Option<NaiveDateTime>,
+) {
+    let mut triggers: Vec<CommentTrigger> = vec![];
+    let mut max_pset = 0;
+
+    // eprintln!("Processing change: {:#?}", cs);
+    if let Some(startline) = after_when {
+        let startline_ts =
+            startline.timestamp() - 1 + config.default_regex_trigger_delay_sec.unwrap_or(0) as i64;
+
+        debug!(
+            "process change with startline timestamp: {}",
+            startline.timestamp()
+        );
+        debug!("process change with startline_ts: {}", &startline_ts);
+
+        let mut psmap: HashMap<String, GerritPatchSet> = HashMap::new();
+
+        if let Some(psets) = &cs.patchSets {
+            for pset in psets {
+                if pset.createdOn > 0 {
+                    // startline_ts {
+                    // println!("{:?}", &pset);
+                    debug!(
+                        "  #{} revision: {} ref: {}",
+                        &pset.number, &pset.revision, &pset.r#ref
+                    );
+                    // spawn_command_x("scripts", "git-test", &pset.r#ref);
+                }
+                psmap.insert(format!("{}", &pset.number), pset.clone());
+                psmap.insert(format!("{}", &pset.revision), pset.clone());
+                if pset.number > max_pset {
+                    max_pset = pset.number;
+                }
+            }
+
+            // eprintln!("Patchset map: {:#?}", &psmap);
+        }
+        if let Some(comments_vec) = &cs.comments {
+            let change_id = cs.number.unwrap() as i32;
+            let all_triggers = get_comment_triggers_from_comments(
+                config,
+                rtdt,
+                change_id,
+                max_pset,
+                comments_vec,
+                startline_ts,
+            );
+            let mut final_triggers = all_triggers.clone();
+            let mut suppress_map: HashMap<(String, u32), bool> = HashMap::new();
+            for mut ctrig in final_triggers.iter_mut().rev() {
+                let key = (ctrig.trigger_name.clone(), ctrig.patchset_id);
+                if ctrig.is_suppress {
+                    suppress_map.insert(key, true);
+                } else if suppress_map.contains_key(&key) {
+                    ctrig.is_suppressed = true;
+                    suppress_map.remove(&key);
+                }
+            }
+            if let Some(cfgt) = &config.triggers {
+                final_triggers.retain(|x| {
+                    let ctrig = &cfgt[&x.trigger_name];
+                    let mut retain = !x.is_suppressed;
+                    if let Some(proj) = &ctrig.project {
+                        if let Some(cs_proj) = &cs.project {
+                            if cs_proj != proj {
+                                retain = false;
+                            }
+                        } else {
+                            retain = false;
+                        }
+                    }
+                    if let s5TriggerAction::command(cmd) = &ctrig.action {
+                        retain
+                    } else {
+                        false
+                    }
+                });
+                // now purge all the suppressing triggers themselves
+                final_triggers.retain(|x| !x.is_suppress);
+            }
+            // eprintln!("all triggers: {:#?}", &final_triggers);
+            eprintln!("final triggers: {:#?}", &final_triggers);
+            for trig in &final_triggers {
+                let template = rtdt
+                    .trigger_command_templates
+                    .get(&trig.trigger_name)
+                    .unwrap();
+                let mut data = mustache::MapBuilder::new();
+                if let Some(patchset) = psmap.get(&format!("{}", trig.patchset_id)) {
+                    data = data.insert("patchset", &patchset).unwrap();
+                }
+                data = data.insert("regex", &trig.captures).unwrap();
+                let data = data.build();
+                let mut bytes = vec![];
+
+                template.render_data(&mut bytes, &data).unwrap();
+                let expanded_command = String::from_utf8_lossy(&bytes);
+                let change_id = cs.number.unwrap();
+                let mut rtdt2 = rtdt.clone();
+                rtdt2.changeset_id = Some(change_id);
+                rtdt2.patchset_id = Some(trig.patchset_id);
+                if (trig.is_suppress || trig.is_suppressed) {
+                    panic!(format!("bug: job is not runnable: {:#?}", &trig));
+                }
+                let job_id = spawn_command(config, &rtdt2, &expanded_command);
+            }
+        }
+    }
 }
