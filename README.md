@@ -44,7 +44,7 @@ Triggers are regexes and crons
 ==============================
 
 Even if a job can start a job, the first job needs to be started by something. There are two mechanisms:
-Cron triggers and Regex triggers. 
+Cron triggers and Comment triggers.
 
 
 Cron triggers
@@ -63,14 +63,14 @@ cron_triggers:
 
 "run-cron" is the shell script which will be launched every half an hour with "twice-per-hour" argument.
 
-Regex triggers
-==============
+Comment triggers
+================
 
-Regex triggers fire on the comments made to the changesets. Every so often, s5CI polls the upstream and
+Comment triggers fire on the comments made to the changesets. Every so often, s5CI polls the upstream and
 retrieves the list of changesets which have been updated since the last poll. Then for each of the changesets
 it walks the list of comments and attempts to match all of the configured regexes on them and builds
 the vector of candidate jobs. If the regex for the job is matched but immediately in one of the following
-comments the suppress_regex matches as well, the execution of that job is suppressed. This allows to arrange
+comments the *suppress_regex* matches as well, the execution of that job is suppressed. This allows to arrange
 for simple time-based server redundancy mechanisms.
 
 The configuration for a regex trigger looks as follows:
@@ -98,8 +98,8 @@ in order to build the full command line to run the job. if in the same processin
 a match on "Build http" - then the job will not be started.
 
 
-Time-based redundancy for Regex triggers
-========================================
+Time-based redundancy for Comment triggers
+==========================================
 
 Let's say we have two servers, S1 and S2, both running s5CI, polling gerrit.
 The parameter *poll_wait_ms* determines how long to wait between the subsequent polls.
