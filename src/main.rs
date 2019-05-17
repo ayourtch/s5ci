@@ -40,6 +40,7 @@ mod s5ci_config;
 mod run_ssh_command;
 mod unix_process;
 mod runtime_data;
+mod database;
 
 use crate::gerrit_types::*;
 use crate::s5ci_config::*;
@@ -47,6 +48,7 @@ use crate::run_ssh_command::*;
 use crate::unix_process::*;
 use crate::runtime_data::*;
 use crate::gerrit_interact::*;
+use crate::database::*;
 
 use s5ci::*;
 
@@ -58,48 +60,6 @@ fn get_job_name(config: &s5ciConfig, rtdt: &s5ciRuntimeData, job_id: &str) -> St
 
     let job_name = re.replace_all(&format!("{}", job_id), "_").to_string();
     job_name
-}
-
-
-fn db_get_changeset_last_comment_id(a_changeset_id: i32) -> i32 {
-    let comment = db_get_comment_by_changeset_id(a_changeset_id);
-    if comment.is_ok() {
-        return comment.unwrap().comment_id;
-    } else {
-        use uuid::Uuid;
-        let my_uuid = Uuid::new_v4().to_simple().to_string();
-        let new_comment = models::comment {
-            record_uuid: my_uuid,
-            changeset_id: a_changeset_id,
-            comment_id: -1,
-        };
-        let db = get_db();
-        {
-            use diesel::query_dsl::RunQueryDsl;
-            use schema::comments;
-            use schema::comments::dsl::*;
-
-            diesel::insert_into(comments::table)
-                .values(&new_comment)
-                .execute(db.conn())
-                .expect(&format!("Error inserting new comment {}", &a_changeset_id));
-        }
-        return -1;
-    }
-}
-
-fn db_set_changeset_last_comment_id(a_changeset_id: i32, a_comment_id: i32) {
-    let db = get_db();
-    use diesel::expression_methods::*;
-    use diesel::query_dsl::QueryDsl;
-    use diesel::query_dsl::RunQueryDsl;
-    use schema::comments;
-    use schema::comments::dsl::*;
-
-    let updated_rows = diesel::update(comments.filter(changeset_id.eq(a_changeset_id)))
-        .set((comment_id.eq(a_comment_id),))
-        .execute(db.conn())
-        .unwrap();
 }
 
 #[derive(Debug, Clone)]
