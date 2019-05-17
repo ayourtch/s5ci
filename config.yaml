@@ -1,7 +1,6 @@
 default_auth:
   auth_pubkey_file:
     username: ayourtch
-    # username: lucy-ci
     pubkey: /home/ubuntu/.ssh/id_rsa.pub
     privatekey: /home/ubuntu/.ssh/id_rsa
     passphrase: cisco123

@@ -173,7 +173,7 @@ impl std::str::FromStr for GerritVoteAction {
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucySshAuthPubkeyFile {
+struct s5SshAuthPubkeyFile {
     username: String,
     pubkey: Option<String>,
     privatekey: String,
@@ -182,125 +182,125 @@ struct LucySshAuthPubkeyFile {
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucySshAuthPassword {
+struct s5SshAuthPassword {
     username: String,
     password: String,
 }
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucySshAuthAgent {
+struct s5SshAuthAgent {
     username: String,
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
-enum LucySshAuth {
-    auth_pubkey_file(LucySshAuthPubkeyFile),
-    auth_password(LucySshAuthPassword),
-    auth_agent(LucySshAuthAgent),
+enum s5SshAuth {
+    auth_pubkey_file(s5SshAuthPubkeyFile),
+    auth_password(s5SshAuthPassword),
+    auth_agent(s5SshAuthAgent),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucyCiDirectSshPoll {
-    auth: Option<LucySshAuth>,
+struct s5ciDirectSshPoll {
+    auth: Option<s5SshAuth>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucyCiShellPoll {
+struct s5ciShellPoll {
     command: String,
     args: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-enum LucyCiPollType {
-    direct_ssh(LucyCiDirectSshPoll),
-    shell(LucyCiShellPoll),
+enum s5ciPollType {
+    direct_ssh(s5ciDirectSshPoll),
+    shell(s5ciShellPoll),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucyCiPollGerrit {
+struct s5ciPollGerrit {
     address: std::net::IpAddr,
     port: u16,
-    poll_type: LucyCiPollType,
+    poll_type: s5ciPollType,
     poll_wait_ms: Option<u64>,
     syncing_poll_wait_ms: Option<u64>,
     sync_horizon_sec: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucyGerritQuery {
+struct s5GerritQuery {
     filter: String,
     options: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucyGerritVote {
+struct s5GerritVote {
     success: String,
     failure: String,
     clear: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-enum LucyTriggerAction {
+enum s5TriggerAction {
     event(String),
     command(String),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucyGerritTrigger {
+struct s5GerritTrigger {
     project: Option<String>,
     regex: String,
     suppress_regex: Option<String>,
-    action: LucyTriggerAction,
+    action: s5TriggerAction,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucyCronTrigger {
+struct s5CronTrigger {
     cron: String,
-    action: LucyTriggerAction,
+    action: s5TriggerAction,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucyCiJobs {
+struct s5ciJobs {
     rootdir: String,
     root_url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucyAutorestartConfig {
+struct s5AutorestartConfig {
     on_config_change: bool,
     on_exe_change: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucyCiConfig {
-    default_auth: LucySshAuth,
-    server: LucyCiPollGerrit,
-    default_query: LucyGerritQuery,
-    default_vote: LucyGerritVote,
+struct s5ciConfig {
+    default_auth: s5SshAuth,
+    server: s5ciPollGerrit,
+    default_query: s5GerritQuery,
+    default_vote: s5GerritVote,
     default_batch_command: Option<String>,
     default_sync_horizon_sec: Option<u32>,
     default_regex_trigger_delay_sec: Option<u32>,
     command_rootdir: String,
-    triggers: Option<HashMap<String, LucyGerritTrigger>>,
-    cron_triggers: Option<HashMap<String, LucyCronTrigger>>,
+    triggers: Option<HashMap<String, s5GerritTrigger>>,
+    cron_triggers: Option<HashMap<String, s5CronTrigger>>,
     patchset_extract_regex: String,
     hostname: String,
     install_rootdir: String,
-    autorestart: LucyAutorestartConfig,
+    autorestart: s5AutorestartConfig,
     db_url: String,
-    jobs: LucyCiJobs,
+    jobs: s5ciJobs,
 }
 
-impl LucyCiPollGerrit {
+impl s5ciPollGerrit {
     fn get_server_address_port(self: &Self) -> String {
         format!("{}:{}", self.address, self.port)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LucySshResult {
+struct s5SshResult {
     before_when: Option<NaiveDateTime>,
     after_when: Option<NaiveDateTime>,
     output: String,
@@ -309,7 +309,7 @@ struct LucySshResult {
 }
 
 #[derive(Debug)]
-enum LucySshError {
+enum s5SshError {
     Ssh2Error(ssh2::Error),
     IoError(io::Error),
     SerdeJsonError(serde_json::Error),
@@ -318,41 +318,41 @@ enum LucySshError {
     MustacheError(mustache::Error),
 }
 
-impl From<ssh2::Error> for LucySshError {
+impl From<ssh2::Error> for s5SshError {
     fn from(error: ssh2::Error) -> Self {
-        LucySshError::Ssh2Error(error)
+        s5SshError::Ssh2Error(error)
     }
 }
 
-impl From<io::Error> for LucySshError {
+impl From<io::Error> for s5SshError {
     fn from(error: io::Error) -> Self {
-        LucySshError::IoError(error)
+        s5SshError::IoError(error)
     }
 }
 
-impl From<serde_json::Error> for LucySshError {
+impl From<serde_json::Error> for s5SshError {
     fn from(error: serde_json::Error) -> Self {
-        LucySshError::SerdeJsonError(error)
+        s5SshError::SerdeJsonError(error)
     }
 }
-impl From<mustache::Error> for LucySshError {
+impl From<mustache::Error> for s5SshError {
     fn from(error: mustache::Error) -> Self {
-        LucySshError::MustacheError(error)
+        s5SshError::MustacheError(error)
     }
 }
 
-fn run_ssh_command(config: &LucyCiConfig, cmd: &str) -> Result<String, LucySshError> {
+fn run_ssh_command(config: &s5ciConfig, cmd: &str) -> Result<String, s5SshError> {
     match &config.server.poll_type {
-        LucyCiPollType::direct_ssh(x) => run_ssh_command_direct(config, cmd),
-        LucyCiPollType::shell(x) => run_ssh_command_shell(config, x, cmd),
+        s5ciPollType::direct_ssh(x) => run_ssh_command_direct(config, cmd),
+        s5ciPollType::shell(x) => run_ssh_command_shell(config, x, cmd),
     }
 }
 
 fn run_ssh_command_shell(
-    config: &LucyCiConfig,
-    sc: &LucyCiShellPoll,
+    config: &s5ciConfig,
+    sc: &s5ciShellPoll,
     cmd: &str,
-) -> Result<String, LucySshError> {
+) -> Result<String, s5SshError> {
     use std::env;
     use std::process::{Command, Stdio};
 
@@ -369,14 +369,14 @@ fn run_ssh_command_shell(
     let exit_status = output.status.code().unwrap();
     if exit_status != 0 {
         let txt = String::from_utf8_lossy(&output.stderr);
-        Err(LucySshError::RemoteError(exit_status, txt.to_string()))
+        Err(s5SshError::RemoteError(exit_status, txt.to_string()))
     } else {
         let txt = String::from_utf8_lossy(&output.stdout);
         Ok(txt.to_string())
     }
 }
 
-fn run_ssh_command_direct(config: &LucyCiConfig, cmd: &str) -> Result<String, LucySshError> {
+fn run_ssh_command_direct(config: &s5ciConfig, cmd: &str) -> Result<String, s5SshError> {
     // Connect to the local SSH server
     let tcp = TcpStream::connect(config.server.get_server_address_port())?; // .unwrap();
     let ssh_auth = &config.default_auth;
@@ -384,7 +384,7 @@ fn run_ssh_command_direct(config: &LucyCiConfig, cmd: &str) -> Result<String, Lu
     let mut sess = Session::new().unwrap();
     sess.handshake(&tcp)?;
     match ssh_auth {
-        LucySshAuth::auth_pubkey_file(pk) => {
+        s5SshAuth::auth_pubkey_file(pk) => {
             sess.userauth_pubkey_file(
                 &pk.username,
                 None,
@@ -392,10 +392,10 @@ fn run_ssh_command_direct(config: &LucyCiConfig, cmd: &str) -> Result<String, Lu
                 pk.passphrase.as_ref().map_or(None, |x| Some(&**x)),
             )?;
         }
-        LucySshAuth::auth_password(pw) => {
+        s5SshAuth::auth_password(pw) => {
             sess.userauth_password(&pw.username, &pw.password)?;
         }
-        LucySshAuth::auth_agent(agent) => {
+        s5SshAuth::auth_agent(agent) => {
             sess.userauth_agent(&agent.username)?;
         }
     }
@@ -424,16 +424,16 @@ fn run_ssh_command_direct(config: &LucyCiConfig, cmd: &str) -> Result<String, Lu
 
     let exit_status = channel.exit_status().unwrap();
     if exit_status != 0 {
-        Err(LucySshError::RemoteError(exit_status, stderr_buffer))
+        Err(s5SshError::RemoteError(exit_status, stderr_buffer))
     } else {
         Ok(s)
     }
 }
 
-fn get_job_url(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) -> String {
+fn get_job_url(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, job_id: &str) -> String {
     format!("{}/{}/", config.jobs.root_url, job_id)
 }
-fn get_job_name(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) -> String {
+fn get_job_name(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, job_id: &str) -> String {
     let re = Regex::new(r"[^A-Za-z0-9_]").unwrap();
 
     let job_name = re.replace_all(&format!("{}", job_id), "_").to_string();
@@ -441,10 +441,10 @@ fn get_job_name(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &
 }
 
 fn gerrit_query_changes(
-    config: &LucyCiConfig,
+    config: &s5ciConfig,
     before_when: Option<NaiveDateTime>,
     after_when: Option<NaiveDateTime>,
-) -> Result<String, LucySshError> {
+) -> Result<String, s5SshError> {
     let date_str = if before_when.is_some() {
         if after_when.is_some() {
             format!(
@@ -475,11 +475,11 @@ fn gerrit_query_changes(
 }
 
 fn do_ssh(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
+    config: &s5ciConfig,
+    cconfig: &s5ciCompiledConfig,
     before_when: Option<NaiveDateTime>,
     after_when: Option<NaiveDateTime>,
-) -> Result<LucySshResult, LucySshError> {
+) -> Result<s5SshResult, s5SshError> {
     debug!(
         "Retrieving changesets for time before {:?} or after {:?}",
         &before_when, &after_when
@@ -500,7 +500,7 @@ fn do_ssh(
                 serde_json::from_str(&format!("{}", &line));
             if let Ok(error) = backend_res {
                 if &error.r#type == "error" {
-                    return Err(LucySshError::QueryBackendError(error.message));
+                    return Err(s5SshError::QueryBackendError(error.message));
                 }
             }
             let backend_res: Result<GerritQueryStats, serde_json::Error> =
@@ -538,7 +538,7 @@ fn do_ssh(
     }
     // println!("{}", channel.exit_status().unwrap());
     // ret_when
-    Ok(LucySshResult {
+    Ok(s5SshResult {
         before_when: ret_before_when,
         after_when: ret_after_when,
         output: s,
@@ -548,7 +548,7 @@ fn do_ssh(
 }
 
 fn run_batch_command(
-    config: &LucyCiConfig,
+    config: &s5ciConfig,
     before: &Option<NaiveDateTime>,
     after: &Option<NaiveDateTime>,
     stats: &GerritQueryStats,
@@ -682,25 +682,25 @@ impl std::clone::Clone for CronTriggerSchedule {
 }
 
 #[derive(Debug, Clone)]
-struct LucyCiRunJobArgs {
+struct s5ciRunJobArgs {
     cmd: String,
     omit_if_ok: bool,
     kill_previous: bool,
 }
 
 #[derive(Debug, Clone)]
-enum LucyCiAction {
+enum s5ciAction {
     Loop,
     ListJobs,
     SetStatus(String, String),
-    RunJob(LucyCiRunJobArgs),
+    RunJob(s5ciRunJobArgs),
     KillJob(String),
     GerritCommand(String),
     MakeReview(Option<GerritVoteAction>, String),
 }
 
 #[derive(Debug, Clone)]
-struct LucyCiCompiledConfig {
+struct s5ciCompiledConfig {
     config_path: String,
     sandbox_level: u32,
     patchset_extract_regex: Regex,
@@ -709,13 +709,13 @@ struct LucyCiCompiledConfig {
     trigger_regexes: Vec<CommentTriggerRegex>,
     trigger_command_templates: HashMap<String, mustache::Template>,
     cron_trigger_schedules: Vec<CronTriggerSchedule>,
-    action: LucyCiAction,
+    action: s5ciAction,
     changeset_id: Option<u32>,
     patchset_id: Option<u32>,
     real_s5ci_exe: String,
 }
 
-fn get_trigger_regexes(config: &LucyCiConfig) -> Vec<CommentTriggerRegex> {
+fn get_trigger_regexes(config: &s5ciConfig) -> Vec<CommentTriggerRegex> {
     let mut out = vec![];
     if let Some(triggers) = &config.triggers {
         for (name, trig) in triggers {
@@ -732,7 +732,7 @@ fn get_trigger_regexes(config: &LucyCiConfig) -> Vec<CommentTriggerRegex> {
     out
 }
 
-fn get_cron_trigger_schedules(config: &LucyCiConfig) -> Vec<CronTriggerSchedule> {
+fn get_cron_trigger_schedules(config: &s5ciConfig) -> Vec<CronTriggerSchedule> {
     let mut out = vec![];
     if let Some(cron_triggers) = &config.cron_triggers {
         for (name, trig) in cron_triggers {
@@ -751,11 +751,11 @@ fn get_cron_trigger_schedules(config: &LucyCiConfig) -> Vec<CronTriggerSchedule>
     out
 }
 
-fn get_trigger_command_templates(config: &LucyCiConfig) -> HashMap<String, mustache::Template> {
+fn get_trigger_command_templates(config: &s5ciConfig) -> HashMap<String, mustache::Template> {
     let mut out = HashMap::new();
     if let Some(triggers) = &config.triggers {
         for (name, trig) in triggers {
-            if let LucyTriggerAction::command(cmd) = &trig.action {
+            if let s5TriggerAction::command(cmd) = &trig.action {
                 let full_cmd = format!("{}/{}", &config.command_rootdir, &cmd);
                 let template = mustache::compile_str(cmd).unwrap();
                 out.insert(name.clone(), template);
@@ -817,7 +817,7 @@ struct CommentTrigger {
 }
 
 // make anything other than -/_ or alphanum an underscore
-fn safe_or_underscores(cconfig: &LucyCiCompiledConfig, val: &str) -> String {
+fn safe_or_underscores(cconfig: &s5ciCompiledConfig, val: &str) -> String {
     cconfig
         .unsafe_start_regex
         .replace_all(
@@ -828,8 +828,8 @@ fn safe_or_underscores(cconfig: &LucyCiCompiledConfig, val: &str) -> String {
 }
 
 fn get_comment_triggers(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
+    config: &s5ciConfig,
+    cconfig: &s5ciCompiledConfig,
     changeset_id: i32,
     max_pset: u32,
     comments_vec: &Vec<GerritComment>,
@@ -964,7 +964,7 @@ fn basename_from_cmd(cmd: &str) -> String {
     format!("{}", path.file_name().unwrap().to_str().unwrap())
 }
 
-fn get_min_job_counter(config: &LucyCiConfig, jobname: &str) -> i32 {
+fn get_min_job_counter(config: &s5ciConfig, jobname: &str) -> i32 {
     use std::fs;
     let jobpath = format!("{}/{}", &config.jobs.rootdir, jobname);
     let path = Path::new(&jobpath);
@@ -975,15 +975,15 @@ fn get_min_job_counter(config: &LucyCiConfig, jobname: &str) -> i32 {
     file_count as i32
 }
 
-fn get_workspace_path(config: &LucyCiConfig, job_id: &str) -> String {
+fn get_workspace_path(config: &s5ciConfig, job_id: &str) -> String {
     format!("{}/{}/workspace", &config.jobs.rootdir, job_id)
 }
 
-fn get_job_console_log_path(config: &LucyCiConfig, job_id: &str) -> String {
+fn get_job_console_log_path(config: &s5ciConfig, job_id: &str) -> String {
     format!("{}/{}/console.txt", &config.jobs.rootdir, job_id)
 }
 
-fn get_existing_workspace_path(config: &LucyCiConfig, job_id: &str) -> String {
+fn get_existing_workspace_path(config: &s5ciConfig, job_id: &str) -> String {
     let workspace_path = get_workspace_path(config, job_id);
     let path = Path::new(&workspace_path);
     if !path.is_dir() {
@@ -995,7 +995,7 @@ fn get_existing_workspace_path(config: &LucyCiConfig, job_id: &str) -> String {
     workspace_path
 }
 
-fn get_next_job_number(config: &LucyCiConfig, jobname: &str) -> i32 {
+fn get_next_job_number(config: &s5ciConfig, jobname: &str) -> i32 {
     use std::fs;
     let a_min = get_min_job_counter(config, jobname);
     let job_number = db_get_next_counter_value_with_min(jobname, a_min).unwrap();
@@ -1015,8 +1015,8 @@ fn get_next_job_number(config: &LucyCiConfig, jobname: &str) -> i32 {
 }
 
 fn prepare_child_command<'a>(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
+    config: &s5ciConfig,
+    cconfig: &s5ciCompiledConfig,
     child0: &'a mut std::process::Command,
     cmd: &str,
     suffix: &str,
@@ -1082,7 +1082,7 @@ fn prepare_child_command<'a>(
     return (cmd_file, job_nr, child0);
 }
 
-fn spawn_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) {
+fn spawn_command(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, cmd: &str) {
     use std::env;
     use std::process::Command;
     let args: Vec<String> = env::args().collect();
@@ -1214,7 +1214,7 @@ fn db_get_next_counter_value_with_min(a_name: &str, a_min: i32) -> Result<i32, S
 
 use mustache::{MapBuilder, Template};
 
-fn maybe_compile_template(config: &LucyCiConfig, name: &str) -> Result<Template, mustache::Error> {
+fn maybe_compile_template(config: &s5ciConfig, name: &str) -> Result<Template, mustache::Error> {
     let res = mustache::compile_path(format!(
         "{}/templates/{}.mustache",
         &config.install_rootdir, name
@@ -1242,7 +1242,7 @@ fn fill_and_write_template(
 
 const jobs_per_page: usize = 20;
 
-fn regenerate_group_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, group_name: &str) {
+fn regenerate_group_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, group_name: &str) {
     let template = maybe_compile_template(config, "group_job_page").unwrap();
     let mut data = MapBuilder::new();
     let jobs = db_get_jobs_by_group_name(group_name);
@@ -1252,7 +1252,7 @@ fn regenerate_group_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, 
     fill_and_write_template(&template, data, &fname).unwrap();
 }
 
-fn regenerate_root_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
+fn regenerate_root_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
     let template = maybe_compile_template(config, "root_job_page").unwrap();
     let rjs = db_get_root_jobs();
     let total_jobs = rjs.len();
@@ -1312,7 +1312,7 @@ fn regenerate_root_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     fill_and_write_template(&template, data, &fname).unwrap();
 }
 
-fn regenerate_active_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
+fn regenerate_active_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
     let template = maybe_compile_template(config, "active_job_page").unwrap();
     let mut data = MapBuilder::new();
     let rjs = db_get_active_jobs();
@@ -1322,8 +1322,8 @@ fn regenerate_active_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig)
 }
 
 fn regenerate_html(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
+    config: &s5ciConfig,
+    cconfig: &s5ciCompiledConfig,
     job_id: &str,
     update_parent: bool,
     update_children: bool,
@@ -1364,7 +1364,7 @@ fn regenerate_html(
     );
 }
 
-fn regenerate_job_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) {
+fn regenerate_job_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, job_id: &str) {
     let mut groups = HashMap::new();
     regenerate_html(config, cconfig, job_id, true, true, &mut groups);
     for (group_name, count) in groups {
@@ -1374,15 +1374,15 @@ fn regenerate_job_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, jo
     regenerate_active_html(config, cconfig);
 }
 
-fn starting_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) {
+fn starting_job(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, job_id: &str) {
     regenerate_job_html(config, cconfig, job_id);
 }
 
-fn finished_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, job_id: &str) {
+fn finished_job(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, job_id: &str) {
     regenerate_job_html(config, cconfig, job_id);
 }
 
-fn regenerate_all_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
+fn regenerate_all_html(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
     let jobs = db_get_all_jobs();
     let mut groups = HashMap::new();
     for j in jobs {
@@ -1398,8 +1398,8 @@ fn regenerate_all_html(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
 }
 
 fn exec_command(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
+    config: &s5ciConfig,
+    cconfig: &s5ciCompiledConfig,
     cmd: &str,
 ) -> (String, Option<i32>) {
     use std::env;
@@ -1515,8 +1515,8 @@ fn exec_command(
 }
 
 fn process_change(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
+    config: &s5ciConfig,
+    cconfig: &s5ciCompiledConfig,
     cs: &GerritChangeSet,
     before_when: Option<NaiveDateTime>,
     after_when: Option<NaiveDateTime>,
@@ -1528,6 +1528,10 @@ fn process_change(
     if let Some(startline) = after_when {
         let startline_ts =
             startline.timestamp() - 1 + config.default_regex_trigger_delay_sec.unwrap_or(0) as i64;
+
+        debug!("process change with startline timestamp: {}", startline.timestamp());
+        debug!("process change with startline_ts: {}", &startline_ts);
+
         let mut psmap: HashMap<String, GerritPatchSet> = HashMap::new();
 
         if let Some(psets) = &cs.patchSets {
@@ -1584,7 +1588,7 @@ fn process_change(
                             retain = false;
                         }
                     }
-                    if let LucyTriggerAction::command(cmd) = &ctrig.action {
+                    if let s5TriggerAction::command(cmd) = &ctrig.action {
                         retain
                     } else {
                         false
@@ -1652,7 +1656,7 @@ fn ps() {
     }
 }
 
-fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
+fn get_configs() -> (s5ciConfig, s5ciCompiledConfig) {
     let matches = App::new("S5CI - S<imple> CI")
         .version("0.5")
         .author("Andrew Yourtchenko <ayourtch@gmail.com>")
@@ -1800,7 +1804,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         .to_string();
 
     let s = fs::read_to_string(&yaml_fname).unwrap();
-    let config: LucyCiConfig = serde_yaml::from_str(&s).unwrap();
+    let config: s5ciConfig = serde_yaml::from_str(&s).unwrap();
     debug!("Config: {:#?}", &config);
     set_db_url(&config.db_url);
 
@@ -1818,15 +1822,15 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     let mut patchset_id: Option<u32> = None;
     let sandbox_level = value_t!(matches, "sandbox-level", u32).unwrap_or(0);
 
-    let mut action = LucyCiAction::Loop;
+    let mut action = s5ciAction::Loop;
 
     if let Some(matches) = matches.subcommand_matches("gerrit-command") {
         let cmd = matches.value_of("command").unwrap().to_string();
-        action = LucyCiAction::GerritCommand(cmd);
+        action = s5ciAction::GerritCommand(cmd);
     }
     if let Some(matches) = matches.subcommand_matches("kill-job") {
         let jobid = matches.value_of("job-id").unwrap().to_string();
-        action = LucyCiAction::KillJob(jobid);
+        action = s5ciAction::KillJob(jobid);
     }
     if let Some(matches) = matches.subcommand_matches("run-job") {
         let cmd = matches.value_of("command").unwrap().to_string();
@@ -1848,14 +1852,14 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         );
         let omit_if_ok = matches.is_present("omit-if-ok");
         let kill_previous = matches.is_present("kill-previous");
-        action = LucyCiAction::RunJob(LucyCiRunJobArgs {
+        action = s5ciAction::RunJob(s5ciRunJobArgs {
             cmd,
             omit_if_ok,
             kill_previous,
         });
     }
     if let Some(matches) = matches.subcommand_matches("list-jobs") {
-        action = LucyCiAction::ListJobs;
+        action = s5ciAction::ListJobs;
     }
     if let Some(matches) = matches.subcommand_matches("check-config") {
         // we already checked the config when loading. So if we are here, just exit with success
@@ -1864,7 +1868,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     if let Some(matches) = matches.subcommand_matches("set-status") {
         let msg = matches.value_of("message").unwrap().to_string();
         let job_id = matches.value_of("job-id").unwrap().to_string();
-        action = LucyCiAction::SetStatus(job_id, msg);
+        action = s5ciAction::SetStatus(job_id, msg);
     }
     if let Some(matches) = matches.subcommand_matches("review") {
         let msg = matches.value_of("message").unwrap().to_string();
@@ -1875,7 +1879,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
         } else {
             None
         };
-        action = LucyCiAction::MakeReview(vote_value, msg);
+        action = s5ciAction::MakeReview(vote_value, msg);
         patchset_id = Some(
             matches
                 .value_of("patchset-id")
@@ -1897,7 +1901,7 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     let unsafe_char_regex = Regex::new(r"([^-/_A-Za-z0-9])").unwrap();
     let unsafe_start_regex = Regex::new(r"^[^_A-Za-z0-9]").unwrap();
 
-    let cconfig = LucyCiCompiledConfig {
+    let cconfig = s5ciCompiledConfig {
         config_path: yaml_fname.to_string(),
         sandbox_level,
         patchset_extract_regex,
@@ -1915,13 +1919,13 @@ fn get_configs() -> (LucyCiConfig, LucyCiCompiledConfig) {
     (config, cconfig)
 }
 
-fn do_gerrit_command(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, cmd: &str) {
+fn do_gerrit_command(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, cmd: &str) {
     run_ssh_command(config, cmd);
 }
 
 fn do_review(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
+    config: &s5ciConfig,
+    cconfig: &s5ciCompiledConfig,
     maybe_vote: &Option<GerritVoteAction>,
     msg: &str,
 ) {
@@ -1970,7 +1974,7 @@ fn do_review(
     }
 }
 
-fn do_list_jobs(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
+fn do_list_jobs(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
     let jobs = db_get_all_jobs();
     for j in jobs {
         if j.finished_at.is_some() {
@@ -1984,8 +1988,8 @@ fn do_list_jobs(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     }
 }
 fn do_kill_job(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
+    config: &s5ciConfig,
+    cconfig: &s5ciCompiledConfig,
     jobid: &str,
     terminator: &str,
 ) {
@@ -2007,7 +2011,7 @@ fn do_kill_job(
     }
 }
 
-fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, args: &LucyCiRunJobArgs) {
+fn do_run_job(config: &s5ciConfig, cconfig: &s5ciCompiledConfig, args: &s5ciRunJobArgs) {
     use signal_hook::{iterator::Signals, SIGABRT, SIGHUP, SIGINT, SIGPIPE, SIGQUIT, SIGTERM};
     use std::{error::Error, thread};
     let cmd = &args.cmd;
@@ -2049,8 +2053,8 @@ fn do_run_job(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig, args: &Lucy
 }
 
 fn do_set_job_status(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
+    config: &s5ciConfig,
+    cconfig: &s5ciCompiledConfig,
     a_job_id: &str,
     a_msg: &str,
 ) {
@@ -2113,8 +2117,8 @@ fn file_changed_since(fname: &str, since: Option<std::time::SystemTime>) -> bool
 }
 
 fn process_cron_triggers(
-    config: &LucyCiConfig,
-    cconfig: &LucyCiCompiledConfig,
+    config: &s5ciConfig,
+    cconfig: &s5ciCompiledConfig,
     since: &NaiveDateTime,
     now: &NaiveDateTime,
 ) -> NaiveDateTime {
@@ -2137,7 +2141,7 @@ fn process_cron_triggers(
             debug!("CRON: attempting to run {}", &sched.name);
             if let Some(triggers) = &config.cron_triggers {
                 if let Some(ctrig) = triggers.get(&sched.name) {
-                    if let LucyTriggerAction::command(cmd) = &ctrig.action {
+                    if let s5TriggerAction::command(cmd) = &ctrig.action {
                         let job_id = spawn_command(config, cconfig, &cmd);
                     }
                 }
@@ -2166,7 +2170,7 @@ fn process_cron_triggers(
     return ndt_add_seconds(ndt_next_cron, -1); /* one second earlier to catch the next occurence */
 }
 
-fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
+fn do_loop(config: &s5ciConfig, cconfig: &s5ciCompiledConfig) {
     use std::env;
     use std::fs;
     println!("Starting loop at {}", now_naive_date_time());
@@ -2193,6 +2197,11 @@ fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
     }
 
     loop {
+        if let Some(trigger_delay_sec) = config.default_regex_trigger_delay_sec {
+            if let Some(after_ts) = after {
+                after = Some(ndt_add_seconds(after_ts, -(trigger_delay_sec as i32)));
+            }
+        }
         if config.autorestart.on_config_change
             && file_changed_since(&cconfig.config_path, config_mtime)
         {
@@ -2286,19 +2295,19 @@ fn do_loop(config: &LucyCiConfig, cconfig: &LucyCiCompiledConfig) {
 fn main() {
     env_logger::init();
     let (config, cconfig) = get_configs();
-    use LucyCiAction;
+    use s5ciAction;
     maybe_compile_template(&config, "job_page").unwrap();
     maybe_compile_template(&config, "root_job_page").unwrap();
     maybe_compile_template(&config, "active_job_page").unwrap();
     maybe_compile_template(&config, "group_job_page").unwrap();
 
     match &cconfig.action {
-        LucyCiAction::Loop => do_loop(&config, &cconfig),
-        LucyCiAction::ListJobs => do_list_jobs(&config, &cconfig),
-        LucyCiAction::KillJob(job_id) => do_kill_job(&config, &cconfig, &job_id, "S5CI CLI"),
-        LucyCiAction::RunJob(cmd) => do_run_job(&config, &cconfig, &cmd),
-        LucyCiAction::SetStatus(job_id, msg) => do_set_job_status(&config, &cconfig, &job_id, &msg),
-        LucyCiAction::GerritCommand(cmd) => do_gerrit_command(&config, &cconfig, &cmd),
-        LucyCiAction::MakeReview(maybe_vote, msg) => do_review(&config, &cconfig, maybe_vote, &msg),
+        s5ciAction::Loop => do_loop(&config, &cconfig),
+        s5ciAction::ListJobs => do_list_jobs(&config, &cconfig),
+        s5ciAction::KillJob(job_id) => do_kill_job(&config, &cconfig, &job_id, "S5CI CLI"),
+        s5ciAction::RunJob(cmd) => do_run_job(&config, &cconfig, &cmd),
+        s5ciAction::SetStatus(job_id, msg) => do_set_job_status(&config, &cconfig, &job_id, &msg),
+        s5ciAction::GerritCommand(cmd) => do_gerrit_command(&config, &cconfig, &cmd),
+        s5ciAction::MakeReview(maybe_vote, msg) => do_review(&config, &cconfig, maybe_vote, &msg),
     }
 }
