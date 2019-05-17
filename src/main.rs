@@ -34,30 +34,31 @@ extern crate mustache;
 
 use chrono::NaiveDateTime;
 
-mod gerrit_types;
-mod gerrit_interact;
-mod s5ci_config;
-mod run_ssh_command;
-mod unix_process;
-mod runtime_data;
-mod database;
+mod autorestart;
 mod comment_triggers;
+mod database;
+mod gerrit_interact;
+mod gerrit_types;
 mod html_gen;
 mod job_mgmt;
+mod run_ssh_command;
+mod runtime_data;
+mod s5ci_config;
+mod unix_process;
 
-use crate::gerrit_types::*;
-use crate::s5ci_config::*;
-use crate::run_ssh_command::*;
-use crate::unix_process::*;
-use crate::runtime_data::*;
-use crate::gerrit_interact::*;
-use crate::database::*;
+use crate::autorestart::*;
 use crate::comment_triggers::*;
+use crate::database::*;
+use crate::gerrit_interact::*;
+use crate::gerrit_types::*;
 use crate::html_gen::*;
 use crate::job_mgmt::*;
+use crate::run_ssh_command::*;
+use crate::runtime_data::*;
+use crate::s5ci_config::*;
+use crate::unix_process::*;
 
 use s5ci::*;
-
 
 fn process_change(
     config: &s5ciConfig,
@@ -74,7 +75,10 @@ fn process_change(
         let startline_ts =
             startline.timestamp() - 1 + config.default_regex_trigger_delay_sec.unwrap_or(0) as i64;
 
-        debug!("process change with startline timestamp: {}", startline.timestamp());
+        debug!(
+            "process change with startline timestamp: {}",
+            startline.timestamp()
+        );
         debug!("process change with startline_ts: {}", &startline_ts);
 
         let mut psmap: HashMap<String, GerritPatchSet> = HashMap::new();
@@ -198,12 +202,7 @@ fn do_list_jobs(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
         println!("{:#?}", &j);
     }
 }
-fn do_kill_job(
-    config: &s5ciConfig,
-    rtdt: &s5ciRuntimeData,
-    jobid: &str,
-    terminator: &str,
-) {
+fn do_kill_job(config: &s5ciConfig, rtdt: &s5ciRuntimeData, jobid: &str, terminator: &str) {
     let job = db_get_job(jobid).unwrap();
     if job.finished_at.is_none() {
         if let Some(pid) = job.command_pid {
@@ -263,12 +262,7 @@ fn do_run_job(config: &s5ciConfig, rtdt: &s5ciRuntimeData, args: &s5ciRunJobArgs
     std::process::exit(ret_status);
 }
 
-fn do_set_job_status(
-    config: &s5ciConfig,
-    rtdt: &s5ciRuntimeData,
-    a_job_id: &str,
-    a_msg: &str,
-) {
+fn do_set_job_status(config: &s5ciConfig, rtdt: &s5ciRuntimeData, a_job_id: &str, a_msg: &str) {
     let j = db_get_job(a_job_id);
     if j.is_err() {
         error!("Could not find job {}", a_job_id);
@@ -295,36 +289,6 @@ fn do_set_job_status(
             .unwrap();
     }
     regenerate_job_html(config, rtdt, &a_job_id);
-}
-
-fn restart_ourselves() {
-    use std::env;
-    use std::process;
-    let argv_real: Vec<String> = env::args().collect();
-    let err = exec::Command::new(&argv_real[0])
-        .args(&argv_real[1..])
-        .exec();
-    // normally not reached
-    println!("Error: {}", err);
-    process::exit(1);
-}
-
-fn get_mtime(fname: &str) -> Option<std::time::SystemTime> {
-    let mtime = fs::metadata(fname).ok().map(|x| x.modified().unwrap());
-    mtime
-}
-
-fn file_changed_since(fname: &str, since: Option<std::time::SystemTime>) -> bool {
-    use std::time::{Duration, SystemTime};
-    let new_mtime = get_mtime(fname);
-    let few_seconds = Duration::from_secs(10);
-    if let (Some(old_t), Some(new_t)) = (since, new_mtime) {
-        if new_t.duration_since(old_t).unwrap_or(few_seconds) > few_seconds {
-            return true;
-        }
-    }
-    // be conservative if we didn't have either of mtimes
-    return false;
 }
 
 fn process_cron_triggers(
@@ -400,36 +364,21 @@ fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
 
     let mut cron_timestamp = now_naive_date_time();
     let mut poll_timestamp = now_naive_date_time();
-    let config_mtime = get_mtime(&rtdt.config_path);
-    let exe_mtime = get_mtime(&rtdt.real_s5ci_exe);
 
     if let Some(trigger_delay_sec) = config.default_regex_trigger_delay_sec {
         println!("default_regex_trigger_delay_sec = {}, all regex trigger reactions will be delayed by that", trigger_delay_sec)
     }
 
+    let ar_state = autorestart_init(config, rtdt);
+
     loop {
+        autorestart_check(config, rtdt, &ar_state);
         if let Some(trigger_delay_sec) = config.default_regex_trigger_delay_sec {
             if let Some(after_ts) = after {
                 after = Some(ndt_add_seconds(after_ts, -(trigger_delay_sec as i32)));
             }
         }
-        if config.autorestart.on_config_change
-            && file_changed_since(&rtdt.config_path, config_mtime)
-        {
-            println!(
-                "Config changed, attempt restart at {}...",
-                now_naive_date_time()
-            );
-            restart_ourselves();
-        }
-        if config.autorestart.on_exe_change && file_changed_since(&rtdt.real_s5ci_exe, exe_mtime)
-        {
-            println!(
-                "Executable changed, attempt restart at {}... ",
-                now_naive_date_time()
-            );
-            restart_ourselves();
-        }
+
         let ndt_now = now_naive_date_time();
         if ndt_now > poll_timestamp {
             // println!("{:?}", ndt);
