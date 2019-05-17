@@ -182,49 +182,7 @@ fn do_review(
     maybe_vote: &Option<GerritVoteAction>,
     msg: &str,
 ) {
-    let mut vote = if let Some(act) = maybe_vote {
-        let active_vote = match act {
-            GerritVoteAction::success => format!(" {}", &config.default_vote.success),
-            GerritVoteAction::failure => format!(" {}", &config.default_vote.failure),
-            GerritVoteAction::clear => format!(" {}", &config.default_vote.clear),
-        };
-        if rtdt.sandbox_level > 1 {
-            error!(
-                "Sandbox level {}, ignoring the voting arg '{}'",
-                rtdt.sandbox_level, &active_vote
-            );
-            format!("")
-        } else {
-            active_vote
-        }
-    } else {
-        format!("")
-    };
-    let patchset_id = rtdt.patchset_id.unwrap();
-    let cmd = if patchset_id == 0 {
-        format!(
-            "gerrit review {} {} --message \"{}\"",
-            rtdt.changeset_id.unwrap(),
-            vote,
-            msg
-        )
-    } else {
-        format!(
-            "gerrit review {},{} {} --message \"{}\"",
-            rtdt.changeset_id.unwrap(),
-            patchset_id,
-            vote,
-            msg
-        )
-    };
-    if rtdt.sandbox_level > 0 {
-        error!(
-            "Sandbox level {}, not running command '{}'",
-            rtdt.sandbox_level, &cmd
-        );
-    } else {
-        run_ssh_command(config, &cmd);
-    }
+    gerrit_add_review_comment(config, rtdt, maybe_vote, msg)
 }
 
 fn do_list_jobs(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {

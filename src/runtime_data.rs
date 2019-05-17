@@ -4,6 +4,8 @@ use regex::Regex;
 use s5ci::set_db_url;
 use std::collections::HashMap;
 use std::fs;
+use crate::gerrit_types::GerritVoteAction;
+
 
 #[derive(Debug, Clone)]
 pub struct CommentTriggerRegex {

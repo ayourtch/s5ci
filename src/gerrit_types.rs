@@ -106,3 +106,22 @@ pub struct GerritChangeSet {
     pub submitRecords: Option<Vec<GerritSubmitRecords>>,
     pub allReviewers: Option<Vec<GerritOwner>>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum GerritVoteAction {
+    success,
+    failure,
+    clear,
+}
+
+impl std::str::FromStr for GerritVoteAction {
+    type Err = ();
+    fn from_str(s: &str) -> Result<GerritVoteAction, ()> {
+        match s {
+            "success" => Ok(GerritVoteAction::success),
+            "failure" => Ok(GerritVoteAction::failure),
+            "clear" => Ok(GerritVoteAction::clear),
+            _ => Err(()),
+        }
+    }
+}
