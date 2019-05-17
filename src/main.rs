@@ -60,57 +60,6 @@ fn get_job_name(config: &s5ciConfig, rtdt: &s5ciRuntimeData, job_id: &str) -> St
     job_name
 }
 
-
-fn run_batch_command(
-    config: &s5ciConfig,
-    before: &Option<NaiveDateTime>,
-    after: &Option<NaiveDateTime>,
-    stats: &GerritQueryStats,
-    output: &str,
-) -> bool {
-    let mut abort_sync = false;
-    if stats.rowCount > 0 {
-        if let Some(cmd) = config.default_batch_command.clone() {
-            use std::io::{BufRead, BufReader, BufWriter, Write};
-            use std::process::{Command, Stdio};
-
-            let mut p = Command::new("/bin/sh")
-                .arg("-c")
-                .arg(&format!("{}", &cmd,))
-                .stdin(Stdio::piped())
-                .env(
-                    "BEFORE_TIMESTAMP",
-                    &format!("{}", before.map_or(0, |x| x.timestamp())),
-                )
-                .env(
-                    "AFTER_TIMESTAMP",
-                    &format!("{}", after.map_or(0, |x| x.timestamp())),
-                )
-                .spawn()
-                .unwrap();
-            write!(p.stdin.as_mut().unwrap(), "{}", output);
-            let exit_code = p.wait();
-            if let Ok(status) = exit_code {
-                match status.code() {
-                    Some(code) => {
-                        println!("Exited with status code: {}", code);
-                        if code == 42 {
-                            abort_sync = true;
-                        }
-                    }
-                    None => println!("Process terminated by signal"),
-                }
-            } else {
-                error!("Command finished with error, code: {:?}", exit_code);
-            }
-        } else {
-            // println!("{}", output);
-        }
-    }
-    abort_sync
-}
-
-
 fn get_trigger_regexes(config: &s5ciConfig) -> Vec<CommentTriggerRegex> {
     let mut out = vec![];
     if let Some(triggers) = &config.triggers {
@@ -1611,20 +1560,12 @@ fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
         if ndt_now > poll_timestamp {
             // println!("{:?}", ndt);
             let res_res = poll_gerrit_over_ssh(&config, &rtdt, before, after);
-            let mut abort_sync = false;
             if let Ok(res) = res_res {
-                if let Some(stats) = res.stats {
-                    abort_sync = run_batch_command(&config, &before, &after, &stats, &res.output);
-                }
                 for cs in res.changes {
                     process_change(&config, &rtdt, &cs, before, after);
                 }
                 before = res.before_when;
                 after = res.after_when;
-                if abort_sync {
-                    before = None;
-                    eprintln!("process terminated with status 42, aborting the back-sync");
-                }
                 if let Some(before_time) = before.clone() {
                     if before_time.timestamp()
                         < now_naive_date_time().timestamp() - sync_horizon_sec as i64
