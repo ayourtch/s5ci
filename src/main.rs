@@ -60,7 +60,6 @@ use crate::unix_process::*;
 
 use s5ci::*;
 
-
 fn do_gerrit_command(config: &s5ciConfig, rtdt: &s5ciRuntimeData, cmd: &str) {
     run_ssh_command(config, cmd);
 }

@@ -1,12 +1,12 @@
 use crate::database::db_get_changeset_last_comment_id;
 use crate::database::db_set_changeset_last_comment_id;
 use crate::gerrit_types::*;
+use crate::job_mgmt::spawn_command;
 use crate::runtime_data::s5ciRuntimeData;
-use crate::s5ci_config::s5ciConfig;
 use crate::s5ci_config::s5TriggerAction;
+use crate::s5ci_config::s5ciConfig;
 use chrono::NaiveDateTime;
 use std::collections::HashMap;
-use crate::job_mgmt::spawn_command;
 
 #[derive(Debug, Clone)]
 pub struct CommentTrigger {
@@ -154,7 +154,6 @@ pub fn get_comment_triggers_from_comments(
 
     out
 }
-
 
 pub fn process_gerrit_change(
     config: &s5ciConfig,

@@ -51,7 +51,7 @@ pub fn poll_gerrit_over_ssh(
     parse_gerrit_poll_command_reply(config, rtdt, before_when, after_when, &s)
 }
 
-pub fn parse_gerrit_poll_command_reply (
+pub fn parse_gerrit_poll_command_reply(
     config: &s5ciConfig,
     rtdt: &s5ciRuntimeData,
     before_when: Option<NaiveDateTime>,

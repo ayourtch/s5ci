@@ -1,8 +1,7 @@
 use crate::runtime_data::s5ciRuntimeData;
 use crate::s5ci_config::s5ciConfig;
-use std::time::SystemTime;
 use s5ci::now_naive_date_time;
-
+use std::time::SystemTime;
 
 pub struct AutorestartState {
     pub config_mtime: Option<SystemTime>,
@@ -49,7 +48,9 @@ pub fn autorestart_init(config: &s5ciConfig, rtdt: &s5ciRuntimeData) -> Autorest
 }
 
 pub fn autorestart_check(config: &s5ciConfig, rtdt: &s5ciRuntimeData, ars: &AutorestartState) {
-    if config.autorestart.on_config_change && file_changed_since(&rtdt.config_path, ars.config_mtime) {
+    if config.autorestart.on_config_change
+        && file_changed_since(&rtdt.config_path, ars.config_mtime)
+    {
         println!(
             "Config changed, attempt restart at {}...",
             now_naive_date_time()
