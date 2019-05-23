@@ -47,6 +47,17 @@ pub fn poll_gerrit_over_ssh(
     before_when: Option<NaiveDateTime>,
     after_when: Option<NaiveDateTime>,
 ) -> Result<s5SshResult, s5SshError> {
+    let s = gerrit_query_changes(config, before_when, after_when)?;
+    parse_gerrit_poll_command_reply(config, rtdt, before_when, after_when, &s)
+}
+
+pub fn parse_gerrit_poll_command_reply (
+    config: &s5ciConfig,
+    rtdt: &s5ciRuntimeData,
+    before_when: Option<NaiveDateTime>,
+    after_when: Option<NaiveDateTime>,
+    command_reply: &str,
+) -> Result<s5SshResult, s5SshError> {
     debug!(
         "Retrieving changesets for time before {:?} or after {:?}",
         &before_when, &after_when
@@ -58,10 +69,9 @@ pub fn poll_gerrit_over_ssh(
 
     let mut last_timestamp: i64 = ndt.timestamp();
     let mut more_changes = false;
-    let s = gerrit_query_changes(config, before_when, after_when)?;
     let mut ret_changes: Vec<GerritChangeSet> = vec![];
-    if &s != "" {
-        for line in s.lines() {
+    if command_reply != "" {
+        for line in command_reply.lines() {
             // eprintln!("{}", &line);
             let backend_res: Result<GerritQueryError, serde_json::Error> =
                 serde_json::from_str(&format!("{}", &line));
@@ -108,7 +118,7 @@ pub fn poll_gerrit_over_ssh(
     Ok(s5SshResult {
         before_when: ret_before_when,
         after_when: ret_after_when,
-        output: s,
+        output: command_reply.to_string(),
         changes: ret_changes,
         stats: ret_stats,
     })
