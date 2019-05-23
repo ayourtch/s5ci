@@ -145,6 +145,32 @@ pub fn db_get_next_counter_value_with_min(a_name: &str, a_min: i32) -> Result<i3
     result
 }
 
+pub fn db_get_timestamp(a_name: &str, a_default: NaiveDateTime) -> NaiveDateTime {
+    use diesel::connection::Connection;
+    use diesel::expression_methods::*;
+    use diesel::query_dsl::QueryDsl;
+    use diesel::query_dsl::RunQueryDsl;
+    use diesel::result::Error;
+    use schema::timestamps;
+    use schema::timestamps::dsl::*;
+
+    let db = get_db();
+    let conn = db.conn();
+
+    let res = timestamps
+        .filter(name.eq(a_name))
+        .limit(2)
+        .load::<models::timestamp>(conn);
+    if let Ok(r) = &res {
+        match r.len() {
+            0 => a_default,
+            _ => r[0].value,
+        }
+    } else {
+        a_default
+    }
+}
+
 pub fn db_update_timestamp(a_name: &str, a_value: NaiveDateTime) {
     use diesel::connection::Connection;
     use diesel::expression_methods::*;

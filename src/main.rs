@@ -256,10 +256,12 @@ fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
         .unwrap_or(config.default_sync_horizon_sec.unwrap_or(86400));
 
     let mut before: Option<NaiveDateTime> = None;
-    let mut after: Option<NaiveDateTime> = Some(NaiveDateTime::from_timestamp(
+    let mut default_after_val: NaiveDateTime = NaiveDateTime::from_timestamp(
         (now_naive_date_time().timestamp() - sync_horizon_sec as i64),
         0,
-    ));
+    );
+    let mut after: Option<NaiveDateTime> =
+        Some(db_get_timestamp("last-ssh-poll", default_after_val));
 
     let mut cron_timestamp = now_naive_date_time();
     let mut poll_timestamp = now_naive_date_time();
