@@ -46,6 +46,10 @@ pub fn get_comment_triggers_from_comments(
         if comment.timestamp > startline_ts {
             if (i as i32) < last_seen_comment_id {
                 /* already saw it */
+                debug!(
+                    "Skip comment - id bigger than last seen id {}",
+                    &last_seen_comment_id
+                );
                 continue;
             }
             let mut safe_patchset_str = "".to_string();
@@ -102,6 +106,7 @@ pub fn get_comment_triggers_from_comments(
                         is_suppress: false,
                         is_suppressed: false,
                     };
+                    debug!("Push a trigger: {:?}", &trig);
                     out.push(trig);
                 }
                 if let Some(r_suppress) = &tr.r_suppress {
@@ -144,6 +149,7 @@ pub fn get_comment_triggers_from_comments(
                             is_suppress: true,
                             is_suppressed: false,
                         };
+                        debug!("Push a suppress trigger: {:?}", &trig);
                         out.push(trig);
                     }
                 }
