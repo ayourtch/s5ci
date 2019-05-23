@@ -229,6 +229,21 @@ fn process_cron_triggers(
     return ndt_add_seconds(ndt_next_cron, -1); /* one second earlier to catch the next occurence */
 }
 
+fn do_process_gerrit_reply(
+    config: &s5ciConfig,
+    rtdt: &s5ciRuntimeData,
+    args: &s5ciProcessGerritReplyArgs,
+) {
+    let output = std::fs::read_to_string(&args.input_file).unwrap();
+
+    let res_res = parse_gerrit_poll_command_reply(&config, &rtdt, args.before, args.after, &output);
+    if let Ok(res) = res_res {
+        for cs in res.changes {
+            process_gerrit_change(&config, &rtdt, &cs, args.before, args.after);
+        }
+    }
+}
+
 fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
     use std::env;
     use std::fs;
@@ -342,6 +357,7 @@ fn main() {
         s5ciAction::ListJobs => do_list_jobs(&config, &rtdt),
         s5ciAction::KillJob(job_id) => do_kill_job(&config, &rtdt, &job_id, "S5CI CLI"),
         s5ciAction::RunJob(cmd) => do_run_job(&config, &rtdt, &cmd),
+        s5ciAction::ProcessGerritReply(args) => do_process_gerrit_reply(&config, &rtdt, &args),
         s5ciAction::SetStatus(job_id, msg) => do_set_job_status(&config, &rtdt, &job_id, &msg),
         s5ciAction::GerritCommand(cmd) => do_gerrit_command(&config, &rtdt, &cmd),
         s5ciAction::MakeReview(maybe_vote, msg) => do_review(&config, &rtdt, maybe_vote, &msg),

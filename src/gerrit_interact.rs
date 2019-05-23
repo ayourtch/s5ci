@@ -59,7 +59,7 @@ pub fn parse_gerrit_poll_command_reply(
     command_reply: &str,
 ) -> Result<s5SshResult, s5SshError> {
     debug!(
-        "Retrieving changesets for time before {:?} or after {:?}",
+        "processing changesets for time before {:?} or after {:?}",
         &before_when, &after_when
     );
     let mut ndt = now_naive_date_time();

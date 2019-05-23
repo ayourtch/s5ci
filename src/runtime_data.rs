@@ -1,5 +1,6 @@
 use crate::gerrit_types::GerritVoteAction;
 use crate::s5ci_config::*;
+use chrono::NaiveDateTime;
 use clap::{App, Arg, SubCommand};
 use regex::Regex;
 use s5ci::set_db_url;
@@ -58,11 +59,19 @@ pub struct s5ciRunJobArgs {
 }
 
 #[derive(Debug, Clone)]
+pub struct s5ciProcessGerritReplyArgs {
+    pub input_file: String,
+    pub before: Option<NaiveDateTime>,
+    pub after: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
 pub enum s5ciAction {
     Loop,
     ListJobs,
     SetStatus(String, String),
     RunJob(s5ciRunJobArgs),
+    ProcessGerritReply(s5ciProcessGerritReplyArgs),
     KillJob(String),
     GerritCommand(String),
     MakeReview(Option<GerritVoteAction>, String),
@@ -151,6 +160,29 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
         )
         .subcommand(SubCommand::with_name("list-jobs").about("list jobs"))
         .subcommand(SubCommand::with_name("check-config").about("check config, return 0 if ok"))
+        .subcommand(
+            SubCommand::with_name("process-gerrit-reply")
+                .about("process saved JSON reply from gerrit")
+                .arg(
+                    Arg::with_name("input-file")
+                        .short("i")
+                        .help("input text file as sent by grrit")
+                        .required(true)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("before-ts")
+                        .short("b")
+                        .help("timestamp for 'before' edge of the range")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("after-ts")
+                        .short("a")
+                        .help("timestamp for 'after' edge of the range")
+                        .takes_value(true),
+                )
+                )
         .subcommand(
             SubCommand::with_name("kill-job")
                 .about("kill a running job")
@@ -334,6 +366,22 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
     if let Some(matches) = matches.subcommand_matches("check-config") {
         // we already checked the config when loading. So if we are here, just exit with success
         std::process::exit(0);
+    }
+    if let Some(matches) = matches.subcommand_matches("process-gerrit-reply") {
+        let input_file = matches.value_of("input-file").unwrap().to_string();
+        let before = matches
+            .value_of("before-ts")
+            .map(|x| x.parse::<i64>().unwrap_or(0))
+            .map(|x| NaiveDateTime::from_timestamp(x, 0));
+        let after = matches
+            .value_of("after-ts")
+            .map(|x| x.parse::<i64>().unwrap_or(0))
+            .map(|x| NaiveDateTime::from_timestamp(x, 0));
+        action = s5ciAction::ProcessGerritReply(s5ciProcessGerritReplyArgs {
+            input_file,
+            before,
+            after,
+        });
     }
     if let Some(matches) = matches.subcommand_matches("set-status") {
         let msg = matches.value_of("message").unwrap().to_string();
