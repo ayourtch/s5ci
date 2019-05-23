@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use diesel;
 use s5ci::*;
 
@@ -142,4 +143,45 @@ pub fn db_get_next_counter_value_with_min(a_name: &str, a_min: i32) -> Result<i3
     }
     unlock_named(&a_name).unwrap();
     result
+}
+
+pub fn db_update_timestamp(a_name: &str, a_value: NaiveDateTime) {
+    use diesel::connection::Connection;
+    use diesel::expression_methods::*;
+    use diesel::query_dsl::QueryDsl;
+    use diesel::query_dsl::RunQueryDsl;
+    use diesel::result::Error;
+    use schema::timestamps;
+    use schema::timestamps::dsl::*;
+
+    let db = get_db();
+    let conn = db.conn();
+
+    conn.transaction::<_, Error, _>(|| {
+        let res = timestamps
+            .filter(name.eq(a_name))
+            .limit(2)
+            .load::<models::timestamp>(conn);
+
+        if let Ok(r) = &res {
+            match r.len() {
+                0 => {
+                    let new_timestamp = models::timestamp {
+                        name: format!("{}", a_name),
+                        value: a_value,
+                    };
+                    diesel::insert_into(timestamps::table)
+                        .values(&new_timestamp)
+                        .execute(conn);
+                }
+                _ => {
+                    diesel::update(timestamps.filter(name.eq(a_name)))
+                        .set((value.eq(a_value)))
+                        .execute(conn);
+                }
+            }
+        };
+        res
+    })
+    .unwrap();
 }

@@ -280,6 +280,7 @@ fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
 
         let ndt_now = now_naive_date_time();
         if ndt_now > poll_timestamp {
+            db_update_timestamp("last-ssh-poll", ndt_now);
             // println!("{:?}", ndt);
             let res_res = poll_gerrit_over_ssh(&config, &rtdt, before, after);
             if let Ok(res) = res_res {
