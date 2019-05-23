@@ -155,7 +155,7 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
                 .short("s")
                 .env("S5CI_SANDBOX_LEVEL")
                 .default_value("0")
-                .possible_values(&["0", "1", "2", "3"])
+                .possible_values(&["0", "1", "2", "3", "4"])
                 .help("Sandbox - inhibit various actions"),
         )
         .subcommand(SubCommand::with_name("list-jobs").about("list jobs"))

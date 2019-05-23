@@ -150,7 +150,9 @@ pub fn get_comment_triggers_from_comments(
             }
         }
     }
-    db_set_changeset_last_comment_id(changeset_id, comments_vec.len() as i32);
+    if rtdt.sandbox_level < 4 {
+        db_set_changeset_last_comment_id(changeset_id, comments_vec.len() as i32);
+    }
 
     out
 }
