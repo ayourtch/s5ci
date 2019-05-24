@@ -240,6 +240,15 @@ pub fn process_gerrit_change(
                             retain = false;
                         }
                     }
+                    if let Some(branch) = &ctrig.branch {
+                        if let Some(cs_branch) = &cs.branch {
+                            if cs_branch != branch {
+                                retain = false;
+                            }
+                        } else {
+                            retain = false;
+                        }
+                    }
                     if let s5TriggerAction::command(cmd) = &ctrig.action {
                         retain
                     } else {

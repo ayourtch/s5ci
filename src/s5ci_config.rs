@@ -87,6 +87,7 @@ pub enum s5TriggerAction {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct s5GerritTrigger {
     pub project: Option<String>,
+    pub branch: Option<String>,
     pub regex: String,
     pub suppress_regex: Option<String>,
     pub action: s5TriggerAction,
