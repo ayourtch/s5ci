@@ -36,6 +36,9 @@ pub fn get_comment_triggers_from_comments(
     comments_vec: &Vec<GerritComment>,
     startline_ts: i64,
 ) -> Vec<CommentTrigger> {
+    lazy_static! {
+        static ref RE_PATCHSET: regex::Regex = regex::Regex::new(r"^Patch Set (\d+):\r*").unwrap();
+    }
     let trigger_regexes = &rtdt.trigger_regexes;
     let mut out = vec![];
 
@@ -72,7 +75,8 @@ pub fn get_comment_triggers_from_comments(
                     captures.insert("patchset".into(), safe_patchset_str.clone());
                     // eprintln!("        Comment matched regex {}", &tr.name);
                     // try to extract the patchset from the start of comment
-                    captures.insert("_".to_string(), comment.message.clone());
+                    let msg = RE_PATCHSET.replace_all(&comment.message, "");
+                    captures.insert("_".to_string(), msg.to_string());
                     for m in tr.r.captures(&comment.message) {
                         for maybe_name in tr.r.capture_names() {
                             if let Some(name) = maybe_name {
@@ -285,7 +289,11 @@ pub fn process_gerrit_change(
                 let mut rtdt2 = rtdt.clone();
                 rtdt2.changeset_id = Some(change_id);
                 rtdt2.patchset_id = Some(trig.patchset_id);
-                rtdt2.comment_value = trig.captures.get("_").unwrap_or(&"".to_string()).to_string();
+                rtdt2.comment_value = trig
+                    .captures
+                    .get("_")
+                    .unwrap_or(&"".to_string())
+                    .to_string();
                 if (trig.is_suppress || trig.is_suppressed) {
                     panic!(format!("bug: job is not runnable: {:#?}", &trig));
                 }
