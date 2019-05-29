@@ -286,7 +286,13 @@ fn yaml_subst(v: &Yaml, subst_vars: &HashMap<String, Yaml>) -> Yaml {
             }
             Yaml::Hash(hh)
         }
-        Yaml::String(s) => subst_yaml_from_str(s, subst_vars),
+        Yaml::String(s) => {
+            if s.contains("{") {
+                subst_yaml_from_str(s, subst_vars)
+            } else {
+                Yaml::String(s.to_string())
+            }
+        }
         x => x.clone(),
     }
 }
@@ -298,6 +304,12 @@ fn fill_vars_with_subst(
 ) {
     // println!("FROM: {:#?}", &fill_from);
 
+    // copy "substitution" variables first
+    for (name, val) in subst_vars {
+        vars.insert(name.to_string(), val.clone());
+    }
+
+    // now copy (with substitution) the local vars
     if let yaml::Yaml::Hash(ref h) = fill_from {
         for (k, v) in h {
             let key = k.as_str().unwrap();
