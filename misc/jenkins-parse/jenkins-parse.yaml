@@ -1,0 +1,15 @@
+jenkins_files:
+        - global-macros.yaml
+        - global-defaults.yaml
+        - csit.yaml
+        # - docs.yaml
+        # - vpp-macros.yaml
+        # - vpp.yaml
+s5ci_template: s5ci-in.yaml
+# filter the output results by ANT-style match
+# node_filter: "ubuntu*basebuild*4g"
+# add the node information into the trigger on output
+debug_add_node: true
+debug_add_job: true
+
+s5ci_output_file: s5ci-out.yaml
