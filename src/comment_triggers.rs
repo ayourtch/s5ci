@@ -72,6 +72,7 @@ pub fn get_comment_triggers_from_comments(
                     captures.insert("patchset".into(), safe_patchset_str.clone());
                     // eprintln!("        Comment matched regex {}", &tr.name);
                     // try to extract the patchset from the start of comment
+                    captures.insert("_".to_string(), comment.message.clone());
                     for m in tr.r.captures(&comment.message) {
                         for maybe_name in tr.r.capture_names() {
                             if let Some(name) = maybe_name {
@@ -284,6 +285,7 @@ pub fn process_gerrit_change(
                 let mut rtdt2 = rtdt.clone();
                 rtdt2.changeset_id = Some(change_id);
                 rtdt2.patchset_id = Some(trig.patchset_id);
+                rtdt2.comment_value = trig.captures.get("_").unwrap_or(&"".to_string()).to_string();
                 if (trig.is_suppress || trig.is_suppressed) {
                     panic!(format!("bug: job is not runnable: {:#?}", &trig));
                 }

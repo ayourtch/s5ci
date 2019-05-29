@@ -90,6 +90,7 @@ pub struct s5ciRuntimeData {
     pub action: s5ciAction,
     pub changeset_id: Option<u32>,
     pub patchset_id: Option<u32>,
+    pub comment_value: String,
     pub real_s5ci_exe: String,
 }
 
@@ -447,6 +448,7 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
         changeset_id,
         patchset_id,
         real_s5ci_exe,
+        comment_value: "".to_string(),
     };
     debug!("C-Config: {:#?}", &rtdt);
     (config, rtdt)

@@ -204,7 +204,8 @@ pub fn spawn_command(config: &s5ciConfig, rtdt: &s5ciRuntimeData, cmd: &str) {
         .arg("-k")
         .env("S5CI_CONFIG", &rtdt.config_path)
         .env("S5CI_GERRIT_CHANGESET_ID", &env_changeset_id)
-        .env("S5CI_GERRIT_PATCHSET_ID", &env_patchset_id);
+        .env("S5CI_GERRIT_PATCHSET_ID", &env_patchset_id)
+        .env("S5CI_GERRIT_COMMENT_VALUE", &rtdt.comment_value);
     println!("Spawning {:#?}", child);
     if rtdt.sandbox_level < 2 {
         let res = child.spawn().expect("failed to execute child");
