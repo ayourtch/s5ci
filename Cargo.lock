@@ -302,6 +302,7 @@ name = "jenkins_parse"
 version = "0.1.0"
 dependencies = [
  "ant_style_matcher 0.1.0 (git+https://github.com/ayourtch/ant_style_matcher.git)",
+ "cron 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",

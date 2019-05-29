@@ -481,10 +481,29 @@ pub fn main() {
     jenkins_parse(config_fname);
 }
 
+fn cron_replace_dow(cron_str: &str) -> String {
+    lazy_static! {
+        // static ref re_subst: Regex = Regex::new(r"[{]([^-A-Za-z0-9]+)[}]").unwrap();
+        static ref RE_SPACE: Regex = Regex::new(r"\s+").unwrap();
+    }
+    let mut parts: Vec<String> = RE_SPACE.split(cron_str).map(|x| x.to_string()).collect();
+    let d = parts[4].clone();
+    parts[4] = d
+        .replace("0", "Sun")
+        .replace("1", "Mon")
+        .replace("2", "Tue")
+        .replace("3", "Wed")
+        .replace("4", "Thu")
+        .replace("5", "Fri")
+        .replace("6", "Sat")
+        .replace("7", "Sun");
+    parts.join(" ").to_string()
+}
+
 pub fn jenkins_parse(config_fname: Option<String>) {
     let config = load_config(config_fname);
     if let Some(cwdpath) = config.base_dir {
-         std::env::set_current_dir(cwdpath).unwrap();
+        std::env::set_current_dir(cwdpath).unwrap();
     }
 
     let mut templates: HashMap<String, HashMap<String, Yaml>> = HashMap::new();
@@ -584,15 +603,18 @@ pub fn jenkins_parse(config_fname: Option<String>) {
                     hash_add_yaml_node(&mut triggers, key, j);
                 }
                 "timed" => {
+                    use cron::Schedule;
+                    use std::str::FromStr;
+
                     let mut action = Yaml::Hash(yaml::Hash::new());
                     let cmd = format!("{}", yaml_str(&job["name"]));
                     hash_add_yaml_node(&mut action, "command", Yaml::String(cmd));
                     hash_add_yaml_node(&mut j, "action", action);
-                    hash_add_yaml_node(
-                        &mut j,
-                        "cron",
-                        Yaml::String(format!("0 {} *", yaml_str(trig.1))),
-                    );
+                    let cron_str = format!("0 {} *", cron_replace_dow(yaml_str(trig.1)));
+                    // just to check that it makes sense
+                    let schedule = cron::Schedule::from_str(&cron_str).unwrap();
+
+                    hash_add_yaml_node(&mut j, "cron", Yaml::String(cron_str));
                     hash_add_yaml_node(&mut cron_triggers, key, j);
                 }
                 "jobs" => { /* unhandled currently */ }
