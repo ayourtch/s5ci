@@ -170,6 +170,11 @@ pub fn process_gerrit_change(
     before_when: Option<NaiveDateTime>,
     after_when: Option<NaiveDateTime>,
 ) {
+    use ant_style_matcher::AntPathMatcher;
+    lazy_static! {
+        pub static ref ant_matcher: AntPathMatcher = AntPathMatcher::new();
+    }
+
     let mut triggers: Vec<CommentTrigger> = vec![];
     let mut max_pset = 0;
 
@@ -233,7 +238,7 @@ pub fn process_gerrit_change(
                     let mut retain = !x.is_suppressed;
                     if let Some(proj) = &ctrig.project {
                         if let Some(cs_proj) = &cs.project {
-                            if cs_proj != proj {
+                            if !ant_matcher.is_match(proj, cs_proj) {
                                 retain = false;
                             }
                         } else {
@@ -242,7 +247,7 @@ pub fn process_gerrit_change(
                     }
                     if let Some(branch) = &ctrig.branch {
                         if let Some(cs_branch) = &cs.branch {
-                            if cs_branch != branch {
+                            if !ant_matcher.is_match(branch, cs_branch) {
                                 retain = false;
                             }
                         } else {
