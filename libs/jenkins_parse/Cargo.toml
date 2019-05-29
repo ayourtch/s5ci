@@ -1,0 +1,17 @@
+[package]
+name = "jenkins_parse"
+version = "0.1.0"
+authors = ["Andrew Yourtchenko <ayourtch@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+yaml-rust = "*"
+lazy_static = "*"
+regex = "*"
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
+serde_yaml = "*"
+
+ant_style_matcher = { git = "https://github.com/ayourtch/ant_style_matcher.git" }
+

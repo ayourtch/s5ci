@@ -147,8 +147,18 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
                 .value_name("FILE")
                 .env("S5CI_CONFIG")
                 .required(true)
+                .conflicts_with("jenkins-parse-config")
                 .takes_value(true)
                 .help("Set custom config file"),
+        )
+        .arg(
+            Arg::with_name("jenkins-parse-config")
+                .short("j")
+                .long("jenkins-parse-config")
+                .value_name("FILE")
+                .takes_value(true)
+                .conflicts_with("config")
+                .help("Set config file describing how to convert a jenkins config to s5ci"),
         )
         .arg(
             Arg::with_name("sandbox-level")
@@ -297,6 +307,11 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
         )
         .get_matches();
 
+    if let Some(jenkins_yaml_fname) = &matches.value_of("jenkins-parse-config") {
+        use jenkins_parse;
+        jenkins_parse::jenkins_parse(Some(jenkins_yaml_fname.to_string()));
+        std::process::exit(0);
+    }
     let yaml_fname = &matches.value_of("config").unwrap().to_string();
     // canonicalize config name
     let yaml_fname = std::fs::canonicalize(yaml_fname)
