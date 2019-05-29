@@ -40,6 +40,7 @@ fn get_min_job_counter(config: &s5ciConfig, jobname: &str) -> i32 {
     let jobpath = format!("{}/{}", &config.jobs.rootdir, jobname);
     let path = Path::new(&jobpath);
     if !path.is_dir() {
+        println!("Creating directory {}", &jobpath);
         fs::create_dir(&jobpath).unwrap();
     }
     let file_count = fs::read_dir(path).unwrap().count();
@@ -85,6 +86,32 @@ fn get_next_job_number(config: &s5ciConfig, jobname: &str) -> i32 {
     job_number
 }
 
+fn find_best_command(config: &s5ciConfig, job_group: &str) -> String {
+    let mut best_command = job_group;
+    debug!("Finding best command for {}", job_group);
+    loop {
+        debug!("Current best candidate: {}", &best_command);
+        if best_command == "" {
+            debug!("Best command candidate empty, return full command");
+            return job_group.to_string();
+        }
+        let full_cmd = format!("{}/{}", &config.command_rootdir, &best_command);
+        let fc_path = Path::new(&full_cmd);
+        if fc_path.is_file() {
+            debug!("Best command: {}", &best_command);
+            return best_command.to_string();
+        }
+        let mut cut_len = best_command.len();
+        while cut_len > 0 && &best_command[cut_len - 1..cut_len] != "-" {
+            cut_len = cut_len - 1;
+        }
+        while cut_len > 0 && &best_command[cut_len - 1..cut_len] == "-" {
+            cut_len = cut_len - 1;
+        }
+        best_command = &best_command[0..cut_len];
+    }
+}
+
 fn prepare_child_command<'a>(
     config: &s5ciConfig,
     rtdt: &s5ciRuntimeData,
@@ -100,19 +127,27 @@ fn prepare_child_command<'a>(
 
     // let re = Regex::new(r"[^A-Za-z0-9_]").unwrap();
 
-    let cmd_file = basename_from_cmd(cmd);
-    let job_nr = get_next_job_number(config, &cmd_file);
-    let job_id = format!("{}/{}", cmd_file, job_nr);
+    let job_group = basename_from_cmd(cmd);
+    let job_nr = get_next_job_number(config, &job_group);
+    let job_id = format!("{}/{}", job_group, job_nr);
     let log_fname = format!("{}/{}/console{}.txt", config.jobs.rootdir, job_id, suffix);
     println!("LOG file: {}", &log_fname);
     let log_file = open_log_file(&log_fname).unwrap();
-    let stderr_cmd = format!("{}-stderr", cmd_file);
+    let stderr_cmd = format!("{}-stderr", job_group);
     let log_file_stderr = log_file.try_clone().unwrap(); // open_log_file(&stderr_cmd).unwrap();
+
+    let cmd_file = find_best_command(config, &job_group);
+    let final_cmd = if cmd_file != job_group {
+        // insert a space at the appropriate place
+        format!("{} {}", &cmd[0..cmd_file.len()], &cmd[cmd_file.len() + 1..])
+    } else {
+        cmd.to_string()
+    };
 
     // let errors = outputs.try_clone()?;
     // let mut child0 = Command::new("/bin/sh");
     let mut child = child0
-        .arg(format!("{}", cmd))
+        .arg(format!("{}", final_cmd))
         .stdin(Stdio::null())
         .stdout(log_file)
         .stderr(log_file_stderr)
@@ -150,7 +185,7 @@ fn prepare_child_command<'a>(
             .env("S5CI_PARENT_JOB_NAME", env_pj_name.unwrap())
             .env("S5CI_PARENT_JOB_URL", env_pj_url.unwrap());
     }
-    return (cmd_file, job_nr, child0);
+    return (job_group, job_nr, child0);
 }
 
 /* background run a command, simply starts S5CI with a request to run a job in foreground */
