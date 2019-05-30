@@ -262,6 +262,7 @@ pub fn exec_command(
         finished_at: None,
         return_success: false,
         return_code: None,
+        ..Default::default()
     };
     let db = get_db();
     {

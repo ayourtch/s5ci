@@ -2,3 +2,4 @@
 drop table jobs;
 drop table comments;
 drop table counters;
+drop table timestamps;

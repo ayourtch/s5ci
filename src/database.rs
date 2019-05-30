@@ -164,7 +164,7 @@ pub fn db_get_timestamp(a_name: &str, a_default: NaiveDateTime) -> NaiveDateTime
     if let Ok(r) = &res {
         match r.len() {
             0 => a_default,
-            _ => r[0].value,
+            _ => r[0].value.unwrap(),
         }
     } else {
         a_default
@@ -194,7 +194,7 @@ pub fn db_update_timestamp(a_name: &str, a_value: NaiveDateTime) {
                 0 => {
                     let new_timestamp = models::timestamp {
                         name: format!("{}", a_name),
-                        value: a_value,
+                        value: Some(a_value),
                     };
                     diesel::insert_into(timestamps::table)
                         .values(&new_timestamp)
@@ -210,4 +210,95 @@ pub fn db_update_timestamp(a_name: &str, a_value: NaiveDateTime) {
         res
     })
     .unwrap();
+}
+
+use yaml_rust::{Yaml, YamlLoader};
+
+fn load_yaml_doc(filename: &str) -> Yaml {
+    let data = std::fs::read_to_string(filename).unwrap();
+    let docs = YamlLoader::load_from_str(&data).unwrap();
+    docs[0].clone()
+}
+
+fn yaml_to_str(y: &Yaml) -> String {
+    use yaml_rust::Yaml;
+    match y {
+        Yaml::String(s) => s.to_string(),
+        Yaml::Real(s) => s.to_string(),
+        Yaml::Integer(i) => format!("{}", i),
+        Yaml::Boolean(b) => format!("{}", b),
+        _ => "".to_string(),
+    }
+}
+
+pub fn db_import_job_yaml(fname: &str) {
+    //    let fname = format!("{}/{}/job.yaml", &config.jobs.rootdir, &job.job_id);
+    let yaml = load_yaml_doc(fname);
+    let iter = yaml
+        .as_hash()
+        .unwrap()
+        .iter()
+        .filter(|(k, v)| !v.is_null())
+        .map(|(k, v)| (yaml_to_str(k), yaml_to_str(v)));
+    let res = envy::from_iter::<_, models::job>(iter);
+    println!("Job {}", fname);
+    if let Ok(new_job) = res {
+        let db = get_db();
+        {
+            use diesel::query_dsl::RunQueryDsl;
+            use schema::jobs;
+            use schema::jobs::dsl::*;
+
+            diesel::insert_into(jobs::table)
+                .values(&new_job)
+                .execute(db.conn())
+                .expect(&format!("Error inserting new job {:#?}", &yaml));
+        }
+    } else {
+        panic!("Could not insert a new job from yaml {:#?}", &yaml);
+    }
+}
+
+pub fn db_restore_jobs_from_group(dir: &str) {
+    lazy_static! {
+        static ref RE_DIGITS: regex::Regex = regex::Regex::new(r"^\d+$").unwrap();
+    }
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+
+        let metadata = std::fs::metadata(&path).unwrap();
+        let last_modified = metadata.modified().unwrap().elapsed().unwrap().as_secs();
+
+        let job_dir_name = path
+            .file_name()
+            .ok_or("No filename")
+            .unwrap()
+            .to_string_lossy();
+        let job_yaml_fname = format!("{}/{}/job.yaml", dir, &job_dir_name);
+        let job_yaml_path = std::path::Path::new(&job_yaml_fname);
+
+        if metadata.is_dir() && RE_DIGITS.is_match(&job_dir_name) && job_yaml_path.is_file() {
+            db_import_job_yaml(&job_yaml_fname);
+        }
+    }
+}
+
+pub fn db_restore_jobs_from(dir: &str) {
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+
+        let metadata = std::fs::metadata(&path).unwrap();
+        let job_dir_name = path
+            .file_name()
+            .ok_or("No filename")
+            .unwrap()
+            .to_string_lossy();
+
+        if metadata.is_dir() {
+            let group_dir_name = format!("{}/{}", dir, job_dir_name);
+            db_restore_jobs_from_group(&group_dir_name);
+        }
+    }
 }

@@ -67,6 +67,12 @@ fn do_gerrit_command(config: &s5ciConfig, rtdt: &s5ciRuntimeData, cmd: &str) {
     run_ssh_command(config, cmd);
 }
 
+extern crate envy;
+
+fn do_rebuild_database(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
+    println!("Rebuilding job db");
+    db_restore_jobs_from(&config.jobs.rootdir);
+}
 fn do_review(
     config: &s5ciConfig,
     rtdt: &s5ciRuntimeData,
@@ -367,5 +373,6 @@ fn main() {
         s5ciAction::SetStatus(job_id, msg) => do_set_job_status(&config, &rtdt, &job_id, &msg),
         s5ciAction::GerritCommand(cmd) => do_gerrit_command(&config, &rtdt, &cmd),
         s5ciAction::MakeReview(maybe_vote, msg) => do_review(&config, &rtdt, maybe_vote, &msg),
+        s5ciAction::RebuildDatabase => do_rebuild_database(&config, &rtdt),
     }
 }

@@ -38,7 +38,7 @@ table! {
 table! {
     timestamps (name) {
         name -> Text,
-        value -> Timestamp,
+        value -> Nullable<Timestamp>,
     }
 }
 

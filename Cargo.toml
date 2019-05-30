@@ -33,5 +33,6 @@ signal-hook = "*"
 uuid = { version = "0.7", features = ["serde", "v4"] }
 exec = "*"
 cron = "*"
+envy = "*"
 
 jenkins_parse = { path = "libs/jenkins_parse" }

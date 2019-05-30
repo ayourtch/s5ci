@@ -10,7 +10,8 @@ use diesel::types::*;
 use schema::*;
 use serde_derive;
 use std;
-#[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
+#[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[table_name = "comments"]
 pub struct comment {
     pub record_uuid: String,
@@ -18,14 +19,16 @@ pub struct comment {
     pub comment_id: i32,
 }
 
-#[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
+#[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[table_name = "counters"]
 pub struct counter {
     pub name: String,
     pub value: i32,
 }
 
-#[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
+#[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[table_name = "jobs"]
 pub struct job {
     pub record_uuid: String,
@@ -47,9 +50,10 @@ pub struct job {
     pub return_code: Option<i32>,
 }
 
-#[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
+#[derive(Queryable, Insertable, Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[table_name = "timestamps"]
 pub struct timestamp {
     pub name: String,
-    pub value: NaiveDateTime,
+    pub value: Option<NaiveDateTime>,
 }

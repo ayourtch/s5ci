@@ -34,5 +34,5 @@ CREATE TABLE counters (
 
 CREATE TABLE timestamps (
 	name VARCHAR NOT NULL PRIMARY KEY,
-	value datetime NOT NULL
+	value datetime
 );
