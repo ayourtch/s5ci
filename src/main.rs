@@ -29,9 +29,9 @@ extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
 
+extern crate ant_style_matcher;
 extern crate cron;
 extern crate mustache;
-extern crate ant_style_matcher;
 #[macro_use]
 extern crate lazy_static;
 

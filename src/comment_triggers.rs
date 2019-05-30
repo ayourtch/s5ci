@@ -37,7 +37,8 @@ pub fn get_comment_triggers_from_comments(
     startline_ts: i64,
 ) -> Vec<CommentTrigger> {
     lazy_static! {
-        static ref RE_PATCHSET: regex::Regex = regex::Regex::new(r"(?s)^Patch Set \d+\s*:\s*").unwrap();
+        static ref RE_PATCHSET: regex::Regex =
+            regex::Regex::new(r"(?s)^Patch Set \d+\s*:\s*").unwrap();
     }
     let trigger_regexes = &rtdt.trigger_regexes;
     let mut out = vec![];
