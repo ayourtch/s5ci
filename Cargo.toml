@@ -3,6 +3,8 @@ name = "s5ci"
 version = "0.1.0"
 authors = ["Andrew Yourtchenko <ayourtch@gmail.com>"]
 edition = "2018"
+description = "S5CI - a continuous integration daemon"
+license = "Apache-2.0"
 
 [dependencies]
 ssh2 = { git = "https://github.com/ayourtch/ssh2-rs.git" }
@@ -36,3 +38,9 @@ cron = "*"
 envy = "*"
 
 jenkins_parse = { path = "libs/jenkins_parse" }
+
+[package.metadata.rpm.cargo]
+buildflags = ["--debug"]
+
+[package.metadata.rpm.targets]
+s5ci = { path = "/usr/bin/s5ci" }
