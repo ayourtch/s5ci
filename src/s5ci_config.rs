@@ -112,6 +112,18 @@ pub struct s5AutorestartConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct s5PerProjectConfigInfo {
+    pub root_dir: String,
+    pub projects: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct s5PerProjectConfig {
+    pub commit_triggers: Option<HashMap<String, s5GerritTrigger>>,
+    pub cron_triggers: Option<HashMap<String, s5CronTrigger>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct s5ciConfig {
     pub default_auth: s5SshAuth,
     pub server: s5ciPollGerrit,
@@ -130,6 +142,13 @@ pub struct s5ciConfig {
     pub autorestart: s5AutorestartConfig,
     pub db_url: String,
     pub jobs: s5ciJobs,
+    pub per_project_config: Option<s5PerProjectConfigInfo>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct s5ciProjectConfig {
+    pub commit_triggers: Option<HashMap<String, s5GerritTrigger>>,
+    pub cron_triggers: Option<HashMap<String, s5CronTrigger>>,
 }
 
 impl s5ciPollGerrit {

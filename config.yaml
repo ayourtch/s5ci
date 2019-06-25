@@ -75,7 +75,11 @@ cron_triggers:
       action:
          command: run-cron some-funky
 
-
+per_project_config:
+    root_dir: /home/ubuntu/s5ci/scripts/projects
+    projects:
+    - testproj
+    - testvpp
 
 patchset_extract_regex: '(?s)^Patch Set (?P<patchset>\d+):'
 

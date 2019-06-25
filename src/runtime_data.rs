@@ -324,7 +324,36 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
         .to_string();
 
     let s = fs::read_to_string(&yaml_fname).unwrap();
-    let config: s5ciConfig = serde_yaml::from_str(&s).unwrap();
+    let mut config: s5ciConfig = serde_yaml::from_str(&s).unwrap();
+    if let Some(ref per_project) = config.per_project_config {
+        debug!("Parsing per-project data");
+        for project in &per_project.projects {
+            let proj_yaml_fname = format!("{}/{}.yaml", &per_project.root_dir, &project);
+            let s = fs::read_to_string(&proj_yaml_fname).expect(&format!("Could not read per-project config from {}", &proj_yaml_fname));
+            let project_config: s5PerProjectConfig = serde_yaml::from_str(&s).expect(&format!("Error while parsing yaml from {}", &proj_yaml_fname));
+            let project_name = project.clone();
+
+            if let Some(ref mut global_commit_triggers) = config.triggers {
+                if let Some(tr) = project_config.commit_triggers {
+                    for (k, mut ct) in tr {
+                        let global_key = format!("{}_{}", &project_name, &k);
+                        if ct.project.is_none() {
+                            ct.project = Some(format!("{}", &project_name));
+                        }
+                        global_commit_triggers.insert(global_key, ct);
+                    }
+                }
+            }
+            if let Some(ref mut global_cron_triggers) = config.cron_triggers {
+                if let Some(tr) = project_config.cron_triggers {
+                    for (k, ct) in tr {
+                        let global_key = format!("{}_{}", &project_name, &k);
+                        global_cron_triggers.insert(global_key, ct);
+                    }
+                }
+            }
+        }
+    }
     debug!("Config: {:#?}", &config);
     set_db_url(&config.db_url);
 

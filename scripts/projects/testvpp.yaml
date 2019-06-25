@@ -1,0 +1,13 @@
+commit_triggers:
+  test_comment:
+      regex: VPPtest (?P<testval>\d+)(:? (?P<secondval>\w+))?
+      action:
+        event: test_command
+
+cron_triggers:
+  every_half_hour:
+      #            sec  min   hour   day of month   month   day of week   year
+      cron:        "0    0,30     *          *           *          *          * "
+      action:
+         command: run-cron once-per-minute
+
