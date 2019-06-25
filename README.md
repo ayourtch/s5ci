@@ -97,9 +97,17 @@ In this case, the regex will match and will extract the "testval" variable, whic
 in order to build the full command line to run the job. if in the same processing batch there is also
 a match on "Build http" - then the job will not be started.
 
+(optional) Per-project triggers
+===============================
 
-Time-based redundancy for Comment triggers
-==========================================
+In addition to triggers defined in the main configuration file, s5ci supports having several
+additional files specifying triggers - one (or in the future more) per project.
+They can be located in a different location, specified in the main configuration file,
+thus allowing to separate the high-level trigger configuration from the "main" and host-specific config.
+
+
+(optional) Time-based redundancy for Comment triggers
+=====================================================
 
 Let's say we have two servers, S1 and S2, both running s5CI, polling gerrit.
 The parameter *poll_wait_ms* determines how long to wait between the subsequent polls.
@@ -116,5 +124,73 @@ When S2 acts on trigger and puts the comment, even if S1 somehow managed to not 
 period of time, then it will see both the trigger comment and the reaction from S2 - so it will
 not trigger the job.
 
+(optional, draft) Running in a stateless container
+==================================================
+
+s5ci saves the per-job data exports of job records within each of the job directory, done
+at the same time as the HTML updates. This provides a distributed backup of sorts, and enables
+simple database schema migrations - delete the old database, create the new database, re-import
+the existing jobs records from exported text files.
+
+This allows for a largely stateless container-based setup in the following fashion:
+create a remote rsync-available host, whose only purpose in life is to be accessible via HTTP for
+the outside world and via rsync/ssh to the container infra, and upon container startup,
+rsync the static data tree to it, then recreate the database. Run the jobs as usual,
+and perform frequent periodic rsync back to the static storage. Upon the s5ci shutdown,
+wait for the rsync to complete and just delete the container.
+
+The UI with the results will continue to be available at the static location.
+
+(optional, draft) Distributed jobs under hashicorp nomad
+==========================================================
+
+The distributed case is an extension of the above mentioned container setup, except rather
+than starting the new "s5ci run-job" processes within the current container, it kicks them
+off in the separate nomad jobs. 
+
+The process hierarchy in case of the local job looks like:
+
+```
+mainhost:
+
+s5ci # main loop
+  |---> s5ci run-job foo
+          |-----> bash -c /path/to/scripts/foo
+```
+
+For the remote job we need to abstract out the existence of the level inbetween, so the 
+process/job hierarchy will look as follows:
+
+```
+mainhost:
+
+s5ci # main loop
+  |---> s5ci run-job foo
+           . . . . . launch and monitor nomad job . . . 
+
+subhost:
+
+CALLBACK=http://mainhost/s5ci s5ci run-job foo 
+  |---> bash -c /path/to/scripts/foo
+
+```
+
+the run-job instance of s5ci on the mainhost periodically polls the nomad control plane,
+and pumps the stdout/stderr info that is being added there, to the console output on the mainhost
+s5ci instance - this way it creates an abstraction that the job is running on the mainhost.
+
+The s5ci instance on the subhost does the part of monitoring the local descendant processes,
+communicating back to the mainhost: new job start requests (which turn into separate nomad jobs
+with the same mainhost-subhost structure), job status updates, job termination and return code
+values. The HTTP(s) callback is secured by a temporary random token that is valid for the duration of
+that job, optionally (TBD) also by an IP address restriction that gets activated upon the very first
+callback - the assumption is that the live-running host will not change the IP. The current
+mechanism explicitly does *not* consider any MITM threats. For that one might use TLS with
+certificate pinning (assuming that the subhost cert/private key distribution is secure
+against MITM - else it is just complexity with not much value.
+
+With this approach, none of the concepts behind running as a standalone node need to change,
+and (assuming a good implementation), nomad will provide the required tolerance for restarting
+and moving the failing jobs around in case of failing nodes.
 
 
