@@ -91,6 +91,7 @@ pub struct s5ciRuntimeData {
     pub action: s5ciAction,
     pub changeset_id: Option<u32>,
     pub patchset_id: Option<u32>,
+    pub trigger_event_id: Option<String>,
     pub comment_value: String,
     pub real_s5ci_exe: String,
 }
@@ -242,6 +243,13 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
                         .required(true)
                         .env("S5CI_GERRIT_PATCHSET_ID")
                         .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("trigger-event-id")
+                        .short("t")
+                        .help("trigger event ID")
+                        .env("S5CI_TRIGGER_EVENT_ID")
+                        .takes_value(true),
                 ),
         )
         .subcommand(
@@ -369,6 +377,7 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
     let trigger_command_templates = get_trigger_command_templates(&config);
     let mut changeset_id: Option<u32> = None;
     let mut patchset_id: Option<u32> = None;
+    let mut trigger_event_id: Option<String> = None;
     let sandbox_level = value_t!(matches, "sandbox-level", u32).unwrap_or(0);
 
     let mut action = s5ciAction::Loop;
@@ -399,6 +408,9 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
                 .parse::<u32>()
                 .unwrap(),
         );
+        if let Some(m) = matches.value_of("trigger-event-id") {
+            trigger_event_id = Some(m.to_string());
+        }
         let omit_if_ok = matches.is_present("omit-if-ok");
         let kill_previous = matches.is_present("kill-previous");
         action = s5ciAction::RunJob(s5ciRunJobArgs {
@@ -483,6 +495,7 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
         patchset_id,
         real_s5ci_exe,
         comment_value: "".to_string(),
+        trigger_event_id,
     };
     debug!("C-Config: {:#?}", &rtdt);
     (config, rtdt)

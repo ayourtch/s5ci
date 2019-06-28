@@ -4,5 +4,6 @@ date
 ls
 pwd
 echo "Running CRON job $1"
+env | grep S5CI
 sleep 180
 echo "Finished running cron job $1"

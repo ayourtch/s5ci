@@ -32,6 +32,7 @@ table! {
         finished_at -> Nullable<Timestamp>,
         return_success -> Bool,
         return_code -> Nullable<Integer>,
+        trigger_event_id -> Nullable<Text>,
     }
 }
 

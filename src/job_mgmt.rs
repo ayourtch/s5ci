@@ -185,6 +185,9 @@ fn prepare_child_command<'a>(
             .env("S5CI_PARENT_JOB_NAME", env_pj_name.unwrap())
             .env("S5CI_PARENT_JOB_URL", env_pj_url.unwrap());
     }
+    if let Some(trig_ev) = &rtdt.trigger_event_id {
+        child = child.env("S5CI_TRIGGER_EVENT_ID", trig_ev.clone());
+    }
     return (job_group, job_nr, child0);
 }
 
@@ -206,6 +209,10 @@ pub fn spawn_command(config: &s5ciConfig, rtdt: &s5ciRuntimeData, cmd: &str) {
         .env("S5CI_GERRIT_CHANGESET_ID", &env_changeset_id)
         .env("S5CI_GERRIT_PATCHSET_ID", &env_patchset_id)
         .env("S5CI_GERRIT_COMMENT_VALUE", &rtdt.comment_value);
+    if let Some(a_trig) = &rtdt.trigger_event_id {
+        println!("Set the event id to: {}", &a_trig);
+        child = child.env("S5CI_TRIGGER_EVENT_ID", &a_trig);
+    }
     println!("Spawning {:#?}", child);
     if rtdt.sandbox_level < 2 {
         let res = child.spawn().expect("failed to execute child");
@@ -262,6 +269,7 @@ pub fn exec_command(
         finished_at: None,
         return_success: false,
         return_code: None,
+        trigger_event_id: rtdt.trigger_event_id.clone(),
         ..Default::default()
     };
     let db = get_db();

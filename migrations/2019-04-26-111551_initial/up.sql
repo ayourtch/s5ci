@@ -24,7 +24,8 @@ CREATE TABLE jobs (
 	started_at datetime,
 	finished_at datetime,
 	return_success BOOLEAN NOT NULL,
-	return_code INT
+	return_code INT,
+	trigger_event_id VARCHAR
 );
 
 CREATE TABLE counters (

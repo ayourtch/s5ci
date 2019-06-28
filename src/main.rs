@@ -210,7 +210,15 @@ fn process_cron_triggers(
             if let Some(triggers) = &config.cron_triggers {
                 if let Some(ctrig) = triggers.get(&sched.name) {
                     if let s5TriggerAction::command(cmd) = &ctrig.action {
-                        let job_id = spawn_command(config, rtdt, &cmd);
+                        let mut rtdt2 = rtdt.clone();
+                        rtdt2.trigger_event_id = Some(
+                            safe_or_underscores(
+                                &rtdt2,
+                                &format!("CRON_{}_{}", &sched.name, &next_0),
+                            )
+                            .into(),
+                        );
+                        let job_id = spawn_command(config, &rtdt2, &cmd);
                     }
                 }
             }

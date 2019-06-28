@@ -19,7 +19,7 @@ pub struct CommentTrigger {
 }
 
 // make anything other than -/_ or alphanum an underscore
-fn safe_or_underscores(rtdt: &s5ciRuntimeData, val: &str) -> String {
+pub fn safe_or_underscores(rtdt: &s5ciRuntimeData, val: &str) -> String {
     rtdt.unsafe_start_regex
         .replace_all(
             &rtdt.unsafe_char_regex.replace_all(val, "_").to_string(),
@@ -290,6 +290,10 @@ pub fn process_gerrit_change(
                 let mut rtdt2 = rtdt.clone();
                 rtdt2.changeset_id = Some(change_id);
                 rtdt2.patchset_id = Some(trig.patchset_id);
+                rtdt2.trigger_event_id = Some(format!(
+                    "{}_ch{}_ps{}_cmt{}",
+                    &trig.trigger_name, &change_id, &trig.patchset_id, &trig.comment_index
+                ));
                 rtdt2.comment_value = trig
                     .captures
                     .get("_")

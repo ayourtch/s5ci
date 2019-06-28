@@ -48,6 +48,7 @@ pub struct job {
     pub finished_at: Option<NaiveDateTime>,
     pub return_success: bool,
     pub return_code: Option<i32>,
+    pub trigger_event_id: Option<String>,
 }
 
 #[serde(default)]
