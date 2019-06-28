@@ -1,0 +1,73 @@
+#!/bin/sh
+
+
+. /secrets/env-vars.env
+
+# export STORAGE_USER="{{ACTUAL_STORAGE_USER}}"
+# export STORAGE_HOST="{{ACTUAL_STORAGE_HOST}}"
+# export STORAGE_DIR="jobs"
+
+# export GERRIT_HOST="{{ACTUAL_GERRIT_HOST}}"
+# export LOG_DIR="/local/logs"
+# export TIMELINE_LOG="${LOG_DIR}/timeline.log"
+# export INITIAL_RSYNC_LOG="${LOG_DIR}/initial-rsync.log"
+# export BACK_RSYNC_LOG="${LOG_DIR}/back-rsync.log"
+# export DB_REBUILD_LOG="${LOG_DIR}/db-rebuild.log"
+
+# make directory for logs
+mkdir ${LOG_DIR}
+
+echo "$(date): EXECSTART" >>${TIMELINE_LOG}
+mkdir -p ~/.ssh
+
+export NETWORK_LOG="${LOG_DIR}/network.log"
+date >>${NETWORK_LOG}
+ip addr >>${NETWORK_LOG}
+ip route >>${NETWORK_LOG}
+curl http://s5ci-images.myvpp.net >>${NETWORK_LOG}
+echo "end of net" >>${NETWORK_LOG}
+
+while true; do curl http://s5ci-images.myvpp.net >> ${INITIAL_RSYNC_LOG} && break; date; sleep 1; done
+echo "$(date): connectivity is ok" >>${TIMELINE_LOG}
+
+# pin the ssh hosts
+echo "$(date): scan SSH key for storage" >>${TIMELINE_LOG}
+ssh-keyscan -H -p 23 ${STORAGE_HOST} >>~/.ssh/known_hosts
+
+echo "$(date): scan SSH key for gerrit" >>${TIMELINE_LOG}
+ssh-keyscan -H -p 29418 ${GERRIT_HOST} >>~/.ssh/known_hosts
+
+# populate the jobs data from the storage
+echo "$(date): initial rsync data from storage" >>${TIMELINE_LOG}
+rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+
+# re-copy possibly updated static html to upstream
+echo "$(date): copy html to /local/html" >>${TIMELINE_LOG}
+cp -r /var/www/html/html /local/html
+
+echo "$(date): s5ci database rebuild" >>${TIMELINE_LOG}
+# put the transaction mode to WAL for somewhat better performance
+echo PRAGMA journal_mode=WAL | sqlite3 /s5ci/db/s5ci.sqlite3
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c /s5ci/config.yaml rebuild-database >>${DB_REBUILD_LOG}
+echo PRAGMA journal_mode=DEETE | sqlite3 /s5ci/db/s5ci.sqlite3
+
+echo "$(date): starting background back-sync loop" >>${TIMELINE_LOG}
+while (true); do
+	sleep 1
+        echo "$(date): rsync back" >>${BACK_RSYNC_LOG}
+	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>&1 >>${BACK_RSYNC_LOG} 
+	# it is static data but won't hurt.
+	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive /local/html ${STORAGE_USER}@${STORAGE_HOST}: 2>&1 >>${BACK_RSYNC_LOG}
+done &
+
+
+echo "$(date): EXECOK: startup finished" >>${TIMELINE_LOG}
+# execute the s5ci. 
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c /s5ci/config.yaml
+
+# the empty cycle in the end
+while true; do
+	date
+	sleep 1
+done
+

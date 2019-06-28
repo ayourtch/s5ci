@@ -15,25 +15,32 @@ RUN apt-get install -y libboost-all-dev libffi-dev python-ply libmbedtls-dev
 RUN apt-get install -y cmake ninja-build uuid-dev libssl-dev
 
 # s5ci prereq
-RUN apt-get install -y libpq5
+RUN apt-get install -y libpq5 rsync
 # browse the results
-RUN apt-get install -y nginx
-# make the jobs dir
-RUN mkdir /var/www/html/jobs
+RUN apt-get install -y nginx sqlite3
 
 RUN apt-get install -y build-essential git sudo gdb
 RUN apt-get install -y iperf3 && true
 RUN mkdir /CCACHE
 
+# make the jobs dir
+RUN mkdir /var/www/html/jobs
+
 RUN mkdir /s5ci
 RUN mkdir /s5ci/db
 RUN mkdir /s5ci/scripts
 RUN mkdir /s5ci/templates
+COPY tmp/html /var/www/html/html
 COPY tmp/templates /s5ci/templates
 COPY tmp/config.yaml /s5ci
 COPY tmp/scripts /s5ci/scripts
 COPY tmp/s5ci.sqlite3 /s5ci/db
 COPY tmp/s5ci /usr/local/bin/s5ci
 
-CMD ["/bin/bash", "-c", "service nginx start && RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c /s5ci/config.yaml"]
+COPY  tmp/s5ci-start.sh /s5ci-start.sh
+
+CMD ["./s5ci-start.sh"]
+
+
+# CMD ["/bin/bash", "-c", "RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c /s5ci/config.yaml"]
 

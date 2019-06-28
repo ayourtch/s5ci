@@ -1,13 +1,25 @@
 #!/bin/sh
+set -eux
+
 
 rm -rf tmp
 (cd ..; make regen-db) || exit
 (cd ..; make) || exit
 mkdir tmp
+cp -r ../html tmp/
 cp ../target/debug/s5ci tmp/
 cp ../db/s5ci.sqlite3 tmp/
+echo 'PRAGMA journal_mode=WAL;' | sqlite3 tmp/s5ci.sqlite3
 cp -r ../scripts tmp/
 cp -r ../templates tmp/
 cp ../config.yaml tmp/
-sed -ibak 's#/home/ubuntu/s5ci#/s5ci#g' tmp/config.yaml
+cp s5ci-start.in tmp/s5ci-start.sh
+
+# massage the temp tmp/s5ci-start.sh and tmp/config.yaml
+. s5ci-tweak-configs
+
 docker build -t s5ci-test -f docker-s5ci.txt .
+
+# publish the result
+. s5ci-publish-image
+
