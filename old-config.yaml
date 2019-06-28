@@ -29,23 +29,51 @@ default_regex_trigger_delay_sec: 60
 command_rootdir: /home/ubuntu/s5ci/scripts
 
 triggers:
+  patchset_upload:
+      regex: ^Uploaded patch set (?P<patchset>\d+)$
+      # action:
+      #  event: check_build
+      action:
+        command: run-build {{patchset.ref}} '' # {{regex.patchset}}
+  faulure_recheck_request:
+      regex: 'XXXXXfailure' # a crude infinite retry
+      action:
+        command: run-build {{patchset.ref}} '' # {{regex.patchset}}
+  recheck_request:
+      regex: 'recheck'
+      action:
+        command: run-build {{patchset.ref}} '' # {{regex.patchset}}
+              # event: check_build
+  retest_request:
+      regex: 'retest (?P<testname>\w+)'
+      action:
+        command: run-build {{patchset.ref}} {{regex.testname}}
   echo_comment:
       regex: \secho (?P<testval>.+)
       # optional suppress_regex will delete the about-to-be-started jobs of the same name
       suppress_regex: Build http
       action:
         command: run-echo {{regex.testval}}
+  run_two:
+      regex: runtwo (?P<testval>\w+)
+      action:
+        command: run-two {{patchset.ref}} {{regex.testval}}
+
+  test_comment:
+      regex: test (?P<testval>\d+)(:? (?P<secondval>\w+))?
+      action:
+        event: test_command
 
 cron_triggers:
   every_half_hour:
       #            sec  min   hour   day of month   month   day of week   year
-      cron:        "0    15     *          *           *          *          * "
+      cron:        "0    0,30     *          *           *          *          * "
       action:
-         command: run-cron once-per-hour-at-15
+         command: run-cron once-per-minute
   funky:
       cron:        "0   30   9,12,15     1,15       May-Aug  Mon,Wed,Fri  2018/2"
       action:
-         command: run-cron some-funky-cron
+         command: run-cron some-funky
 
 per_project_config:
     root_dir: /home/ubuntu/s5ci/scripts/projects
