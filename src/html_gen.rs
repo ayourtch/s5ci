@@ -121,6 +121,12 @@ fn save_job_yaml(config: &s5ciConfig, job: &models::job) {
     std::fs::write(&fname, ys).unwrap();
 }
 
+fn save_job_json(config: &s5ciConfig, job: &models::job) {
+    let fname = format!("{}/{}/job.json", &config.jobs.rootdir, &job.job_id);
+    let js = serde_json::to_string(job).unwrap();
+    std::fs::write(&fname, js).unwrap();
+}
+
 fn regenerate_html(
     config: &s5ciConfig,
     rtdt: &s5ciRuntimeData,
@@ -132,6 +138,7 @@ fn regenerate_html(
     use mustache::{Data, MapBuilder};
     let j = db_get_job(job_id).expect(&format!("Could not get job id {} from db", job_id));
     save_job_yaml(config, &j);
+    save_job_json(config, &j);
     let template = maybe_compile_template(config, "job_page").unwrap();
     let mut data = MapBuilder::new();
 
