@@ -337,8 +337,14 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
         debug!("Parsing per-project data");
         for project in &per_project.projects {
             let proj_yaml_fname = format!("{}/{}.yaml", &per_project.root_dir, &project);
-            let s = fs::read_to_string(&proj_yaml_fname).expect(&format!("Could not read per-project config from {}", &proj_yaml_fname));
-            let project_config: s5PerProjectConfig = serde_yaml::from_str(&s).expect(&format!("Error while parsing yaml from {}", &proj_yaml_fname));
+            let s = fs::read_to_string(&proj_yaml_fname).expect(&format!(
+                "Could not read per-project config from {}",
+                &proj_yaml_fname
+            ));
+            let project_config: s5PerProjectConfig = serde_yaml::from_str(&s).expect(&format!(
+                "Error while parsing yaml from {}",
+                &proj_yaml_fname
+            ));
             let project_name = project.clone();
 
             if let Some(ref mut global_commit_triggers) = config.triggers {
