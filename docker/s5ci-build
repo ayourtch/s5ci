@@ -15,6 +15,15 @@ cp -r ../templates tmp/
 cp ../config.yaml tmp/
 cp s5ci-start.in tmp/s5ci-start.sh
 
+if [ ! -e tmp/nomad_0.9.3_linux_amd64.zip ]; then
+  # curl -o tmp/nomad_0.9.3_linux_amd64.zip https://releases.hashicorp.com/nomad/0.9.3/nomad_0.9.3_linux_amd64.zip
+  curl -o tmp/nomad_0.9.3_linux_amd64.zip http://s5ci-images.myvpp.net/nomad_0.9.3_linux_amd64.zip
+fi
+if [ ! -e tmp/nomad ]; then
+  (cd tmp; unzip nomad_0.9.3_linux_amd64.zip)
+fi
+
+
 # massage the temp tmp/s5ci-start.sh and tmp/config.yaml
 . s5ci-tweak-configs
 

@@ -51,13 +51,30 @@ echo PRAGMA journal_mode=WAL | sqlite3 /s5ci/db/s5ci.sqlite3
 RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c /s5ci/config.yaml rebuild-database >>${DB_REBUILD_LOG}
 echo PRAGMA journal_mode=DEETE | sqlite3 /s5ci/db/s5ci.sqlite3
 
+export NOMAD_AGENT_LOG="${LOG_DIR}/nomad-agent.log"
+export NOMAD_LOG="${LOG_DIR}/nomad.log"
+if [ -f /secrets/nomad-agent.hcl ]; then
+        echo "$(date): nomad-agent.hcl found, starting nomad" >>${TIMELINE_LOG}
+	nomad agent -config /secrets/nomad-agent.hcl >${NOMAD_AGENT_LOG} 2>${NOMAD_AGENT_LOG} &
+        echo "$(date): waiting to join the cluster" >>${TIMELINE_LOG}
+        while true; do nomad status >> ${NOMAD_LOG} && break; date >>${NOMAD_LOG}; sleep 1; done
+        echo "$(date): joined the cluster" >>${TIMELINE_LOG}
+        echo "Run nomad status" >>${NOMAD_LOG}
+	nomad status >>${NOMAD_LOG}
+else
+        echo "$(date): nomad-agent.hcl not found, skipped nomad tasks" >>${TIMELINE_LOG}
+fi
+
 echo "$(date): starting background back-sync loop" >>${TIMELINE_LOG}
 while (true); do
 	sleep 1
         echo "$(date): rsync back" >>${BACK_RSYNC_LOG}
-	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>&1 >>${BACK_RSYNC_LOG} 
+	# rsync a tiny file upstream each second so people know we are alive
+	printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') > /local/jobs/heartbeat.json
+	# rsync the html UI
+	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG} 
 	# it is static data but won't hurt.
-	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive /local/html ${STORAGE_USER}@${STORAGE_HOST}: 2>&1 >>${BACK_RSYNC_LOG}
+	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive /local/html ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
 done &
 
 
