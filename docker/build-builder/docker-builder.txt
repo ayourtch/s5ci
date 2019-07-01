@@ -1,0 +1,31 @@
+# Download base ubuntu image
+FROM ubuntu:18.04
+
+RUN echo force-update-01-jul-2019
+
+RUN apt-get update
+RUN apt-get upgrade -y && true
+
+# VPP prerequisites
+RUN apt-get install -y curl build-essential git vim lsb-release pkg-config libssl-dev libsqlite3-dev libpq-dev sqlite3 unzip sudo dumb-init
+
+# s5ci prereq
+RUN apt-get install -y libpq5 rsync
+
+# install rust
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+# install docker-cli
+RUN curl stdio.be/install/get-docker-cli | bash
+RUN cat /root/.cargo/env >>/etc/profile
+
+
+RUN mkdir /s5ci-build
+
+COPY  s5ci-build-start.sh /s5ci-build-start.sh
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+CMD ["./s5ci-build-start.sh"]
+
+
