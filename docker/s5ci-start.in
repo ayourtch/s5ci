@@ -36,6 +36,13 @@ ssh-keyscan -H -p 23 ${STORAGE_HOST} >>~/.ssh/known_hosts
 
 echo "$(date): scan SSH key for gerrit" >>${TIMELINE_LOG}
 ssh-keyscan -H -p 29418 ${GERRIT_HOST} >>~/.ssh/known_hosts
+# add the test host as well
+ssh-keyscan -H -p 29418 testgerrit.myvpp.net >>~/.ssh/known_hosts
+
+# export S5CI_CONFIG_PATH="/local/s5ci-configs/config.yaml"
+# export S5CI_CONFIG_CLONE_URL="http://testgerrit.myvpp.net/r/s5ci-pilot"
+echo "$(date): clone s5ci config from ${S5CI_CONFIG_CLONE_URL}" >>${TIMELINE_LOG}
+(cd /local; git clone ${S5CI_CONFIG_CLONE_URL} s5ci-configs)
 
 # populate the jobs data from the storage
 echo "$(date): initial rsync data from storage" >>${TIMELINE_LOG}
@@ -48,7 +55,7 @@ cp -r /var/www/html/html /local/html
 echo "$(date): s5ci database rebuild" >>${TIMELINE_LOG}
 # put the transaction mode to WAL for somewhat better performance
 echo PRAGMA journal_mode=WAL | sqlite3 /s5ci/db/s5ci.sqlite3
-RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c /s5ci/config.yaml rebuild-database >>${DB_REBUILD_LOG}
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} rebuild-database >>${DB_REBUILD_LOG}
 echo PRAGMA journal_mode=DEETE | sqlite3 /s5ci/db/s5ci.sqlite3
 
 export NOMAD_AGENT_LOG="${LOG_DIR}/nomad-agent.log"
@@ -79,8 +86,12 @@ done &
 
 
 echo "$(date): EXECOK: startup finished" >>${TIMELINE_LOG}
+
+# execute the meta-s5ci
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${META_S5CI_CONFIG_PATH} 2>>${META_S5CI_LOG} >>${META_S5CI_LOG} &
+
 # execute the s5ci. 
-RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c /s5ci/config.yaml
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH}
 
 # the empty cycle in the end
 while true; do
