@@ -323,15 +323,18 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
         jenkins_parse::jenkins_parse(Some(jenkins_yaml_fname.to_string()));
         std::process::exit(0);
     }
-    let yaml_fname = &matches.value_of("config").unwrap().to_string();
+    let yaml_fname = &matches
+        .value_of("config")
+        .expect("yaml configuration file")
+        .to_string();
     // canonicalize config name
     let yaml_fname = std::fs::canonicalize(yaml_fname)
-        .unwrap()
+        .expect(&format!("can not load yaml config file {}", &yaml_fname))
         .to_str()
         .unwrap()
         .to_string();
 
-    let s = fs::read_to_string(&yaml_fname).unwrap();
+    let s = fs::read_to_string(&yaml_fname).expect(&format!("Read config from {}", &yaml_fname));
     let mut config: s5ciConfig = serde_yaml::from_str(&s).unwrap();
     if let Some(ref per_project) = config.per_project_config {
         debug!("Parsing per-project data");
@@ -368,12 +371,16 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
             }
         }
     }
-    debug!("Config: {:#?}", &config);
+    if let Some(debug_verbose) = config.debug_verbosity {
+        if debug_verbose > 2 {
+            debug!("Config: {:#?}", &config);
+        }
+    }
     set_db_url(&config.db_url);
 
     let args: Vec<String> = std::env::args().collect();
     let real_s5ci_exe = std::fs::canonicalize(args[0].clone())
-        .unwrap()
+        .expect("can not determine executable name - use full path to s5ci")
         .to_str()
         .unwrap()
         .to_string();
@@ -503,6 +510,10 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
         comment_value: "".to_string(),
         trigger_event_id,
     };
-    debug!("C-Config: {:#?}", &rtdt);
+    if let Some(debug_verbose) = config.debug_verbosity {
+        if debug_verbose > 2 {
+            debug!("C-Config: {:#?}", &rtdt);
+        }
+    }
     (config, rtdt)
 }

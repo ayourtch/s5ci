@@ -129,6 +129,7 @@ pub struct s5ciConfig {
     pub server: s5ciPollGerrit,
     pub default_query: s5GerritQuery,
     pub default_vote: s5GerritVote,
+    pub debug_verbosity: Option<u32>,
     // unused at the moment.
     pub default_batch_command: Option<String>,
     pub default_sync_horizon_sec: Option<u32>,
