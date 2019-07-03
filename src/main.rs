@@ -267,6 +267,18 @@ fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
     println!("Starting loop at {}", now_naive_date_time());
     regenerate_all_html(&config, &rtdt);
 
+    use signal_hook::{iterator::Signals, SIGABRT, SIGHUP, SIGINT, SIGPIPE, SIGQUIT, SIGTERM};
+    use std::{error::Error, thread};
+
+    let signals = Signals::new(&[SIGINT, SIGPIPE, SIGHUP, SIGQUIT, SIGABRT, SIGTERM]).unwrap();
+    thread::spawn(move || {
+        for sig in signals.forever() {
+            println!("Main loop received signal {:?}", sig);
+        }
+    });
+
+
+
     let sync_horizon_sec: u32 = config
         .server
         .sync_horizon_sec
