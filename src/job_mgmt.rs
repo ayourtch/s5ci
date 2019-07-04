@@ -225,6 +225,36 @@ pub fn spawn_command(config: &s5ciConfig, rtdt: &s5ciRuntimeData, cmd: &str) {
     }
 }
 
+pub fn db_set_job_finished(
+    config: &s5ciConfig,
+    rtdt: &s5ciRuntimeData,
+    a_job_id: &str,
+    status_code: Option<i32>,
+) {
+    let db = get_db();
+    println!("Set job {} as finished with status {:?}", a_job_id, &status_code);
+    {
+        use diesel::expression_methods::*;
+        use diesel::query_dsl::QueryDsl;
+        use diesel::query_dsl::RunQueryDsl;
+        use schema::jobs;
+        use schema::jobs::dsl::*;
+
+        let some_ndt_now = Some(now_naive_date_time());
+        let a_status_success = (status_code.unwrap_or(4242) == 0);
+
+        let updated_rows = diesel::update(jobs.filter(job_id.eq(&a_job_id)))
+            .set((
+                finished_at.eq(some_ndt_now),
+                return_success.eq(a_status_success),
+                return_code.eq(status_code),
+            ))
+            .execute(db.conn())
+            .unwrap();
+    }
+    finished_job(config, rtdt, a_job_id);
+}
+
 /* foreground run a command */
 
 pub fn exec_command(
@@ -323,6 +353,8 @@ pub fn exec_command(
         Some(code) => println!("Finished {} with status code {}", &a_full_job_id, code),
         None => println!("Finished {} due to signal", &a_full_job_id),
     }
+    db_set_job_finished(config, rtdt, &a_full_job_id, status.code());
+    /*
     {
         use diesel::expression_methods::*;
         use diesel::query_dsl::QueryDsl;
@@ -343,5 +375,6 @@ pub fn exec_command(
             .unwrap();
     }
     finished_job(config, rtdt, &a_full_job_id);
+    */
     return (a_full_job_id, status.code());
 }

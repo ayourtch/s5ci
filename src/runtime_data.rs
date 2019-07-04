@@ -76,6 +76,7 @@ pub enum s5ciAction {
     GerritCommand(String),
     MakeReview(Option<GerritVoteAction>, String),
     RebuildDatabase,
+    MarkActiveJobsAsFailed,
 }
 
 #[derive(Debug, Clone)]
@@ -173,6 +174,7 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
         )
         .subcommand(SubCommand::with_name("list-jobs").about("list jobs"))
         .subcommand(SubCommand::with_name("rebuild-database").about("rebuild database from per-job yaml"))
+        .subcommand(SubCommand::with_name("mark-active-as-failed").about("mark all active jobs as failed"))
         .subcommand(SubCommand::with_name("check-config").about("check config, return 0 if ok"))
         .subcommand(
             SubCommand::with_name("process-gerrit-reply")
@@ -437,6 +439,9 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
     }
     if let Some(matches) = matches.subcommand_matches("rebuild-database") {
         action = s5ciAction::RebuildDatabase;
+    }
+    if let Some(matches) = matches.subcommand_matches("mark-active-as-failed") {
+        action = s5ciAction::MarkActiveJobsAsFailed;
     }
     if let Some(matches) = matches.subcommand_matches("check-config") {
         // we already checked the config when loading. So if we are here, just exit with success

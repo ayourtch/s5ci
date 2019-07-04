@@ -114,6 +114,24 @@ fn do_kill_job(config: &s5ciConfig, rtdt: &s5ciRuntimeData, jobid: &str, termina
     }
 }
 
+fn do_kill_all_active_jobs(config: &s5ciConfig, rtdt: &s5ciRuntimeData, terminator: &str) {
+    let rjs = db_get_active_jobs();
+    for job in rjs {
+        debug!("killall: stopping active job {}", &job.job_id);
+        do_kill_job(config, rtdt, &job.job_id, terminator);
+    }
+}
+
+fn do_mark_all_active_as_failed(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
+    let rjs = db_get_active_jobs();
+    for job in rjs {
+        debug!("deactivate all: stopping active job {}", &job.job_id);
+        if job.finished_at.is_none() {
+            db_set_job_finished(config, rtdt, &job.job_id, Some(7777));
+        }
+    }
+}
+
 fn do_run_job(config: &s5ciConfig, rtdt: &s5ciRuntimeData, args: &s5ciRunJobArgs) {
     use signal_hook::{iterator::Signals, SIGABRT, SIGHUP, SIGINT, SIGPIPE, SIGQUIT, SIGTERM};
     use std::{error::Error, thread};
@@ -264,20 +282,29 @@ fn do_process_gerrit_reply(
 fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
     use std::env;
     use std::fs;
+    use std::sync::{Arc, Mutex};
+    let mut signal_shutdown_all = Arc::new(Mutex::new(false));
     println!("Starting loop at {}", now_naive_date_time());
     regenerate_all_html(&config, &rtdt);
 
     use signal_hook::{iterator::Signals, SIGABRT, SIGHUP, SIGINT, SIGPIPE, SIGQUIT, SIGTERM};
     use std::{error::Error, thread};
 
-    let signals = Signals::new(&[SIGINT, SIGPIPE, SIGHUP, SIGQUIT, SIGABRT, SIGTERM]).unwrap();
-    thread::spawn(move || {
-        for sig in signals.forever() {
-            println!("Main loop received signal {:?}", sig);
-        }
-    });
-
-
+    // let signals = Signals::new(&[SIGINT, SIGPIPE, SIGHUP, SIGQUIT, SIGABRT, SIGTERM]).unwrap();
+    let signals = Signals::new(&[SIGINT, SIGPIPE, SIGHUP]).unwrap();
+    {
+        let signal_shutdown_all = Arc::clone(&signal_shutdown_all);
+        thread::spawn(move || {
+            for sig in signals.forever() {
+                debug!("Main loop received signal {:?}", sig);
+                if sig == 2 {
+                    println!("SIGINT received");
+                    let mut signal_shutdown_all = signal_shutdown_all.lock().unwrap();
+                    *signal_shutdown_all = true;
+                }
+            }
+        });
+    }
 
     let sync_horizon_sec: u32 = config
         .server
@@ -368,9 +395,26 @@ fn do_loop(config: &s5ciConfig, rtdt: &s5ciRuntimeData) {
         collect_zombies();
         // ps();
         // eprintln!("Sleeping for {} msec ({})", wait_time_ms, wait_name);
-        debug!("Sleeping for {} ms", wait_time_ms);
         if wait_time_ms > 0 {
-            s5ci::thread_sleep_ms(wait_time_ms as u64);
+            debug!("Pause for {} ms", wait_time_ms);
+            while (now_naive_date_time() < next_timestamp) {
+                let mut wait_time_ms = next_timestamp
+                    .signed_duration_since(now_naive_date_time())
+                    .num_milliseconds()
+                    + 1;
+                if wait_time_ms > 500 {
+                    wait_time_ms = 500;
+                }
+                s5ci::thread_sleep_ms(wait_time_ms as u64);
+                if *signal_shutdown_all.lock().unwrap() {
+                    println!("Shutdown has been signaled, stopping all active jobs");
+                    do_kill_all_active_jobs(config, rtdt, "shutdown of poll loop");
+                    debug!("shutdown signal detected");
+                    std::process::exit(77);
+                    break;
+                }
+            }
+            // s5ci::thread_sleep_ms(wait_time_ms as u64);
         }
     }
 }
@@ -393,6 +437,7 @@ fn main() {
         s5ciAction::SetStatus(job_id, msg) => do_set_job_status(&config, &rtdt, &job_id, &msg),
         s5ciAction::GerritCommand(cmd) => do_gerrit_command(&config, &rtdt, &cmd),
         s5ciAction::MakeReview(maybe_vote, msg) => do_review(&config, &rtdt, maybe_vote, &msg),
+        s5ciAction::MarkActiveJobsAsFailed => do_mark_all_active_as_failed(&config, &rtdt),
         s5ciAction::RebuildDatabase => do_rebuild_database(&config, &rtdt),
     }
 }
