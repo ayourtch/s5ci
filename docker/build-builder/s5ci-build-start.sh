@@ -42,8 +42,6 @@ make
 
 
 cd docker
-cp /secrets/s5ci-publish-image .
-cp /secrets/s5ci-tweak-configs .
 bash s5ci-build
 
 

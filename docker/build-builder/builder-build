@@ -5,4 +5,4 @@ rm -rf tmp
 mkdir tmp
 docker build -t s5ci-builder -f docker-builder.txt .
 
-./publish-builder
+/secrets/publish-builder

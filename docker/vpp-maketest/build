@@ -1,0 +1,7 @@
+rm -rf tmp
+mkdir tmp
+
+docker build -t vpp-maketest .
+
+/secrets/publish-vpp-maketest
+
