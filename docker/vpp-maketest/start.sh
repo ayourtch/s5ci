@@ -20,7 +20,9 @@ git log HEAD~3..
 git fetch ${ARG_VPP_GIT_URL} ${ARG_FETCH_REF} && git checkout FETCH_HEAD
 echo ====== GIT AFTER CHECKOUT ======
 git log HEAD~3..
-if TEST=${ARG_TEST} TEST_JOBS=auto UNATTENDED=y CACHE_OUTPUT=0 make install-dep test; then
+# CACHE_OUTPUT=0 borks on what seems to be big debug CLI outputs
+# if TEST=${ARG_TEST} TEST_JOBS=auto UNATTENDED=y CACHE_OUTPUT=0 make install-dep test; then
+if TEST=${ARG_TEST} TEST_JOBS=auto UNATTENDED=y make install-dep test; then
 	echo Inside docker: success
 else
 	EXIT_CODE=$?
