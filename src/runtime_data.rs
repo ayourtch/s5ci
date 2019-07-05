@@ -110,7 +110,7 @@ pub fn get_cron_trigger_schedules(config: &s5ciConfig) -> Vec<CronTriggerSchedul
 
 pub fn get_trigger_regexes(config: &s5ciConfig) -> Vec<CommentTriggerRegex> {
     let mut out = vec![];
-    if let Some(triggers) = &config.triggers {
+    if let Some(triggers) = &config.comment_triggers {
         for (name, trig) in triggers {
             let r = Regex::new(&trig.regex).unwrap();
             let r_suppress = trig.suppress_regex.clone().map(|x| Regex::new(&x).unwrap());
@@ -127,7 +127,7 @@ pub fn get_trigger_regexes(config: &s5ciConfig) -> Vec<CommentTriggerRegex> {
 
 pub fn get_trigger_command_templates(config: &s5ciConfig) -> HashMap<String, mustache::Template> {
     let mut out = HashMap::new();
-    if let Some(triggers) = &config.triggers {
+    if let Some(triggers) = &config.comment_triggers {
         for (name, trig) in triggers {
             if let s5TriggerAction::command(cmd) = &trig.action {
                 let full_cmd = format!("{}/{}", &config.command_rootdir, &cmd);
@@ -352,14 +352,14 @@ pub fn get_configs() -> (s5ciConfig, s5ciRuntimeData) {
             ));
             let project_name = project.clone();
 
-            if let Some(ref mut global_commit_triggers) = config.triggers {
-                if let Some(tr) = project_config.commit_triggers {
+            if let Some(ref mut global_comment_triggers) = config.comment_triggers {
+                if let Some(tr) = project_config.comment_triggers {
                     for (k, mut ct) in tr {
                         let global_key = format!("{}_{}", &project_name, &k);
                         if ct.project.is_none() {
                             ct.project = Some(format!("{}", &project_name));
                         }
-                        global_commit_triggers.insert(global_key, ct);
+                        global_comment_triggers.insert(global_key, ct);
                     }
                 }
             }

@@ -238,7 +238,7 @@ pub fn process_gerrit_change(
                     suppress_map.remove(&key);
                 }
             }
-            if let Some(cfgt) = &config.triggers {
+            if let Some(cfgt) = &config.comment_triggers {
                 final_triggers.retain(|x| {
                     let ctrig = &cfgt[&x.trigger_name];
                     let mut retain = !x.is_suppressed;

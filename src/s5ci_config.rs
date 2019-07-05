@@ -119,7 +119,7 @@ pub struct s5PerProjectConfigInfo {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct s5PerProjectConfig {
-    pub commit_triggers: Option<HashMap<String, s5GerritTrigger>>,
+    pub comment_triggers: Option<HashMap<String, s5GerritTrigger>>,
     pub cron_triggers: Option<HashMap<String, s5CronTrigger>>,
 }
 
@@ -135,7 +135,7 @@ pub struct s5ciConfig {
     pub default_sync_horizon_sec: Option<u32>,
     pub default_regex_trigger_delay_sec: Option<u32>,
     pub command_rootdir: String,
-    pub triggers: Option<HashMap<String, s5GerritTrigger>>,
+    pub comment_triggers: Option<HashMap<String, s5GerritTrigger>>,
     pub cron_triggers: Option<HashMap<String, s5CronTrigger>>,
     pub patchset_extract_regex: String,
     pub hostname: String,
