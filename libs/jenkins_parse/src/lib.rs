@@ -547,7 +547,7 @@ pub fn jenkins_parse(config_fname: Option<String>) {
     let mut triggers = Yaml::Hash(yaml::Hash::new());
     let mut cron_triggers = Yaml::Hash(yaml::Hash::new());
     // repopulate the triggers with those from the template (we will overwrite)
-    if let Some(h) = out_yaml["triggers"].as_hash() {
+    if let Some(h) = out_yaml["comment_triggers"].as_hash() {
         for (k, v) in h {
             hash_add_yaml_node(&mut triggers, yaml_str(k), v.clone());
         }
@@ -645,7 +645,7 @@ pub fn jenkins_parse(config_fname: Option<String>) {
         cron_triggers.as_hash().unwrap().len()
     );
 
-    hash_add_yaml_node(&mut out_yaml, "triggers", triggers);
+    hash_add_yaml_node(&mut out_yaml, "comment_triggers", triggers);
     hash_add_yaml_node(&mut out_yaml, "cron_triggers", cron_triggers);
 
     /*

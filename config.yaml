@@ -28,7 +28,7 @@ default_regex_trigger_delay_sec: 60
 # where to resolve the relative command paths from
 command_rootdir: /home/ubuntu/s5ci/scripts
 
-triggers:
+comment_triggers:
   echo_comment:
       regex: \secho (?P<testval>.+)
       # optional suppress_regex will delete the about-to-be-started jobs of the same name
@@ -52,6 +52,9 @@ per_project_config:
     projects:
     - testproj
     - testvpp
+    - test-csit
+
+debug_verbosity: 0
 
 patchset_extract_regex: '(?s)^Patch Set (?P<patchset>\d+):'
 

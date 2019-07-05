@@ -1,4 +1,4 @@
-commit_triggers:
+comment_triggers:
   test_comment:
       regex: VPPtest (?P<testval>\d+)(:? (?P<secondval>\w+))?
       action:
