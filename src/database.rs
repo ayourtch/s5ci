@@ -56,6 +56,12 @@ fn lock_named(a_name: &str) -> Result<(), String> {
     let max_retry_count = 20;
     let mut retry_count = max_retry_count;
     while std::fs::create_dir(&lock_path).is_err() {
+        let metadata = std::fs::metadata(&lock_path).unwrap();
+        let last_modified = metadata.modified().unwrap().elapsed().unwrap().as_secs();
+        if last_modified > 120 {
+            error!("Lock {} is stale, remove", &lock_path);
+            std::fs::remove_dir(&lock_path).expect("tried to remove the stale lock");
+        }
         if retry_count == 0 {
             return Err(format!("Failed to lock {} after several tries", a_name));
         }
