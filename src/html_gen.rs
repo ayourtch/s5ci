@@ -150,6 +150,11 @@ fn regenerate_html(
     let cjs = db_get_child_jobs(job_id);
     data = data.insert("child_jobs", &cjs).unwrap();
 
+    let archive_dir_name = format!("{}/{}/archive", &config.jobs.rootdir, &j.job_id);
+    if std::path::Path::new(&archive_dir_name).exists() {
+        data = data.insert("archive_dir", &format!("archive")).unwrap();
+    }
+
     let fname = format!("{}/{}/index.html", &config.jobs.rootdir, job_id);
     fill_and_write_template(&template, data, &fname).unwrap();
 
