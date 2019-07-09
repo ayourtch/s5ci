@@ -232,7 +232,10 @@ pub fn db_set_job_finished(
     status_code: Option<i32>,
 ) {
     let db = get_db();
-    println!("Set job {} as finished with status {:?}", a_job_id, &status_code);
+    println!(
+        "Set job {} as finished with status {:?}",
+        a_job_id, &status_code
+    );
     {
         use diesel::expression_methods::*;
         use diesel::query_dsl::QueryDsl;
