@@ -55,7 +55,6 @@ pub struct GerritPatchSet {
     pub uploader: GerritOwner,
     pub createdOn: i64,
     pub author: GerritOwner,
-    pub isDraft: bool,
     pub kind: String,
     pub approvals: Option<Vec<GerritApproval>>,
     pub files: Option<Vec<GerritFileChange>>,
