@@ -3,6 +3,11 @@ comment_triggers:
       regex: VPPtest (?P<testval>\d+)(:? (?P<secondval>\w+))?
       action:
         event: test_command
+  test_recheck_comment:
+      project: vpp
+      regex: recheck
+      action:
+        event: test_command
 
 cron_triggers:
   every_half_hour:

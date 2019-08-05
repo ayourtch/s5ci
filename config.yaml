@@ -52,7 +52,6 @@ per_project_config:
     projects:
     - testproj
     - testvpp
-    - test-csit
 
 debug_verbosity: 0
 
@@ -74,11 +73,11 @@ server:
   address: 136.243.48.188
   port: 29418
   poll_type:
-      direct_ssh: {} # use built-in ssh client
+      # direct_ssh: {} # use built-in ssh client
       #     auth:
-      #shell:
-      #    command: /usr/bin/ssh
-      #    args: ['-p', '29418', 'ayourtch@testgerrit.myvpp.net']
+      shell:
+          command: /usr/bin/ssh
+          args: ['-p', '29418', 'ayourtch@testgerrit.myvpp.net']
 
   poll_wait_ms: 5000
   syncing_poll_wait_ms: 1000
