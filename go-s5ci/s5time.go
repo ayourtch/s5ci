@@ -2,7 +2,7 @@ package main
 
 import (
 	// "database/sql"
-	// "errors"
+	"errors"
 	"fmt"
 	//"github.com/google/uuid"
 	// "github.com/jinzhu/gorm"
@@ -93,9 +93,15 @@ func (ld *S5Time) Scan(value interface{}) error {
 		ld.Time = tm
 		return nil
 	} else {
-		tt, err := time.Parse("2006-01-02T15:04:05.000000000", strings.TrimSpace(value.(string)))
-		ld.Time = tt
-		return err
+		if tt, err := time.Parse("2006-01-02T15:04:05.000000000", strings.TrimSpace(value.(string))); err == nil {
+			ld.Time = tt
+			return nil
+		}
+		if tt, err := time.Parse("2006-01-02 15:04:05.000000000", strings.TrimSpace(value.(string))); err == nil {
+			ld.Time = tt
+			return nil
+		}
+		return errors.New("failed to scan S5Time despite multiple attempts")
 	}
 	// ld.Time = value.(time.Time)
 	return nil
