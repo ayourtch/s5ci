@@ -160,6 +160,29 @@ func jobFindBestCommand(job_group string) string {
 }
 
 func JobSpawnCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
+	changeset_id := fmt.Sprintf("%d", rtdt.ChangesetID)
+	patchset_id := fmt.Sprintf("%d", rtdt.PatchsetID)
+
+	exe_name, err := filepath.Abs(os.Args[0])
+	if err != nil {
+		panic(err)
+	}
+	proc := exec.Command(exe_name, "run-job", "-c", jobstr, "-p", patchset_id, "-s", changeset_id)
+	log.Printf("Start job via our exe %s", exe_name)
+	// proc.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pgid: 0}
+
+	child_env := append([]string{}, os.Environ()...)
+	// child_env = append(child_env, add_env...)
+	proc.Env = child_env
+
+	err = proc.Start()
+	if err != nil {
+		panic(err)
+	}
+	log.Printf("Started job %s", jobstr)
+}
+
+func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 	changeset_id := rtdt.ChangesetID
 	patchset_id := rtdt.PatchsetID
 	exe_name, err := filepath.Abs(os.Args[0])

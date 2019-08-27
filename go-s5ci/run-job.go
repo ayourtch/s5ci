@@ -16,7 +16,7 @@ func (cmd *RunJobCommand) Execute(args []string) error {
 	fmt.Println("Command: ", cmd.Command)
 	rtdt.ChangesetID = cmd.Changeset_ID
 	rtdt.PatchsetID = cmd.Patchset_ID
-	JobSpawnCommand(c, rtdt, cmd.Command)
+	JobExecCommand(c, rtdt, cmd.Command)
 	fmt.Println("done")
 	return nil // ErrShowHelpMessage
 }

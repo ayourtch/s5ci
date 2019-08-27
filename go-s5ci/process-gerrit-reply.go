@@ -354,6 +354,7 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 			if trig.IsSuppress || trig.IsSuppressed {
 				log.Fatal("job not runnable", trig)
 			}
+			log.Printf("running job: %s", expanded_command)
 			JobSpawnCommand(c, &rtdt2, expanded_command)
 		}
 	}
