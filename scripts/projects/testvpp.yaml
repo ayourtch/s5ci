@@ -4,10 +4,12 @@ comment_triggers:
       action:
         event: test_command
   test_recheck_comment:
-      project: vpp
+      project: testvpp
       regex: recheck
+      suppress_regex: cancel-check
       action:
-        event: test_command
+        command: run-cron testing
+        # test_command
 
 cron_triggers:
   every_half_hour:
