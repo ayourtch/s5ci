@@ -101,7 +101,11 @@ func (ld *S5Time) Scan(value interface{}) error {
 			ld.Time = tt
 			return nil
 		}
-		return errors.New("failed to scan S5Time despite multiple attempts")
+		if tt, err := time.Parse("2006-01-02 15:04:05+00:00", strings.TrimSpace(value.(string))); err == nil {
+			ld.Time = tt
+			return nil
+		}
+		return errors.New(fmt.Sprintf("failed to scan S5Time despite multiple attempts: %s", value))
 	}
 	// ld.Time = value.(time.Time)
 	return nil
