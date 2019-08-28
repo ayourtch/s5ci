@@ -62,7 +62,8 @@ type S5ciPollType struct {
 }
 
 type S5ciServer struct {
-	Poll_Type S5ciPollType
+	Poll_Type        S5ciPollType
+	Sync_Horizon_Sec *int
 }
 
 type S5ciConfig struct {

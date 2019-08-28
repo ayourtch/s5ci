@@ -19,6 +19,9 @@ func PollLoop() {
 	fmt.Println(s5time)
 
 	sync_horizon_sec := c.Default_Sync_Horizon_Sec
+	if c.Server.Sync_Horizon_Sec != nil {
+		sync_horizon_sec = *c.Server.Sync_Horizon_Sec
+	}
 
 	default_after_ts := int(time.Now().Unix()) - sync_horizon_sec
 	poll_ts, err := DbGetTimestamp("last-ssh-poll")
@@ -32,19 +35,28 @@ func PollLoop() {
 	poll_timestamp := UnixTimeNow()
 
 	for true {
-		*after_ts = *after_ts + trigger_delay_sec
+
+		/*
+		 We want to snoop further into the past by trigger_delay_sec,
+		 because we don't react to any events before trigger_delay_sec elapses
+		*/
+		poll_after_ts := *after_ts - trigger_delay_sec - 10
 
 		now_ts := UnixTimeNow()
 		if now_ts > poll_timestamp {
-			res, err := PollGerritOverSsh(c, rtdt, before_ts, after_ts)
+			res, err := PollGerritOverSsh(c, rtdt, before_ts, &poll_after_ts)
 			if err != nil {
 				log.Printf("Error in PollLoop: %v", err)
 			} else {
 				for _, cs := range res.Changes {
-					GerritProcessChange(c, rtdt, cs, *after_ts)
+					out_ts := GerritProcessChange(c, rtdt, cs, now_ts)
+					if out_ts != nil && *out_ts < *res.AfterTS {
+						*res.AfterTS = *out_ts
+					}
 				}
 				before_ts = res.BeforeTS
 				after_ts = res.AfterTS
+				DbSetTimestamp("last-ssh-poll", *after_ts)
 
 				if before_ts != nil && *before_ts < now_ts-sync_horizon_sec {
 					log.Printf("Time %d is beyond the horizon of %s seconds from now, finish sync", *before_ts, sync_horizon_sec)
@@ -52,6 +64,10 @@ func PollLoop() {
 				}
 			}
 		}
+		ts_now := int(time.Now().Unix())
+		fmt.Println("Now: ", ts_now)
+		s5time := S5TimeFromTimestamp(ts_now)
+		fmt.Println(s5time)
 		time.Sleep(5 * time.Second)
 
 	}

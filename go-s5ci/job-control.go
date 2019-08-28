@@ -169,11 +169,13 @@ func JobSpawnCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 	}
 	proc := exec.Command(exe_name, "run-job", "-c", jobstr, "-p", patchset_id, "-s", changeset_id)
 	log.Printf("Start job via our exe %s", exe_name)
-	// proc.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pgid: 0}
+	proc.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pgid: 0}
 
-	child_env := append([]string{}, os.Environ()...)
-	// child_env = append(child_env, add_env...)
-	proc.Env = child_env
+	new_env := append([]string{}, os.Environ()...)
+	new_env = append(new_env, fmt.Sprintf("S5CI_SANDBOX_LEVEL=%d", S5ciOptions.SandboxLevel))
+	new_env = append(new_env, fmt.Sprintf("S5CI_CONFIG=%s", S5ciConfigPath))
+
+	proc.Env = new_env
 
 	err = proc.Start()
 	if err != nil {

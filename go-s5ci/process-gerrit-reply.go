@@ -165,19 +165,21 @@ func RegexpCaptures(r *regexp.Regexp, str string) map[string]string {
 	return out
 }
 
-func getCommentTriggerMatchesFromComments(c *S5ciConfig, rtdt *S5ciRuntimeData, changeset_id int, max_pset int, comments_vec []GerritComment, startline_ts int) []CommentTriggerMatch {
+func getCommentTriggerMatchesFromComments(c *S5ciConfig, rtdt *S5ciRuntimeData, changeset_id int, max_pset int, comments_vec []GerritComment, last_seen_comment_id int, then_now_ts int) ([]CommentTriggerMatch, *int, int) {
 	out := make([]CommentTriggerMatch, 0)
 
 	trigger_regexes := &rtdt.TriggerRegexes
-	last_seen_comment_id := DbGetChangesetLastComment(changeset_id)
 
+	var out_ts *int = nil
+
+	log.Printf("Last seen comment %d", last_seen_comment_id)
 	for i, comment := range comments_vec {
 		safe_patchset_str := ""
-		if comment.Timestamp > startline_ts {
-			if i < last_seen_comment_id {
-				continue
-			}
+		if i <= last_seen_comment_id {
+			log.Printf("Comment %d already seen", i)
+			continue
 		}
+		last_seen_comment_id = i
 		log.Printf("Comment %d: ts %d: %s", i, comment.Timestamp, comment.Message)
 		caps := RegexpCaptures(rtdt.PatchsetExtractRegex, comment.Message)
 		if caps != nil {
@@ -253,23 +255,23 @@ func getCommentTriggerMatchesFromComments(c *S5ciConfig, rtdt *S5ciRuntimeData, 
 		}
 
 	}
-	return out
+	return out, out_ts, last_seen_comment_id
 
 }
 
-func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSet, after_when_ts int) {
+func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSet, then_now_ts int) *int {
 	// triggers := make([]CommentTriggerMatch, 0)
-	max_pset := 0
 
-	startline_ts := after_when_ts - 1 + c.Default_Regex_Trigger_Delay_Sec
-	log.Printf("process change after_when_ts: %d", after_when_ts)
-	log.Printf("process change with startline_ts: %d", startline_ts)
+	max_pset := 0
+	var out_ts *int = nil
+
+	log.Printf("process change now ts: %d", then_now_ts)
 
 	psmap := make(map[string]GerritPatchSet)
 
 	for _, pset := range cs.PatchSets {
 		if pset.CreatedOn > 0 {
-			log.Printf("%d reivision: %s ref %s", pset.Number, pset.Revision, pset.Ref)
+			log.Printf("%d revision: %s ref %s", pset.Number, pset.Revision, pset.Ref)
 		}
 		psmap[fmt.Sprintf("%d", pset.Number)] = pset
 		psmap[fmt.Sprintf("%s", pset.Revision)] = pset
@@ -280,25 +282,34 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 
 	if len(cs.Comments) > 0 {
 		change_id := cs.Number
-		all_triggers := getCommentTriggerMatchesFromComments(c, rtdt, change_id, max_pset, cs.Comments, startline_ts)
+		last_seen_comment_id := DbGetChangesetLastComment(change_id)
+		all_triggers, trigger_out_ts, new_last_seen_comment_id := getCommentTriggerMatchesFromComments(c, rtdt, change_id, max_pset, cs.Comments, last_seen_comment_id, then_now_ts)
+		out_ts = trigger_out_ts
 		final_triggers := all_triggers
 		suppress_map := make(map[string]bool)
-		for _, ctrig := range final_triggers {
-			key := fmt.Sprintf("%s-%d", ctrig.TriggerName, ctrig.PatchsetID)
+		for ai, _ := range final_triggers {
+			i := len(final_triggers) - 1 - ai
+			ctrig := &final_triggers[i]
+			key := fmt.Sprintf("%s-%d", ctrig.TriggerName, *ctrig.PatchsetID)
+			log.Printf("Key: %s", key)
+			YamlDump(ctrig)
 			if ctrig.IsSuppress {
+				log.Printf("Adding suppress with key %s on trigger %d", key, i)
 				suppress_map[key] = true
 			} else if suppress_map[key] {
-				ctrig.IsSuppressed = true
+				(*ctrig).IsSuppressed = true
+				log.Printf("Using suppress with key %s on trigger %d", key, i)
 				delete(suppress_map, key)
 			}
 		}
 
 		if len(c.Comment_Triggers) > 0 {
 			final_triggers_out := final_triggers[:0]
-			YamlDump(cs)
+			// YamlDump(cs)
+			YamlDump(final_triggers)
 			for _, x := range final_triggers {
 				ctrig := c.Comment_Triggers[x.TriggerName]
-				YamlDump(ctrig)
+				// YamlDump(ctrig)
 				retain := !x.IsSuppressed
 				if ctrig.Project != nil {
 					if cs.Project != nil {
@@ -326,8 +337,8 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 					final_triggers_out = append(final_triggers_out, x)
 				}
 			}
-			// now purge the suppressing triggers themselves
 			final_triggers = final_triggers_out
+			// now purge the suppressing triggers themselves
 			final_triggers_out = final_triggers[:0]
 			for _, x := range final_triggers {
 				if !x.IsSuppress {
@@ -335,7 +346,30 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 				}
 			}
 			final_triggers = final_triggers_out
+
+			/* now retain only the triggers that are old enough, and rollback the last_seen_comment_id appropriately  */
+			final_triggers_out = final_triggers[:0]
+			startline_ts := then_now_ts - c.Default_Regex_Trigger_Delay_Sec
+			for _, x := range final_triggers {
+				comment := cs.Comments[x.CommentIndex]
+				if comment.Timestamp > startline_ts {
+					log.Printf("Trigger %s = Comment %d before the startline by %d sec", x.TriggerName, x.CommentIndex, comment.Timestamp-startline_ts)
+					x.IsSuppress = true
+				}
+				if x.IsSuppress {
+					if x.CommentIndex <= new_last_seen_comment_id {
+						new_last_seen_comment_id = x.CommentIndex - 1
+					}
+					if trigger_out_ts != nil && comment.Timestamp < *trigger_out_ts {
+						*trigger_out_ts = comment.Timestamp
+					}
+				} else {
+					final_triggers_out = append(final_triggers_out, x)
+				}
+			}
+			final_triggers = final_triggers_out
 		}
+		DbSetChangesetLastComment(change_id, new_last_seen_comment_id)
 		YamlDump(final_triggers)
 		for _, trig := range final_triggers {
 			template := rtdt.TriggerCommandTemplates[trig.TriggerName]
@@ -358,6 +392,7 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 			JobSpawnCommand(c, &rtdt2, expanded_command)
 		}
 	}
+	return out_ts
 }
 
 type S5SshResult struct {
@@ -425,6 +460,6 @@ func (cmd *ProcessGerritReplyCommand) Execute(args []string) error {
 	fmt.Println("Now: ", ts_now)
 	s5time := S5TimeFromTimestamp(ts_now)
 	fmt.Println(s5time)
-	GerritProcessChange(&c, &S5ciRuntime, one_change, 0) // ts_now)
-	return nil                                           // ErrShowHelpMessage
+	GerritProcessChange(&c, &S5ciRuntime, one_change, 0)
+	return nil // ErrShowHelpMessage
 }

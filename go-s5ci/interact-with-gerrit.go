@@ -25,7 +25,7 @@ func GerritQueryChanges(c *S5ciConfig, before_ts *int, after_ts *int) (string, e
 		}
 	}
 
-	date_str = "" // XXXXX
+	// date_str = "" // XXXXX
 	log.Printf("DATE query: %s", date_str)
 	q := &c.Default_Query
 	cmd := fmt.Sprintf("gerrit query %s %s --format JSON %s", q.Filter, date_str, q.Options)
