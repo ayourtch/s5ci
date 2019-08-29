@@ -62,8 +62,10 @@ type S5ciPollType struct {
 }
 
 type S5ciServer struct {
-	Poll_Type        S5ciPollType
-	Sync_Horizon_Sec *int
+	Poll_Type            S5ciPollType
+	Sync_Horizon_Sec     *int
+	Poll_Wait_Ms         *int
+	Syncing_Poll_Wait_Ms *int
 }
 
 type S5ciConfig struct {
@@ -75,6 +77,7 @@ type S5ciConfig struct {
 	Command_Rootdir                 string
 	Install_Rootdir                 string
 	Comment_Triggers                map[string]S5CommentTrigger
+	Cron_Triggers                   map[string]S5CronTrigger
 	Default_Regex_Trigger_Delay_Sec int
 	Default_Sync_Horizon_Sec        int
 	Sandbox_Level                   int

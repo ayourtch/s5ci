@@ -53,6 +53,10 @@ func S5ciPrepareToRun() {
 				}
 				c.Comment_Triggers[global_trig_name] = trig
 			}
+			for trig_name, trig := range ppc.Cron_Triggers {
+				global_trig_name := fmt.Sprintf("%s_%s", project_name, trig_name)
+				c.Cron_Triggers[global_trig_name] = trig
+			}
 		}
 	}
 

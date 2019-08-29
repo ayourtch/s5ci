@@ -2,8 +2,10 @@ package main
 
 import (
 	mustache "github.com/hoisie/mustache"
+	"github.com/robfig/cron"
 	"log"
 	"regexp"
+	"strings"
 )
 
 type CommentTriggerRegex struct {
@@ -13,6 +15,9 @@ type CommentTriggerRegex struct {
 }
 
 type CronTriggerSchedule struct {
+	Name     string
+	Schedule cron.Schedule
+	LastRun  int
 }
 
 /* a collection of global runtime state */
@@ -44,6 +49,29 @@ func getTriggerRegexes(c *S5ciConfig) []CommentTriggerRegex {
 		}
 		reg := CommentTriggerRegex{R: r, RSuppress: r_suppress, Name: name}
 		out = append(out, reg)
+	}
+	return out
+}
+
+func getCronTriggerSchedules(c *S5ciConfig) []CronTriggerSchedule {
+	out := []CronTriggerSchedule{}
+	cron_parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	now_ts := UnixTimeNow()
+
+	for cname, tr := range c.Cron_Triggers {
+		sch, err := cron_parser.Parse(tr.Cron)
+		if err != nil {
+			s := regexp.MustCompile(`\s+`).Split(tr.Cron, -1)
+			no_year_cron := strings.Join(s[0:6], " ")
+			sch, err = cron_parser.Parse(no_year_cron)
+			if err != nil {
+				panic(err)
+			}
+		}
+		// log.Println(i, sch)
+		cs := CronTriggerSchedule{Schedule: sch, Name: cname, LastRun: now_ts}
+		YamlDump(cs)
+		out = append(out, cs)
 	}
 	return out
 }
@@ -80,7 +108,7 @@ func InitRuntimeData() {
 	rtdt.UnsafeStartRegex = regexp.MustCompile(`([^_A-Za-z0-9])`)
 	rtdt.TriggerRegexes = getTriggerRegexes(c)
 	rtdt.TriggerCommandTemplates = getTriggerCommandTemplates(c)
-	// rtdt.CronTriggerSchedules =
+	rtdt.CronTriggerSchedules = getCronTriggerSchedules(c)
 	rtdt.ChangesetID = -1
 	rtdt.PatchsetID = -1
 	rtdt.TriggerEventID = "no_trigger_event"
