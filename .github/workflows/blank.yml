@@ -9,9 +9,11 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
-    - name: Run a one-line script
-      run: echo Hello, world!
-    - name: Run a multi-line script
+    - name: install rust
+      run: make install-rust
+    - name: Make rust
+      run: make build
+    - name: build a golang version
       run: |
-        echo Add other actions to build,
-        echo test, and deploy your project.
+        sudo apt-get install golang
+        (cd go-s5ci; go build; ls -al)
