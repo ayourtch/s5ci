@@ -16,4 +16,5 @@ jobs:
     - name: build a golang version
       run: |
         sudo apt-get install golang
-        (cd go-s5ci; go get || true; go build; ls -al)
+        (cd go-s5ci; go get || true)
+        (cd go-s5ci; go build; ls -al)
