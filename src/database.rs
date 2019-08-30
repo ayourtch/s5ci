@@ -177,7 +177,10 @@ pub fn db_get_timestamp(a_name: &str, a_default: NaiveDateTime) -> NaiveDateTime
     }
 }
 
-pub fn db_update_timestamp(a_name: &str, a_value: NaiveDateTime) {
+fn try_update_timestamp(
+    a_name: &str,
+    a_value: NaiveDateTime,
+) -> Result<Vec<s5ci::models::timestamp>, diesel::result::Error> {
     use diesel::connection::Connection;
     use diesel::expression_methods::*;
     use diesel::query_dsl::QueryDsl;
@@ -189,7 +192,7 @@ pub fn db_update_timestamp(a_name: &str, a_value: NaiveDateTime) {
     let db = get_db();
     let conn = db.conn();
 
-    conn.transaction::<_, Error, _>(|| {
+    let tr_result = conn.transaction::<_, Error, _>(|| {
         let res = timestamps
             .filter(name.eq(a_name))
             .limit(2)
@@ -214,8 +217,29 @@ pub fn db_update_timestamp(a_name: &str, a_value: NaiveDateTime) {
             }
         };
         res
-    })
-    .unwrap();
+    });
+
+    tr_result
+}
+
+pub fn db_update_timestamp(a_name: &str, a_value: NaiveDateTime) {
+    let max_retry_count = 20;
+    let mut retry_count = max_retry_count;
+
+    while retry_count > 0 {
+        let tr_result = try_update_timestamp(a_name, a_value);
+        if tr_result.is_err() {
+            s5ci::thread_sleep_ms(300 * (1 + max_retry_count - retry_count));
+            retry_count = retry_count - 1;
+        } else {
+            return;
+        }
+    }
+
+    panic!(
+        "Could not update timestamp {} after {} retries!",
+        a_name, max_retry_count
+    );
 }
 
 use yaml_rust::{Yaml, YamlLoader};
