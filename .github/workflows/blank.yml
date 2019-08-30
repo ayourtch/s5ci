@@ -9,8 +9,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
-#    - name: install rust
-#      run: make install-rust
+    - name: install rust
+      run: make install-rust
     - name: build the rust version
       run: make build
     - name: build the golang version
