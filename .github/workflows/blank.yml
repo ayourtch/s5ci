@@ -11,9 +11,9 @@ jobs:
     - uses: actions/checkout@v1
 #    - name: install rust
 #      run: make install-rust
-#    - name: Make rust
-#      run: make build
-    - name: build a golang version
+    - name: build the rust version
+      run: make build
+    - name: build the golang version
       run: |
         (cd go-s5ci; go get || true)
         (cd go-s5ci; go build; ls -al)
