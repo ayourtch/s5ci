@@ -56,7 +56,10 @@ func (t *S5Time) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	tt, err := time.Parse("2006-01-02T15:04:05.000000000", strings.TrimSpace(buf))
 	if err != nil {
-		return err
+		tt, err = time.Parse("2006-01-02T15:04:05.000000", strings.TrimSpace(buf))
+		if err != nil {
+			return err
+		}
 	}
 	fmt.Println("Parsed:", buf, tt)
 	t.Time = tt
