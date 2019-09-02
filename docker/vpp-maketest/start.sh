@@ -33,6 +33,7 @@ else
 		echo ====================================================== DECODE CORE: ${CORE}
 		gdb ${BINFILE} ${CORE} -ex 'source -v gdb-commands' -ex quit 
 	done
+	echo ======= cleaning up the files and archiving =======
 	# delete the core files, no need to waste the space on them - we decoded them above
 	find /tmp/vpp* -name core* -exec rm {} \;
 	# archive all the failed unittests
