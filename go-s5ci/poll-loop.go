@@ -14,6 +14,8 @@ func PollLoop() {
 	c := &S5ciOptions.Config
 	rtdt := &S5ciRuntime
 
+	RegenerateAllHtml()
+
 	ts_now := int(time.Now().Unix())
 	fmt.Println("Now: ", ts_now)
 	s5time := S5TimeFromTimestamp(ts_now)
