@@ -36,6 +36,7 @@ COPY tmp/config.yaml /s5ci
 COPY tmp/scripts /s5ci/scripts
 COPY tmp/s5ci.sqlite3 /s5ci/db
 COPY tmp/s5ci /usr/local/bin/s5ci
+COPY tmp/go-s5ci /usr/local/bin/go-s5ci
 COPY tmp/nomad /usr/local/bin/nomad
 
 COPY  tmp/s5ci-start.sh /s5ci-start.sh

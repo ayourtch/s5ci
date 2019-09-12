@@ -10,6 +10,7 @@ mkdir tmp
 mkdir dist || true
 cp -r ${ROOT_DIR}/html tmp/
 cp ${ROOT_DIR}/target/debug/s5ci tmp/
+cp ${ROOT_DIR}/go-s5ci/go-s5ci tmp/
 cp ${ROOT_DIR}/db/s5ci.sqlite3 tmp/
 # echo 'PRAGMA journal_mode=WAL;' | sqlite3 tmp/s5ci.sqlite3
 cp -r ${ROOT_DIR}/scripts tmp/
