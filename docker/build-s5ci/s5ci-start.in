@@ -130,6 +130,12 @@ RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${META_S5CI_CONFIG_PATH} 
 # execute the s5ci. 
 RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH}
 
+# if instructed - wait
+while [ -f /secrets/shutdown-pause.txt ]; do
+        echo "$(date): /secrets/shutdown-pause.txt exists - wait for a minute..." >>${TIMELINE_LOG}
+	sleep 60
+done
+
 echo "$(date): S5CI finished, status: $?" >>${TIMELINE_LOG}
 echo "$(date): final rsync"
 setsid rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --max-delete=-1 --exclude workspace --recursive /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG} 
