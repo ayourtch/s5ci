@@ -1,0 +1,131 @@
+#!/bin/sh
+
+
+. /secrets/env-vars.env
+
+# export STORAGE_USER="{{ACTUAL_STORAGE_USER}}"
+# export STORAGE_HOST="{{ACTUAL_STORAGE_HOST}}"
+# export STORAGE_DIR="jobs"
+
+# export GERRIT_HOST="{{ACTUAL_GERRIT_HOST}}"
+# export LOG_DIR="/local/logs"
+# export TIMELINE_LOG="${LOG_DIR}/timeline.log"
+# export INITIAL_RSYNC_LOG="${LOG_DIR}/initial-rsync.log"
+# export BACK_RSYNC_LOG="${LOG_DIR}/back-rsync.log"
+# export DB_REBUILD_LOG="${LOG_DIR}/db-rebuild.log"
+
+# make directory for logs
+mkdir ${LOG_DIR}
+
+echo "$(date): EXECSTART" >>${TIMELINE_LOG}
+mkdir -p ~/.ssh
+
+export NETWORK_LOG="${LOG_DIR}/network.log"
+date >>${NETWORK_LOG}
+ip addr >>${NETWORK_LOG}
+ip route >>${NETWORK_LOG}
+curl http://s5ci-images.myvpp.net >>${NETWORK_LOG}
+echo "end of net" >>${NETWORK_LOG}
+
+while true; do curl http://s5ci-images.myvpp.net >> ${INITIAL_RSYNC_LOG} && break; date; sleep 1; done
+echo "$(date): connectivity is ok" >>${TIMELINE_LOG}
+
+# pin the ssh hosts
+echo "$(date): scan SSH key for storage" >>${TIMELINE_LOG}
+ssh-keyscan -H -p 23 ${STORAGE_HOST} >>~/.ssh/known_hosts
+
+echo "$(date): scan SSH key for gerrit" >>${TIMELINE_LOG}
+ssh-keyscan -H -p 29418 ${GERRIT_HOST} >>~/.ssh/known_hosts
+# add the test host as well
+ssh-keyscan -H -p 29418 testgerrit.myvpp.net >>~/.ssh/known_hosts
+
+# export S5CI_CONFIG_PATH="/local/s5ci-configs/config.yaml"
+# export S5CI_CONFIG_CLONE_URL="http://testgerrit.myvpp.net/r/s5ci-pilot"
+echo "$(date): clone s5ci config from ${S5CI_CONFIG_CLONE_URL}" >>${TIMELINE_LOG}
+(cd /local; git clone ${S5CI_CONFIG_CLONE_URL} s5ci-configs)
+
+# populate the jobs data from the storage
+echo "$(date): initial rsync data from storage" >>${TIMELINE_LOG}
+rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+
+# re-copy possibly updated static html to upstream
+echo "$(date): copy html to /local/html" >>${TIMELINE_LOG}
+cp -r /var/www/html/html /local/html
+
+echo "$(date): s5ci database rebuild" >>${TIMELINE_LOG}
+# put the transaction mode to WAL for somewhat better performance
+echo PRAGMA journal_mode=WAL | sqlite3 /s5ci/db/s5ci.sqlite3
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} rebuild-database >>${DB_REBUILD_LOG}
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} mark-active-as-failed >>${DB_REBUILD_LOG}
+echo PRAGMA journal_mode=DELETE | sqlite3 /s5ci/db/s5ci.sqlite3
+
+export NOMAD_AGENT_LOG="${LOG_DIR}/nomad-agent.log"
+export NOMAD_LOG="${LOG_DIR}/nomad.log"
+if [ -f /secrets/nomad-agent.hcl ]; then
+        echo "$(date): nomad-agent.hcl found, starting nomad" >>${TIMELINE_LOG}
+	nomad agent -config /secrets/nomad-agent.hcl >${NOMAD_AGENT_LOG} 2>${NOMAD_AGENT_LOG} &
+        echo "$(date): waiting to join the cluster" >>${TIMELINE_LOG}
+        while true; do nomad status >> ${NOMAD_LOG} && break; date >>${NOMAD_LOG}; sleep 1; done
+        echo "$(date): joined the cluster" >>${TIMELINE_LOG}
+        echo "Run nomad status" >>${NOMAD_LOG}
+	nomad status >>${NOMAD_LOG}
+else
+        echo "$(date): nomad-agent.hcl not found, skipped nomad tasks" >>${TIMELINE_LOG}
+fi
+
+echo "$(date): starting background back-sync loop" >>${TIMELINE_LOG}
+setsid -w rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive /local/html ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
+
+while (true); do
+	sleep 1
+        echo "$(date): rsync back" >>${BACK_RSYNC_LOG}
+	# rsync a tiny file upstream each second so people know we are alive
+	printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') > /local/jobs/heartbeat.json
+	# rsync the html UI and data, do not delete
+	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG} 
+done &
+
+#
+# this part runs with signals intercepted, for cleanup
+#
+
+
+echo "$(date): EXECOK: S5CI startup finished, now run" >>${TIMELINE_LOG}
+
+trap sigint INT
+trap '' PIPE
+trap '' HUP
+trap cleanup QUIT
+trap cleanup ABRT
+trap cleanup TERM
+
+sigint()
+{
+	echo "$(date): got SIGINT" >>${TIMELINE_LOG}
+}
+
+cleanup()
+{
+	echo "$(date): got SIGTERM" >>${TIMELINE_LOG}
+        echo "Caught signal, cleaning up"
+        echo "Done cleanup"
+}
+
+
+# execute the meta-s5ci
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${META_S5CI_CONFIG_PATH} 2>>${META_S5CI_LOG} >>${META_S5CI_LOG} &
+
+# execute the s5ci. 
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH}
+
+echo "$(date): S5CI finished, status: $?" >>${TIMELINE_LOG}
+echo "$(date): final rsync"
+setsid rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --max-delete=-1 --exclude workspace --recursive /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG} 
+echo "$(date): final rsync finished" >>${TIMELINE_LOG}
+
+# the empty cycle in the end
+for i in $(seq 60 -1 1); do
+	echo "$(date): winding down, $i sec remaining">>${TIMELINE_LOG}
+	sleep 1
+done
+

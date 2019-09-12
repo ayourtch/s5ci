@@ -45,6 +45,7 @@ rustfmt:
 
 build:
 	cargo build
+	(cd go-s5ci; go get || true; go build)
 
 run: build
 	RUST_BACKTRACE=1 cargo run -- --config config.yaml
