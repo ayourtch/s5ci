@@ -9,6 +9,14 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
+    - name: check test secret
+      with:
+        MY_TEST_SECRET: ${{ secrets.MY_TEST_SECRET}}
+      env:
+        MY_TEST_SECRET: ${{ secrets.MY_TEST_SECRET}}
+      run: |
+        echo ${MY_TEST_SECRET}
+        ls /secrets/
     - name: install rust
       run: make install-rust
     - name: build the rust version
