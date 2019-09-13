@@ -109,6 +109,11 @@ func JobBaseNameFromCommand(jobstr string) string {
 	}
 }
 
+func jobGetUrl(job_id string) string {
+	c := S5ciOptions.Config
+	return fmt.Sprintf("%s/%s/", c.Jobs.Root_Url, job_id)
+}
+
 func jobGetConsolePath(job_id string) string {
 	c := S5ciOptions.Config
 	return filepath.Join(c.Jobs.Rootdir, job_id, "console.txt")
@@ -204,9 +209,17 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 
 	new_env := append([]string{}, fmt.Sprintf("PATH=%s:%s", c.Command_Rootdir, os.Getenv("PATH")))
 	new_env = append(new_env, fmt.Sprintf("S5CI_EXE=%s", exe_name))
+	new_env = append(new_env, fmt.Sprintf("S5CI_JOB_ID=%s", job_id))
+	new_env = append(new_env, fmt.Sprintf("S5CI_WORKSPACE=%s", jobGetWorkspacePath(job_id)))
+	new_env = append(new_env, fmt.Sprintf("S5CI_CONSOLE_LOG=%s", jobGetConsolePath(job_id)))
 	new_env = append(new_env, fmt.Sprintf("S5CI_JOB_NAME=%s", job_group))
+	new_env = append(new_env, fmt.Sprintf("S5CI_JOB_URL=%s", jobGetUrl(job_id)))
 	new_env = append(new_env, fmt.Sprintf("S5CI_SANDBOX_LEVEL=%d", S5ciOptions.SandboxLevel))
 	new_env = append(new_env, fmt.Sprintf("S5CI_CONFIG=%s", S5ciConfigPath))
+	new_env = append(new_env, fmt.Sprintf("S5CI_PARENT_JOB_ID=%s", os.Getenv("S5CI_JOB_ID")))
+	new_env = append(new_env, fmt.Sprintf("S5CI_PARENT_JOB_NAME=%s", os.Getenv("S5CI_JOB_NAME")))
+	new_env = append(new_env, fmt.Sprintf("S5CI_PARENT_JOB_URL=%s", os.Getenv("S5CI_JOB_URL")))
+
 	pj_id := os.Getenv("S5CI_PARENT_JOB_ID")
 	pj_id_ptr := &pj_id
 	if pj_id == "" {
