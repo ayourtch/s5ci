@@ -74,6 +74,8 @@ else
 fi
 
 while [ -f /secrets/startup-pause.txt ]; do
+	echo "startup-pause.txt synchronization ... " >>"${INITIAL_RSYNC_LOG}"
+	rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >>"${INITIAL_RSYNC_LOG}"
         echo "$(date): /secrets/startup-pause.txt exists - wait for a minute..." >>${TIMELINE_LOG}
 	sleep 60
 done
@@ -92,7 +94,8 @@ while (true); do
 	sleep 1
         echo "$(date): rsync back" >>${BACK_RSYNC_LOG}
 	# rsync a tiny file upstream each second so people know we are alive
-	printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') > /local/jobs/heartbeat.json
+        printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID}> /local/jobs/heartbeat.json
+
 	# rsync the html UI and data, do not delete
 	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG} 
 done &
