@@ -38,6 +38,10 @@ func PollGerritOverSsh(c *S5ciConfig, rtdt *S5ciRuntimeData, before_ts *int, aft
 		log.Printf("PollGerritOverSsh - error from GerritQueryChanges: %v", err)
 		return nil, err
 	}
+	now_ts := UnixTimeNow()
+	fname := fmt.Sprintf("/tmp/s5ci-gerrit-%d.json", now_ts);
+	log.Printf("Saving the gerrit output to %s", fname)
+	writeToFile(fname, output)
 	res, err := ParseGerritPollCommandReply(c, rtdt, before_ts, after_ts, output)
 	if err != nil {
 		log.Printf("PollGerritOverSsh - error from ParseGerritPollCommandReply: %v", err)
