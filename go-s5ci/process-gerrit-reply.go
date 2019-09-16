@@ -200,6 +200,9 @@ func getCommentTriggerMatchesFromComments(c *S5ciConfig, rtdt *S5ciRuntimeData, 
 					safe_val := SafeOrUnderscore(rtdt, ssm[i])
 					captures[name] = safe_val
 				}
+				if captures["patchset"] != "" {
+					safe_patchset_str = captures["patchset"]
+				}
 				patchset_id, err := strconv.Atoi(safe_patchset_str)
 				if err != nil {
 					if strings.HasPrefix(comment.Message, "Change has been successfully merged by ") {
