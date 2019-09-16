@@ -136,8 +136,10 @@ func GerritParsePollCommandReply(reply_data string) (GerritSshResult, error) {
 		} else {
 			var change GerritChangeSet
 			a1 := json.Unmarshal([]byte(line), &change)
-			fmt.Println(a1, " PARSED: ", change.Id, " ", change.Project, " ", change.Branch, " ", change.Number, " ")
-			ret.changes = append(ret.changes, change)
+			if change.Id != "" {
+				fmt.Println(a1, " PARSED: ", change.Id, " ", change.Project, " ", change.Branch, " ", change.Number, " ")
+				ret.changes = append(ret.changes, change)
+			}
 			// fmt.Println("PARSED:", change)
 		}
 		// fmt.Println(line)
