@@ -68,7 +68,7 @@ type S5ciDb struct {
 func DbInitDatabase() {
 	db, err := gorm.Open("sqlite3", S5ciOptions.Config.Db_URL)
 	if err != nil {
-		panic("failed to connect database")
+		panic(err)
 	}
 	defer db.Close()
 
