@@ -131,7 +131,7 @@ cleanup()
 RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${META_S5CI_CONFIG_PATH} 2>>${META_S5CI_LOG} >>${META_S5CI_LOG} &
 
 # execute the s5ci. 
-RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH}
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH}
 
 # if instructed - wait
 while [ -f /secrets/shutdown-pause.txt ]; do
