@@ -181,6 +181,10 @@ func JobSpawnCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 	proc := exec.Command(exe_name, "run-job", "-c", jobstr, "-p", patchset_id, "-s", changeset_id)
 	log.Printf("Start job via our exe %s", exe_name)
 	proc.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pgid: 0}
+	if rtdt.SandboxLevel >= 2 {
+		log.Printf("Sandbox level %d, not actually launching the job", rtdt.SandboxLevel)
+		return
+	}
 
 	new_env := append([]string{}, os.Environ()...)
 	new_env = append(new_env, fmt.Sprintf("S5CI_SANDBOX_LEVEL=%d", S5ciOptions.SandboxLevel))
