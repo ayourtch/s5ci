@@ -8,7 +8,7 @@ import (
 )
 
 type ReviewCommand struct {
-	ChangesetID int     `short:"s" long:"changeset-id" env:"S5CI_GERRIT_CHANGESET_IT" description:"changeset ID" required:"true"`
+	ChangesetID int     `short:"s" long:"changeset-id" env:"S5CI_GERRIT_CHANGESET_ID" description:"changeset ID" required:"true"`
 	Message     string  `short:"m" long:"message" description:"message to add in a review" required:"true"`
 	PatchsetID  int     `short:"p" long:"patchset-id" env:"S5CI_GERRIT_PATCHSET_ID" description:"patchset ID"`
 	Vote        *string `short:"v" long:"vote" description:"vote success, failure or clear"`

@@ -226,6 +226,8 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 	new_env = append(new_env, fmt.Sprintf("S5CI_JOB_URL=%s", jobGetUrl(job_id)))
 	new_env = append(new_env, fmt.Sprintf("S5CI_SANDBOX_LEVEL=%d", S5ciOptions.SandboxLevel))
 	new_env = append(new_env, fmt.Sprintf("S5CI_CONFIG=%s", S5ciConfigPath))
+	new_env = append(new_env, fmt.Sprintf("S5CI_GERRIT_CHANGESET_ID=%d", changeset_id))
+	new_env = append(new_env, fmt.Sprintf("S5CI_GERRIT_PATCHSET_ID=%d", patchset_id))
 	new_env = append(new_env, fmt.Sprintf("S5CI_PARENT_JOB_ID=%s", os.Getenv("S5CI_JOB_ID")))
 	new_env = append(new_env, fmt.Sprintf("S5CI_PARENT_JOB_NAME=%s", os.Getenv("S5CI_JOB_NAME")))
 	new_env = append(new_env, fmt.Sprintf("S5CI_PARENT_JOB_URL=%s", os.Getenv("S5CI_JOB_URL")))
