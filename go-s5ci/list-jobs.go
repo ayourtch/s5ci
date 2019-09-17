@@ -29,6 +29,7 @@ func (command *ListJobsCommand) Execute(args []string) error {
 	job_group_seen := make(map[string]bool)
 	ts_now := UnixTimeNow()
 	if rsync_output {
+		fmt.Fprintf(w, "include jobs\n")
 		fmt.Fprintf(w, "exclude workspace\n")
 	}
 	for i, job := range jobs {
@@ -50,7 +51,8 @@ func (command *ListJobsCommand) Execute(args []string) error {
 	}
 	if rsync_output {
 		fmt.Fprintf(w, "include /index*.html\n")
-		fmt.Fprintf(w, "include /heartbeat.json\n")
+		fmt.Fprintf(w, "include jobs/index*.html\n")
+		fmt.Fprintf(w, "include heartbeat.json\n")
 		fmt.Fprintf(w, "exclude *\n")
 	}
 	w.Flush()
