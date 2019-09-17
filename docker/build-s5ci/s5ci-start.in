@@ -76,8 +76,8 @@ fi
 while [ -f /secrets/startup-pause.txt ]; do
 	echo "startup-pause.txt synchronization ... " >>"${INITIAL_RSYNC_LOG}"
 	rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >>"${INITIAL_RSYNC_LOG}"
-        echo "$(date): /secrets/startup-pause.txt exists - wait for a minute..." >>${TIMELINE_LOG}
-	sleep 60
+        echo "$(date): /secrets/startup-pause.txt exists - wait 30 sec ..." >>${TIMELINE_LOG}
+	sleep 30
 done
 
 if [ -f /local/startup-exec ]; then
