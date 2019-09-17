@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -114,6 +115,11 @@ func jobGetUrl(job_id string) string {
 	return fmt.Sprintf("%s/%s/", c.Jobs.Root_Url, job_id)
 }
 
+func jobGetName(job_id string) string {
+	nameRegex := regexp.MustCompile(`([^A-Za-z0-9_])`)
+	return nameRegex.ReplaceAllString(job_id, "_")
+}
+
 func jobGetConsolePath(job_id string) string {
 	c := S5ciOptions.Config
 	return filepath.Join(c.Jobs.Rootdir, job_id, "console.txt")
@@ -212,7 +218,7 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 	new_env = append(new_env, fmt.Sprintf("S5CI_JOB_ID=%s", job_id))
 	new_env = append(new_env, fmt.Sprintf("S5CI_WORKSPACE=%s", jobGetWorkspacePath(job_id)))
 	new_env = append(new_env, fmt.Sprintf("S5CI_CONSOLE_LOG=%s", jobGetConsolePath(job_id)))
-	new_env = append(new_env, fmt.Sprintf("S5CI_JOB_NAME=%s", job_group))
+	new_env = append(new_env, fmt.Sprintf("S5CI_JOB_NAME=%s", jobGetName(job_id)))
 	new_env = append(new_env, fmt.Sprintf("S5CI_JOB_URL=%s", jobGetUrl(job_id)))
 	new_env = append(new_env, fmt.Sprintf("S5CI_SANDBOX_LEVEL=%d", S5ciOptions.SandboxLevel))
 	new_env = append(new_env, fmt.Sprintf("S5CI_CONFIG=%s", S5ciConfigPath))
