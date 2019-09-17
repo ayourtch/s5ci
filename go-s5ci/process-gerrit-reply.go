@@ -296,6 +296,10 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 
 	if len(cs.Comments) > 0 {
 		change_id := cs.Number
+		if then_now_ts == -1 {
+			log.Printf("Resetting the last seen comment id")
+			DbSetChangesetLastComment(change_id, -1)
+		}
 		last_seen_comment_id := DbGetChangesetLastComment(change_id)
 		all_triggers, trigger_out_ts, new_last_seen_comment_id := getCommentTriggerMatchesFromComments(c, rtdt, change_id, max_pset, cs.Comments, last_seen_comment_id, then_now_ts)
 		out_ts = trigger_out_ts
@@ -387,9 +391,30 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 		YamlDump(final_triggers)
 		for _, trig := range final_triggers {
 			template := rtdt.TriggerCommandTemplates[trig.TriggerName]
+			log.Println("Trigger command template: ", template)
 			data := make(map[string]interface{})
 			if trig.PatchsetID != nil {
-				data["patchset"] = psmap[fmt.Sprintf("%d", trig.PatchsetID)]
+				ps := psmap[fmt.Sprintf("%d", *trig.PatchsetID)]
+				psdata := make(map[string]interface{})
+				psdata["number"] = ps.Number
+				psdata["revision"] = ps.Revision
+				psdata["parents"] = ps.Parents
+				psdata["ref"] = ps.Ref
+				uploader := make(map[string]interface{})
+				uploader["name"] = ps.Uploader.Name
+				uploader["email"] = ps.Uploader.Email
+				uploader["username"] = ps.Uploader.Username
+				psdata["uploader"] = uploader
+
+				psdata["createdon"] = ps.CreatedOn
+				author := make(map[string]interface{})
+				author["name"] = ps.Author.Name
+				author["email"] = ps.Author.Email
+				author["username"] = ps.Author.Username
+				psdata["author"] = author
+				psdata["isdraft"] = ps.IsDraft
+				psdata["kind"] = ps.Kind
+				data["patchset"] = psdata
 			}
 			data["regex"] = trig.Captures
 			expanded_command := template.Render(&data)
@@ -474,6 +499,6 @@ func (cmd *ProcessGerritReplyCommand) Execute(args []string) error {
 	fmt.Println("Now: ", ts_now)
 	s5time := S5TimeFromTimestamp(ts_now)
 	fmt.Println(s5time)
-	GerritProcessChange(&c, &S5ciRuntime, one_change, 0)
+	GerritProcessChange(&c, &S5ciRuntime, one_change, cmd.AfterTimestamp)
 	return nil // ErrShowHelpMessage
 }
