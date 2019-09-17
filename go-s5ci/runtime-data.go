@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	mustache "github.com/hoisie/mustache"
 	"github.com/robfig/cron"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -24,6 +26,7 @@ type CronTriggerSchedule struct {
 
 type S5ciRuntimeData struct {
 	ConfigPath              string
+	Hostname                string
 	SandboxLevel            int
 	PatchsetExtractRegex    *regexp.Regexp
 	UnsafeCharRegex         *regexp.Regexp
@@ -96,6 +99,12 @@ var S5ciRuntime S5ciRuntimeData
 
 func InitRuntimeData() {
 	rtdt := &S5ciRuntime
+	hostname, err := os.Hostname()
+	if err != nil {
+		fmt.Println("Can not get hostname")
+		panic(err)
+	}
+	rtdt.Hostname = hostname
 	c := &S5ciOptions.Config
 
 	rtdt.ConfigPath = S5ciConfigPath

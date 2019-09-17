@@ -251,6 +251,7 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 		Patchset_ID:    patchset_id,
 		Command:        jobstr,
 		Command_Pid:    nil,
+		Remote_Host:    &rtdt.Hostname,
 		Status_Message: "",
 		Started_At:     &now}
 

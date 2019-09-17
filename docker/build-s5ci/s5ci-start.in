@@ -97,7 +97,7 @@ while (true); do
         printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID}> /local/jobs/heartbeat.json
 
 	# prepare the file list of jobs that changed status in the last 10 minutes
-	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -t 600
+	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -t 600 -e $(hostname)
 	if [ -f /secrets/back-sync-adjust-list ]; then
 		bash -c /secrets/back-sync-adjust-list >>${BACK_RSYNC_LOG}
 	fi
@@ -152,7 +152,7 @@ while [ -f /secrets/shutdown-pause.txt ]; do
         echo "$(date): /secrets/shutdown-pause.txt exists - wait 30 sec..." >>${TIMELINE_LOG}
 	sleep 30
 	# prepare the file list of jobs that changed status in the last 10 minutes
-	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -t 600
+	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -t 600 -e $(hostname)
 	if [ -f /secrets/back-sync-adjust-list ]; then
 		bash -c /secrets/back-sync-adjust-list >>${BACK_RSYNC_LOG}
 	fi
@@ -166,7 +166,7 @@ done
 echo "$(date): S5CI finished, status: $?" >>${TIMELINE_LOG}
 echo "$(date): final rsync"
 # prepare file list of the final sync
-/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -t 600
+/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -t 600 -e $(hostname)
 if [ -f /secrets/back-sync-adjust-list ]; then
 	bash -c /secrets/back-sync-adjust-list >>${BACK_RSYNC_LOG}
 fi

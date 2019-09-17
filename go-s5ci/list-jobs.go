@@ -9,8 +9,10 @@ import (
 )
 
 type ListJobsCommand struct {
-	TimeHorizonSec    int    `short:"t" long:"time-horizon" description:"Time horizon for stopped jobs, seconds"`
-	RsyncFileListName string `short:"r" long:"rsync-file-list" description:"File list for rsync"`
+	TimeHorizonSec    int     `short:"t" long:"time-horizon" description:"Time horizon for stopped jobs, seconds"`
+	RsyncFileListName string  `short:"r" long:"rsync-file-list" description:"File list for rsync"`
+	EqualsHostname    *string `short:"e" long:"equals-hostname" description:"Check hostname being equal to this"`
+	NotEqualsHostname *string `short:"n" long:"not-equals-hostname" description:"Check hostname NOT being equal to this"`
 }
 
 func (command *ListJobsCommand) Execute(args []string) error {
@@ -35,6 +37,22 @@ func (command *ListJobsCommand) Execute(args []string) error {
 	for i, job := range jobs {
 		if job.Finished_At != nil {
 			if job.Finished_At.UnixTimestamp() < ts_now-command.TimeHorizonSec {
+				continue
+			}
+		}
+		if command.EqualsHostname != nil {
+			if job.Remote_Host == nil {
+				continue
+			}
+			if *command.EqualsHostname != *job.Remote_Host {
+				continue
+			}
+		}
+		if command.NotEqualsHostname != nil {
+			if job.Remote_Host == nil {
+				continue
+			}
+			if *command.NotEqualsHostname == *job.Remote_Host {
 				continue
 			}
 		}
