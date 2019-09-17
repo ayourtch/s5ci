@@ -46,6 +46,12 @@ func S5ciPrepareToRun() {
 			if err != nil {
 				log.Fatalf("error: %v", err)
 			}
+			if c.Comment_Triggers == nil {
+				c.Comment_Triggers = make(map[string]S5CommentTrigger)
+			}
+			if c.Cron_Triggers == nil {
+				c.Cron_Triggers = make(map[string]S5CronTrigger)
+			}
 			for trig_name, trig := range ppc.Comment_Triggers {
 				global_trig_name := fmt.Sprintf("%s_%s", project_name, trig_name)
 				if trig.Project == nil {
