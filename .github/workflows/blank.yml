@@ -23,3 +23,10 @@ jobs:
       run: |
         (cd go-s5ci; go get || true)
         (cd go-s5ci; go build; ls -al)
+    - name: publish the build to docker
+      env:
+         DOCKER_CONFIG_JSON: ${{ secrets.DOCKER_CONFIG_JSON}}
+      run: |
+        mkdir ~/.docker
+        echo ${DOCKER_CONFIG_JSON} >~/.docker/config.json
+        (cd docker/build-s5ci; bash s5ci-build)
