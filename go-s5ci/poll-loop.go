@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"github.com/jinzhu/copier"
+	reaper "github.com/ramr/go-reaper"
 	"log"
 	"time"
 )
@@ -37,6 +38,8 @@ func PollLoop() {
 	trigger_delay_sec := c.Default_Regex_Trigger_Delay_Sec
 
 	poll_timestamp := UnixTimeNow()
+
+	go reaper.Reap()
 
 	for true {
 
