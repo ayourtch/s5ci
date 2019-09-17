@@ -17,6 +17,7 @@ jobs:
       run: |
         sudo apt-get install -y make build-essential git libssl-dev pkg-config moreutils libpq-dev libsqlite3-dev
         source ~/.cargo/env && cargo install diesel_cli --no-default-features --features postgres,sqlite
+        mkdir db
         source ~/.cargo/env && diesel setup --database-url db/s5ci.sqlite3
         make build
     - name: publish the build to docker
