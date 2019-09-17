@@ -5,10 +5,26 @@ package main
 import (
 	"fmt"
 	"github.com/jinzhu/copier"
-	reaper "github.com/ramr/go-reaper"
 	"log"
+	"syscall"
 	"time"
 )
+
+func CollectZombies() {
+	pid := -1
+	options := 0
+	n_zombies := 0
+	var wstatus syscall.WaitStatus
+	for true {
+		pid, err := syscall.Wait4(pid, &wstatus, options, nil)
+		if pid == -1 {
+			break
+		}
+		n_zombies = n_zombies + 1
+		fmt.Println("Collected child process:", pid, err)
+	}
+	fmt.Println("Collected total zombies: ", n_zombies)
+}
 
 func PollLoop() {
 	fmt.Println("Poll loop")
@@ -38,9 +54,6 @@ func PollLoop() {
 	trigger_delay_sec := c.Default_Regex_Trigger_Delay_Sec
 
 	poll_timestamp := UnixTimeNow()
-
-	go reaper.Reap()
-
 	for true {
 
 		/*
@@ -123,6 +136,7 @@ func PollLoop() {
 		s5time := S5TimeFromTimestamp(ts_now)
 		fmt.Println(s5time)
 		time.Sleep(time.Duration(sleep_delay_sec) * time.Second)
+		CollectZombies()
 
 	}
 }
