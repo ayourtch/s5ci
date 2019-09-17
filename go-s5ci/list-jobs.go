@@ -13,6 +13,7 @@ type ListJobsCommand struct {
 	RsyncFileListName string  `short:"r" long:"rsync-file-list" description:"File list for rsync"`
 	EqualsHostname    *string `short:"e" long:"equals-hostname" description:"Check hostname being equal to this"`
 	NotEqualsHostname *string `short:"n" long:"not-equals-hostname" description:"Check hostname NOT being equal to this"`
+	UpdateRootDir     *string `short:"u" long:"update-from-root" description:"Update the specified jobs from a job root"`
 }
 
 func (command *ListJobsCommand) Execute(args []string) error {
@@ -63,8 +64,12 @@ func (command *ListJobsCommand) Execute(args []string) error {
 				job_group_seen[job.Job_Group_Name] = true
 			}
 			fmt.Fprintf(w, "include %s/%d/**\n", job.Job_Group_Name, job.Instance_ID)
+		} else if command.UpdateRootDir != nil {
+			Db_restore_job_from(*command.UpdateRootDir, job.Job_Group_Name, fmt.Sprintf("%d", job.Instance_ID))
+			RegenerateJobHtml(job.Job_ID)
 		} else {
 			fmt.Printf("job %d: %s\n", i, job)
+			YamlDump(job)
 		}
 	}
 	if rsync_output {

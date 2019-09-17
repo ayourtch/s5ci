@@ -22,6 +22,9 @@ func db_restore_job_from(root string, group_name string, instance_id string) {
 		DbClose(&db)
 	}
 }
+func Db_restore_job_from(root string, group_name string, instance_id string) {
+	db_restore_job_from(root, group_name, instance_id)
+}
 
 func db_restore_job_group_from(root string, group_name string) {
 	group_path := filepath.Join(root, group_name)

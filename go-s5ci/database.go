@@ -193,6 +193,7 @@ func DbClose(db *S5ciDb) {
 }
 
 func DbInsertJob(db *S5ciDb, job *Job) {
+	db.db.Where("record_uuid = ?", job.Record_UUID).Delete(Job{})
 	db.db.Create(job)
 }
 func DbSaveJob(db *S5ciDb, job *Job) {
