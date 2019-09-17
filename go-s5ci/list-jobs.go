@@ -14,6 +14,7 @@ type ListJobsCommand struct {
 	EqualsHostname    *string `short:"e" long:"equals-hostname" description:"Check hostname being equal to this"`
 	NotEqualsHostname *string `short:"n" long:"not-equals-hostname" description:"Check hostname NOT being equal to this"`
 	UpdateRootDir     *string `short:"u" long:"update-from-root" description:"Update the specified jobs from a job root"`
+	DrainMode         bool    `short:"d" long:"drain-mode" description:"make list suitable for drain mode"`
 }
 
 func (command *ListJobsCommand) Execute(args []string) error {
@@ -73,9 +74,12 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		}
 	}
 	if rsync_output {
-		fmt.Fprintf(w, "include /index*.html\n")
-		fmt.Fprintf(w, "include jobs/index*.html\n")
-		fmt.Fprintf(w, "include heartbeat.json\n")
+		if !command.DrainMode {
+			fmt.Fprintf(w, "include /index*.html\n")
+			fmt.Fprintf(w, "include jobs/index*.html\n")
+			fmt.Fprintf(w, "include jobs/active*.html\n")
+			fmt.Fprintf(w, "include heartbeat.json\n")
+		}
 		fmt.Fprintf(w, "exclude *\n")
 	}
 	w.Flush()
