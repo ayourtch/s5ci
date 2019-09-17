@@ -28,10 +28,37 @@ fi
 
 
 # massage the temp tmp/s5ci-start.sh and tmp/config.yaml
-. /secrets/s5ci-tweak-configs
+sed -ibak -e 's#{{ACTUAL_STORAGE_USER}}#u207247-sub2#' \
+	  -e 's#{{ACTUAL_STORAGE_HOST}}#u207247-sub2.your-storagebox.de#' \
+	  -e 's#{{ACTUAL_GERRIT_HOST}}#gerrit.fd.io#' tmp/s5ci-start.sh
+
+# massage the config.yaml so it makes sense for us
+sed -ibak -e 's#/home/ubuntu/s5ci#/s5ci#g' \
+          -e '/^server:$/,$d' \
+          -e 's#/var/www/html/jobs#/local/jobs#' \
+          -e 's#http://s5ci-dev.myvpp.net/jobs#http://s5ci.myvpp.net/jobs#' \
+          tmp/config.yaml
+cat <<__EOC__ >>tmp/config.yaml
+server:
+  address: 52.10.107.188 # 136.243.48.188
+  port: 29418
+  poll_type:
+      shell:
+          command: /usr/bin/ssh
+          args: ['-i', '/secrets/s5ci-key', '-p', '29418', 'test4aiuortch@gerrit.fd.io']
+  # poll every minute
+  poll_wait_ms: 60000
+  # every 10 seconds when we know there is more data
+  syncing_poll_wait_ms: 10000
+  # keep this at zero
+  sync_horizon_sec: 0
+__EOC__
 
 docker build -t s5ci-test -f docker-s5ci.txt .
 
 # publish the result
-. /secrets/s5ci-publish-image
+# . /secrets/s5ci-publish-image
+REV=$(git rev-list HEAD~1.. | cut -c 1-10)
+docker tag s5ci-test ayourtch/s5ci-test:${REV}
+docker push ayourtch/s5ci-test:${REV}
 
