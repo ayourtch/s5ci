@@ -9,16 +9,16 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
+    - name: build the golang version
+      run: |
+        (cd go-s5ci; go get || true)
+        (cd go-s5ci; go build; ls -al)
     - name: build the rust version
       run: |
         sudo apt-get install -y make build-essential git libssl-dev pkg-config moreutils libpq-dev libsqlite3-dev
         source ~/.cargo/env && cargo install diesel_cli --no-default-features --features postgres,sqlite
         source ~/.cargo/env && diesel setup --database-url db/s5ci.sqlite3
         make build
-    - name: build the golang version
-      run: |
-        (cd go-s5ci; go get || true)
-        (cd go-s5ci; go build; ls -al)
     - name: publish the build to docker
       env:
          DOCKER_CONFIG_JSON: ${{ secrets.DOCKER_CONFIG_JSON}}
