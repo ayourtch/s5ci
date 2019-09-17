@@ -256,7 +256,7 @@ func FinishedJob(job_id string) {
 }
 
 func RegenerateAllHtml() {
-	fmt.Printf("Regenerating all jobs HTML...")
+	fmt.Printf("Regenerating all jobs HTML...\n")
 	jobs := DbGetAllJobs()
 	groups := make(map[string]int)
 	for _, j := range jobs {
