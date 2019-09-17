@@ -181,6 +181,15 @@ func getCommentTriggerMatchesFromComments(c *S5ciConfig, rtdt *S5ciRuntimeData, 
 			log.Printf("Comment %d already seen", i)
 			continue
 		}
+		/*
+		 * a 10-minute safety interval: if we rebuilt the database,
+		 * we might pick up old comments otherwise
+		 */
+		if comment.Timestamp < then_now_ts-600 {
+			log.Printf("Comment %d older than 10 minutes, ignore", i)
+			continue
+		}
+
 		last_seen_comment_id = i
 		log.Printf("Comment %d: ts %d: %s", i, comment.Timestamp, comment.Message)
 		caps := RegexpCaptures(rtdt.PatchsetExtractRegex, comment.Message)
