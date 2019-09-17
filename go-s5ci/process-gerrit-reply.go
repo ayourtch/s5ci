@@ -389,7 +389,7 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 			template := rtdt.TriggerCommandTemplates[trig.TriggerName]
 			data := make(map[string]interface{})
 			if trig.PatchsetID != nil {
-				data["patchset"] = fmt.Sprintf("%d", trig.PatchsetID)
+				data["patchset"] = psmap[fmt.Sprintf("%d", trig.PatchsetID)]
 			}
 			data["regex"] = trig.Captures
 			expanded_command := template.Render(&data)
