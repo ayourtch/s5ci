@@ -106,7 +106,7 @@ func RegenerateRootHtml() {
 			}
 			data["child_jobs"] = out_cjs
 			fname := filepath.Join(c.Jobs.Rootdir, fmt.Sprintf("index_%d.html", curr_page_number))
-			log.Printf("writing template %s", fname)
+			// log.Printf("writing template %s", fname)
 			writeToFile(fname, template.Render(&data_n))
 		}
 	}
