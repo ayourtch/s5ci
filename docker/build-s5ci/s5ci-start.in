@@ -176,7 +176,7 @@ cleanup()
 
 
 # execute the meta-s5ci
-RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${META_S5CI_CONFIG_PATH} 2>>${META_S5CI_LOG} >>${META_S5CI_LOG} &
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${META_S5CI_CONFIG_PATH} 2>>${META_S5CI_LOG} >>${META_S5CI_LOG} &
 
 # execute the s5ci. 
 RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH}
