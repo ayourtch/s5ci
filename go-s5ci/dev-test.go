@@ -162,11 +162,12 @@ func ShuffleTestDatabase(dbfile string) error {
 }
 
 type DevTestCommand struct {
-	Init           bool   `short:"i" long:"init" description:"init the db"`
-	Shuffle        bool   `short:"s" long:"shuffle" description:"shuffle the db"`
-	Stress         bool   `long:"stress" description:"stress the db"`
-	TemplateFile   string `short:"t" long:"template" description:"template file"`
-	RegenerateHtml bool   `short:"r" long:"regenerate-html" description:"regenerate all html"`
+	Init           bool    `short:"i" long:"init" description:"init the db"`
+	Shuffle        bool    `short:"s" long:"shuffle" description:"shuffle the db"`
+	Stress         bool    `long:"stress" description:"stress the db"`
+	TemplateFile   string  `short:"t" long:"template" description:"template file"`
+	CommandToSpawn *string `short:"c" long:"command-to-spawn" description:"commmand to spawn"`
+	RegenerateHtml bool    `short:"r" long:"regenerate-html" description:"regenerate all html"`
 }
 
 type Foo struct {
@@ -177,6 +178,19 @@ type Foo struct {
 func (command *DevTestCommand) Execute(args []string) error {
 	var ErrShowHelpMessage = errors.New("run dev test")
 	fmt.Println("Dev Test")
+	if command.CommandToSpawn != nil {
+		c := &S5ciOptions.Config
+		rtdt := &S5ciRuntime
+		JobSpawnCommand(c, rtdt, *command.CommandToSpawn)
+		CollectZombies()
+		JobSpawnCommand(c, rtdt, *command.CommandToSpawn)
+		CollectZombies()
+		JobSpawnCommand(c, rtdt, *command.CommandToSpawn)
+		CollectZombies()
+		time.Sleep(10 * time.Second)
+		CollectZombies()
+		time.Sleep(10 * time.Second)
+	}
 
 	if command.Init {
 		ReinitTestDatabase("./foo.db")

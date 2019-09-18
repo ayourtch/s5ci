@@ -12,12 +12,15 @@ import (
 
 func CollectZombies() {
 	pid := -1
-	options := 0
+	options := syscall.WNOHANG
 	n_zombies := 0
 	var wstatus syscall.WaitStatus
 	for true {
 		pid, err := syscall.Wait4(pid, &wstatus, options, nil)
 		if pid == -1 {
+			break
+		}
+		if pid == 0 {
 			break
 		}
 		n_zombies = n_zombies + 1
