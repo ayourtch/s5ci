@@ -123,6 +123,8 @@ while (true); do
 	fi
 done &
 
+BACKSYNC_PID=$!
+
 #
 # this part runs with signals intercepted, for cleanup
 #
@@ -157,7 +159,7 @@ RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${META_S5CI_CONFIG_PATH} 
 RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH}
 
 # kill the background sync
-kill %?"rsync back"
+kill $BACKSYNC_PID
 
 # if instructed - wait
 while [ -f /secrets/shutdown-pause.txt ]; do
