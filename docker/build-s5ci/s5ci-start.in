@@ -80,6 +80,18 @@ while [ -f /secrets/startup-pause.txt ]; do
 	sleep 30
 done
 
+#
+# stop the currently active s5ci from spawning new jobs
+#
+ACTIVE_ALLOC_ID=$(cat /local/jobs/heartbeat.json  | jq -r .nomad_alloc_id)
+nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/shutdown-pause.txt
+ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
+nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
+
+#
+# Do optional adjustments
+#
+
 if [ -f /local/startup-exec ]; then
         echo "$(date): /local/startup-exec found - executing" >>${TIMELINE_LOG}
         bash -c /local/startup-exec >>"${LOG_DIR}/startup-exec.log"
