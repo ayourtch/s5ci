@@ -422,7 +422,7 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 			copier.Copy(&rtdt2, rtdt)
 			rtdt2.ChangesetID = change_id
 			rtdt2.PatchsetID = *trig.PatchsetID
-			rtdt2.TriggerEventID = fmt.Sprintf("%s_ch%d_ps%d_cmt%d", trig.TriggerName, change_id, trig.PatchsetID, trig.CommentIndex)
+			rtdt2.TriggerEventID = fmt.Sprintf("%s_ch%d_ps%d_cmt%d", trig.TriggerName, change_id, *trig.PatchsetID, trig.CommentIndex)
 			rtdt2.CommentValue = string(trig.Captures["_"])
 			if trig.IsSuppress || trig.IsSuppressed {
 				log.Fatal("job not runnable", trig)

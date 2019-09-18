@@ -5,9 +5,10 @@ import (
 )
 
 type RunJobCommand struct {
-	Command      string `short:"c" long:"command" description:"command to run" required:"true"`
-	Changeset_ID int    `short:"s" long:"changeset-id" description:"changeset id" required:"true"`
-	Patchset_ID  int    `short:"p" long:"patchset-id" description:"patchset id" required:"true"`
+	Command        string `short:"c" long:"command" description:"command to run" required:"true"`
+	Changeset_ID   int    `short:"s" long:"changeset-id" description:"changeset id" required:"true"`
+	Patchset_ID    int    `short:"p" long:"patchset-id" description:"patchset id" required:"true"`
+	TriggerEventID string `short:"t" long:"trigger-event-id" description:"Trigger event ID" required:"false"`
 }
 
 func (cmd *RunJobCommand) Execute(args []string) error {
@@ -16,6 +17,7 @@ func (cmd *RunJobCommand) Execute(args []string) error {
 	fmt.Println("Command: ", cmd.Command)
 	rtdt.ChangesetID = cmd.Changeset_ID
 	rtdt.PatchsetID = cmd.Patchset_ID
+	rtdt.TriggerEventID = cmd.TriggerEventID
 	JobExecCommand(c, rtdt, cmd.Command)
 	fmt.Println("done")
 	return nil // ErrShowHelpMessage
