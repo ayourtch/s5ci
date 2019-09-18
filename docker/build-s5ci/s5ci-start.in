@@ -74,6 +74,17 @@ while [ -f /secrets/startup-pause.txt ]; do
 	sleep 30
 done
 
+#
+# stop the currently active s5ci from spawning new jobs
+#
+ACTIVE_ALLOC_ID=$(cat /local/jobs/heartbeat.json  | jq -r .nomad_alloc_id)
+nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/shutdown-pause.txt
+ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
+nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
+
+
+# sync again, after we have stopped the currently active s5ci
+rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >>"${INITIAL_RSYNC_LOG}"
 echo "$(date): s5ci database rebuild" >>${TIMELINE_LOG}
 # put the transaction mode to WAL for somewhat better performance
 echo PRAGMA journal_mode=WAL | sqlite3 /s5ci/db/s5ci.sqlite3
@@ -84,14 +95,6 @@ RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} mark-
 # do the full sync to the store
 rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
 echo PRAGMA journal_mode=DELETE | sqlite3 /s5ci/db/s5ci.sqlite3
-
-#
-# stop the currently active s5ci from spawning new jobs
-#
-ACTIVE_ALLOC_ID=$(cat /local/jobs/heartbeat.json  | jq -r .nomad_alloc_id)
-nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/shutdown-pause.txt
-ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
-nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
 
 #
 # Do optional adjustments
