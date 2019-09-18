@@ -6,6 +6,7 @@ import (
 	"github.com/robfig/cron"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -122,6 +123,10 @@ func InitRuntimeData() {
 	rtdt.PatchsetID = -1
 	rtdt.TriggerEventID = "no_trigger_event"
 	rtdt.CommentValue = ""
-	// RealS5ciExe = ""
+	exe_name, err := filepath.Abs(os.Args[0])
+	if err != nil {
+		panic(err)
+	}
+	rtdt.RealS5ciExe = exe_name
 
 }

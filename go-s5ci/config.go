@@ -68,11 +68,17 @@ type S5ciServer struct {
 	Syncing_Poll_Wait_Ms *int
 }
 
+type S5ciAutorestart struct {
+	On_Config_Change bool
+	On_Exe_Change    bool
+}
+
 type S5ciConfig struct {
 	Server                          S5ciServer
 	Default_Query                   S5ciGerritQuery
 	Default_Vote                    S5ciGerritVote
 	Db_URL                          string
+	Autorestart                     S5ciAutorestart
 	Debug_Verbosity                 int
 	Command_Rootdir                 string
 	Install_Rootdir                 string

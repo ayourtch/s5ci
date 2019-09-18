@@ -57,7 +57,9 @@ func PollLoop() {
 	trigger_delay_sec := c.Default_Regex_Trigger_Delay_Sec
 
 	poll_timestamp := UnixTimeNow()
+	autorestart_state := AutorestartInit(c, rtdt)
 	for true {
+		AutorestartCheck(c, rtdt, &autorestart_state)
 
 		/*
 		 We want to snoop further into the past by trigger_delay_sec,
