@@ -52,12 +52,6 @@ rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_US
 echo "$(date): copy html to /local/html" >>${TIMELINE_LOG}
 cp -r /var/www/html/html /local/html
 
-echo "$(date): s5ci database rebuild" >>${TIMELINE_LOG}
-# put the transaction mode to WAL for somewhat better performance
-echo PRAGMA journal_mode=WAL | sqlite3 /s5ci/db/s5ci.sqlite3
-RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} rebuild-database >>${DB_REBUILD_LOG}
-RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} mark-active-as-failed >>${DB_REBUILD_LOG}
-echo PRAGMA journal_mode=DELETE | sqlite3 /s5ci/db/s5ci.sqlite3
 
 export NOMAD_AGENT_LOG="${LOG_DIR}/nomad-agent.log"
 export NOMAD_LOG="${LOG_DIR}/nomad.log"
@@ -79,6 +73,17 @@ while [ -f /secrets/startup-pause.txt ]; do
         echo "$(date): /secrets/startup-pause.txt exists - wait 30 sec ..." >>${TIMELINE_LOG}
 	sleep 30
 done
+
+echo "$(date): s5ci database rebuild" >>${TIMELINE_LOG}
+# put the transaction mode to WAL for somewhat better performance
+echo PRAGMA journal_mode=WAL | sqlite3 /s5ci/db/s5ci.sqlite3
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} rebuild-database >>${DB_REBUILD_LOG}
+# mark active as failed - and if they are alive, they will come back
+echo "$(date): marking still active jobs as failed and doing full sync back" >>${TIMELINE_LOG}
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} mark-active-as-failed >>${DB_REBUILD_LOG}
+# do the full sync to the store
+rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
+echo PRAGMA journal_mode=DELETE | sqlite3 /s5ci/db/s5ci.sqlite3
 
 #
 # stop the currently active s5ci from spawning new jobs
@@ -125,6 +130,21 @@ done &
 
 BACKSYNC_PID=$!
 
+
+### sync the jobs from other hosts which were in a drain mode
+while (true); do
+	# get the list of jobs either still running or just finished, on other hosts
+	go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -t 600 -r /tmp/s5ci-rsync-other-hosts -n $(hostname)
+	# rsync the list of jobs we know are maybe still sitting on other hosts
+	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/s5ci-rsync-other-hosts' ${STORAGE_USER}@${STORAGE_HOST}: /local/ 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
+	# re-import the data from yaml files into the database
+	go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -t 600 -n $(hostname) -u /local/jobs
+	# sleep 5 minutes
+	sleep 300
+
+done &
+DRAINSYNC_PID=$!
+
 #
 # this part runs with signals intercepted, for cleanup
 #
@@ -160,6 +180,7 @@ RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH}
 
 # kill the background sync
 kill $BACKSYNC_PID
+kill $DRAINSYNC_PID
 
 # if instructed - wait
 while [ -f /secrets/shutdown-pause.txt ]; do
