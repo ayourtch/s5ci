@@ -302,6 +302,8 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 		}
 		last_seen_comment_id := DbGetChangesetLastComment(change_id)
 		all_triggers, trigger_out_ts, new_last_seen_comment_id := getCommentTriggerMatchesFromComments(c, rtdt, change_id, max_pset, cs.Comments, last_seen_comment_id, then_now_ts)
+		log.Printf("change_id %d last_seen_comment_id: %d => %d", change_id, last_seen_comment_id, new_last_seen_comment_id)
+
 		out_ts = trigger_out_ts
 		final_triggers := all_triggers
 		suppress_map := make(map[string]bool)
@@ -377,6 +379,7 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 				if x.IsSuppress {
 					if x.CommentIndex <= new_last_seen_comment_id {
 						new_last_seen_comment_id = x.CommentIndex - 1
+						log.Printf("Comment %d is a suppress comment, new comment id is %d", x.CommentIndex, new_last_seen_comment_id)
 					}
 					if trigger_out_ts != nil && comment.Timestamp < *trigger_out_ts {
 						*trigger_out_ts = comment.Timestamp
@@ -387,6 +390,8 @@ func GerritProcessChange(c *S5ciConfig, rtdt *S5ciRuntimeData, cs GerritChangeSe
 			}
 			final_triggers = final_triggers_out
 		}
+
+		log.Println("setting new last seen comment id to ", new_last_seen_comment_id)
 		DbSetChangesetLastComment(change_id, new_last_seen_comment_id)
 		YamlDump(final_triggers)
 		for _, trig := range final_triggers {

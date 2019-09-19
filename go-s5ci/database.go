@@ -153,8 +153,7 @@ func DbSetChangesetLastComment(change_id int, comment_id int) {
 		comment.Comment_ID = -1
 		db.db.Create(&comment)
 	}
-	comment.Comment_ID = comment_id
-	db.db.Model(comment).Where("record_uuid = ?", comment.Record_UUID).Updates(comment)
+	db.db.Model(comment).Where("record_uuid = ?", comment.Record_UUID).Update("comment_id", comment_id)
 	DbClose(&db)
 }
 
