@@ -1,7 +1,10 @@
 {{> header}}
 <script>
+
+var reload_timeout = false;
+
 function document_on_load() {
-  window.setTimeout(function(){ location.reload(true); }, 5000);
+  reload_timeout = window.setTimeout(function(){ location.reload(true); }, 5000);
 }
 </script>
 

@@ -1,4 +1,13 @@
 <script src="/html/js/ui.js"></script>
+<script>
+window.addEventListener('scroll', function(e) {
+  if (reload_timeout) {
+    window.clearTimeout(reload_timeout);
+    reload_timeout = false;
+  }
+});
+
+</script>
 </body>
 </html>
 
