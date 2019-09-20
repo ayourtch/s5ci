@@ -180,6 +180,16 @@ func DbGetNextCounterWithMin(name string, min_val int) int {
 
 func DbOpen() S5ciDb {
 	db, err := gorm.Open("sqlite3", S5ciOptions.Config.Db_URL)
+	retry_count := 5
+	for err != nil {
+		fmt.Println("DB OPEN ERROR: ", err, "Retry count:", retry_count)
+		time.Sleep(1 * time.Second)
+		db, err = gorm.Open("sqlite3", S5ciOptions.Config.Db_URL)
+		retry_count = retry_count - 1
+		if retry_count < 0 {
+			log.Fatal(err)
+		}
+	}
 	if err != nil {
 		panic("failed to connect database")
 	}
