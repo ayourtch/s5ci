@@ -33,6 +33,7 @@ echo "$(date): connectivity is ok" >>${TIMELINE_LOG}
 # pin the ssh hosts
 echo "$(date): scan SSH key for storage" >>${TIMELINE_LOG}
 ssh-keyscan -H -p 23 ${STORAGE_HOST} >>~/.ssh/known_hosts
+ssh-keyscan -H -p 23 ${LOGS_HOST} >>~/.ssh/known_hosts
 
 echo "$(date): scan SSH key for gerrit" >>${TIMELINE_LOG}
 ssh-keyscan -H -p 29418 ${GERRIT_HOST} >>~/.ssh/known_hosts
