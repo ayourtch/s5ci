@@ -22,7 +22,32 @@ echo ====== GIT AFTER CHECKOUT ======
 git log HEAD~3..
 # CACHE_OUTPUT=0 borks on what seems to be big debug CLI outputs
 # if TEST=${ARG_TEST} TEST_JOBS=auto UNATTENDED=y CACHE_OUTPUT=0 make install-dep test; then
-if TEST=${ARG_TEST} TEST_JOBS=auto UNATTENDED=y make install-dep test; then
+if [ -z "$TEST_TARGET" ]; then
+	export TEST_TARGET=test
+	export TEST_JOBS=auto
+else
+	echo "TEST_TARGET: ${TEST_TARGET}"
+fi
+if [ "$TEST_TARGET" == "test-cov" ]; then
+cat <<__EOP__ | patch -p1
+diff --git a/test/Makefile b/test/Makefile
+index d8bbf4d5c..77a637c93 100644
+--- a/test/Makefile
++++ b/test/Makefile
+@@ -242,7 +242,7 @@ wipe-doc:
+ cov: wipe-cov reset ext verify-test-dir $(PAPI_INSTALL_DONE)
+        @lcov --zerocounters --directory $(VPP_BUILD_DIR)
+        @test -z "$(EXTERN_COV_DIR)" || lcov --zerocounters --directory $(EXTERN_COV_DIR)
+-       $(call retest-func)
++       -$(call retest-func)
+        @mkdir $(BUILD_COV_DIR)
+        @lcov --capture --directory $(VPP_BUILD_DIR) --output-file $(BUILD_COV_DIR)/coverage.info
+        @test -z "$(EXTERN_COV_DIR)" || lcov --capture --directory $(EXTERN_COV_DIR) --output-file $(BUILD_COV_DIR)/extern-coverage.info
+__EOP__
+fi
+
+
+if TEST=${ARG_TEST} UNATTENDED=y make install-dep ${TEST_TARGET}; then
 	echo Inside docker: success
 else
 	EXIT_CODE=$?
@@ -39,6 +64,10 @@ else
 	# archive all the failed unittests
 	tar czvhf /local/failed-unit-tests.tgz /tmp/vpp-failed-unittests
 fi
+if [ "$TEST_TARGET" == "test-cov" ]; then
+	tar czvhf /local/test-coverage.tgz test/coverage
+fi
+
 
 EXECEND=`date`
 echo EXECEND: $EXECEND
