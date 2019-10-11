@@ -8,12 +8,11 @@ define printstack
       x/i $pc
       info locals
       info reg
-      x/x $rdi+5
       set $i = $i + 1
   end
 end
 printstack
 
-info proc mappings
+# info proc mappings
 
 

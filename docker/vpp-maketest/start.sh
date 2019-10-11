@@ -29,21 +29,12 @@ else
 	echo "TEST_TARGET: ${TEST_TARGET}"
 fi
 if [ "$TEST_TARGET" == "test-cov" ]; then
-cat <<__EOP__ | patch -p1
-diff --git a/test/Makefile b/test/Makefile
-index d8bbf4d5c..77a637c93 100644
---- a/test/Makefile
-+++ b/test/Makefile
-@@ -242,7 +242,7 @@ wipe-doc:
- cov: wipe-cov reset ext verify-test-dir $(PAPI_INSTALL_DONE)
-        @lcov --zerocounters --directory $(VPP_BUILD_DIR)
-        @test -z "$(EXTERN_COV_DIR)" || lcov --zerocounters --directory $(EXTERN_COV_DIR)
--       $(call retest-func)
-+       -$(call retest-func)
-        @mkdir $(BUILD_COV_DIR)
-        @lcov --capture --directory $(VPP_BUILD_DIR) --output-file $(BUILD_COV_DIR)/coverage.info
-        @test -z "$(EXTERN_COV_DIR)" || lcov --capture --directory $(EXTERN_COV_DIR) --output-file $(BUILD_COV_DIR)/extern-coverage.info
-__EOP__
+	/local/lcov-prepare
+fi
+
+if [ -f "/local/gdb-commands" ]; then
+	echo "/local/gdb-commands exists, use it"
+	sudo cp /local/gdb-commands /gdb-commands
 fi
 
 
@@ -60,7 +51,7 @@ else
 	done
 	echo ======= cleaning up the files and archiving =======
 	# delete the core files, no need to waste the space on them - we decoded them above
-	find /tmp/vpp* -name core* -exec rm {} \;
+	find /tmp/vpp* -name core* -exec echo DELETE {} \; -exec rm {} \;
 	# archive all the failed unittests
 	tar czvhf /local/failed-unit-tests.tgz /tmp/vpp-failed-unittests
 fi
