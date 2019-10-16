@@ -58,7 +58,7 @@ docker build -t s5ci-test -f docker-s5ci.txt .
 
 # publish the result
 # . /secrets/s5ci-publish-image
-REV=$(git rev-list HEAD~1.. | cut -c 1-10)
+REV=$(git rev-list HEAD~1.. | head -n 1 | cut -c 1-10)
 docker tag s5ci-test ayourtch/s5ci-test:${REV}
 docker push ayourtch/s5ci-test:${REV}
 
