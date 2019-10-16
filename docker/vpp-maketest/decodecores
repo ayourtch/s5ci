@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# find and decode the cores automatically, whatever they belong to
+
+for CORE in $(find /tmp/vpp* -name core*); do
+   BINFILE=$(gdb -c ${CORE} -ex quit | grep 'Core was generated' | awk '{ print $5; }' | sed -e s/\`//g)
+   echo ====================================================== DECODE CORE: ${CORE}
+   gdb ${BINFILE} ${CORE} -ex 'source -v gdb-commands' -ex quit
+done
+

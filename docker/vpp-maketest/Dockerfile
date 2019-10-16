@@ -22,6 +22,7 @@ RUN apt-get install -y iperf3 && true
 RUN mkdir /CCACHE
 
 COPY  start.sh /start.sh
+COPY  decodecores /decodecores
 COPY  gdb-commands /gdb-commands
 
 CMD ["./start.sh"]
