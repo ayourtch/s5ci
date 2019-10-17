@@ -29,6 +29,18 @@ func CollectZombies() {
 	fmt.Println("Collected total zombies: ", n_zombies)
 }
 
+func S5ciEvent(event string) {
+	c := &S5ciOptions.Config
+	rtdt := &S5ciRuntime
+	rtdt2 := S5ciRuntimeData{}
+	copier.Copy(&rtdt2, rtdt)
+	rtdt2.ChangesetID = 0
+	rtdt2.PatchsetID = 0
+	rtdt2.TriggerEventID = fmt.Sprintf("s5ci_event_%s", event)
+	command := fmt.Sprintf("s5ci-event-%s", event)
+	JobExecCommand(c, &rtdt2, command)
+}
+
 func PollLoop() {
 	fmt.Println("Poll loop")
 	c := &S5ciOptions.Config
@@ -58,6 +70,7 @@ func PollLoop() {
 
 	poll_timestamp := UnixTimeNow()
 	autorestart_state := AutorestartInit(c, rtdt)
+	S5ciEvent("startup-done")
 	for true {
 		AutorestartCheck(c, rtdt, &autorestart_state)
 

@@ -46,11 +46,13 @@ func AutorestartCheck(c *S5ciConfig, rtdt *S5ciRuntimeData, ars *AutorestartStat
 	if c.Autorestart.On_Config_Change &&
 		FileChangedSince(rtdt.ConfigPath, ars.ConfigMtime) {
 		log.Printf("Config changed, attempt restart")
+		S5ciEvent("autorestart-config")
 		RestartOurselves(c, rtdt)
 	}
 
 	if c.Autorestart.On_Exe_Change && FileChangedSince(rtdt.RealS5ciExe, ars.ExeMtime) {
 		log.Printf("Executable changed, attempt restart")
+		S5ciEvent("autorestart-exe")
 		RestartOurselves(c, rtdt)
 	}
 }
