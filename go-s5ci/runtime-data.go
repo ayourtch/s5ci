@@ -74,7 +74,9 @@ func getCronTriggerSchedules(c *S5ciConfig) []CronTriggerSchedule {
 		}
 		// log.Println(i, sch)
 		cs := CronTriggerSchedule{Schedule: sch, Name: cname, LastRun: now_ts}
-		YamlDump(cs)
+		if os.Getenv("DEBUG_S5CI_CONFIG") != "" {
+			YamlDump(cs)
+		}
 		out = append(out, cs)
 	}
 	return out

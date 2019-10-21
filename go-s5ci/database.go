@@ -324,13 +324,13 @@ func Import_Job_YAML(fname string) (Job, error) {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
-	fmt.Printf("--- t:\n%v\n\n", t)
+	fmt.Printf("--- job:\n%v\n\n", t)
 
 	d, err := yaml.Marshal(&t)
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
-	fmt.Printf("--- t dump:\n%s\n\n", string(d))
+	fmt.Printf("--- job dump:\n%s\n\n", string(d))
 
 	return t, nil
 }

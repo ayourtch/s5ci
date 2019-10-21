@@ -66,7 +66,9 @@ func S5ciPrepareToRun() {
 		}
 	}
 
-	YamlDump(c)
+	if os.Getenv("DEBUG_S5CI_CONFIG") != "" {
+		YamlDump(c)
+	}
 	InitRuntimeData()
 }
 
