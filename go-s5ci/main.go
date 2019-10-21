@@ -72,6 +72,12 @@ func S5ciPrepareToRun() {
 
 func S5ciCommandHandler(command flags.Commander, args []string) error {
 	S5ciPrepareToRun()
+	os.Setenv("S5CI_JOB_ID", os.Getenv("X_S5CI_JOB_ID"))
+	os.Setenv("S5CI_JOB_URL", os.Getenv("X_S5CI_JOB_URL"))
+	os.Setenv("S5CI_JOB_NAME", os.Getenv("X_S5CI_JOB_NAME"))
+	os.Setenv("S5CI_PARENT_JOB_ID", os.Getenv("X_S5CI_PARENT_JOB_ID"))
+	os.Setenv("S5CI_PARENT_JOB_URL", os.Getenv("X_S5CI_PARENT_JOB_URL"))
+	os.Setenv("S5CI_PARENT_JOB_NAME", os.Getenv("X_S5CI_PARENT_JOB_NAME"))
 	reterr := command.Execute(args)
 	return reterr
 }
@@ -96,6 +102,12 @@ func main() {
 	parser.NamespaceDelimiter = "-"
 	parser.CommandHandler = S5ciCommandHandler
 
+	os.Setenv("X_S5CI_JOB_ID", os.Getenv("S5CI_JOB_ID"))
+	os.Setenv("X_S5CI_JOB_URL", os.Getenv("S5CI_JOB_URL"))
+	os.Setenv("X_S5CI_JOB_NAME", os.Getenv("S5CI_JOB_NAME"))
+	os.Setenv("X_S5CI_PARENT_JOB_ID", os.Getenv("S5CI_PARENT_JOB_ID"))
+	os.Setenv("X_S5CI_PARENT_JOB_URL", os.Getenv("S5CI_PARENT_JOB_URL"))
+	os.Setenv("X_S5CI_PARENT_JOB_NAME", os.Getenv("S5CI_PARENT_JOB_NAME"))
 	twentythousandtonnesofcrudeoil.TheEnvironmentIsPerfectlySafe(parser, "S5CI_")
 
 	_, err := parser.Parse()

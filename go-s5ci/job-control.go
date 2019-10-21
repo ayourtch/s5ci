@@ -231,7 +231,7 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 	new_env = append(new_env, fmt.Sprintf("S5CI_PARENT_JOB_URL=%s", os.Getenv("S5CI_JOB_URL")))
 	new_env = append(new_env, fmt.Sprintf("S5CI_TRIGGER_EVENT_ID=%s", rtdt.TriggerEventID))
 
-	pj_id := os.Getenv("S5CI_PARENT_JOB_ID")
+	pj_id := os.Getenv("S5CI_JOB_ID")
 	pj_id_ptr := &pj_id
 	if pj_id == "" {
 		pj_id_ptr = nil
