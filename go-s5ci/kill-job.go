@@ -19,8 +19,8 @@ func DoKillJob(job_id string, terminator string) {
 	db := DbOpen()
 	defer DbClose(&db)
 	if job.Command_Pid != nil {
-		fmt.Printf("Requested to kill a job, sending signal to pid %d from job %s", job.Command_Pid, job_id)
-		syscall.Kill(*job.Command_Pid, syscall.SIGTERM)
+		fmt.Printf("Requested to kill a job, sending signal to pid %d from job %s", job.Job_Pid, job_id)
+		syscall.Kill(job.Job_Pid, syscall.SIGINT)
 		if job.Finished_At == nil {
 			s5now := S5Now()
 			job.Status_Message = fmt.Sprintf("Terminated by the %s", terminator)
