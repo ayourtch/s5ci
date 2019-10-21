@@ -40,7 +40,7 @@ func start_exec_fg_with_redir(cmdline string, out_fname string, new_cwd string, 
 	return proc
 }
 
-func wait_exec_proc(proc *exec.Cmd) error {
+func wait_exec_proc(proc *exec.Cmd, job_id string) error {
 	result := make(chan error, 1)
 	go func() {
 		result <- proc.Wait()
@@ -60,6 +60,12 @@ func wait_exec_proc(proc *exec.Cmd) error {
 			// syscall.Tgkill(-1, proc.Process.Pid, 3)
 			pgid, err := syscall.Getpgid(proc.Process.Pid)
 			if err == nil {
+				if job_id != "" {
+					cjs := DbGetChildJobs(job_id)
+					for _, cj := range cjs {
+						DoKillJob(cj.Job_ID, fmt.Sprintf("Terminated by terminating parent %s", job_id))
+					}
+				}
 				syscall.Kill(-pgid, s.(syscall.Signal)) // note the minus sign
 			}
 		}
@@ -81,11 +87,6 @@ func wait_exec_proc(proc *exec.Cmd) error {
 	// outfile.Close()
 	fmt.Println("done")
 	return ret
-}
-
-func exec_fg_with_redir(cmdline string, out_fname string, new_cwd string, add_env []string) error {
-	proc := start_exec_fg_with_redir(cmdline, out_fname, new_cwd, add_env)
-	return wait_exec_proc(proc)
 }
 
 func getMinJobNumber(jobname string) int {
@@ -265,7 +266,7 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 	DbSaveJob(&db, &new_job)
 	DbClose(&db)
 
-	retErr := wait_exec_proc(proc)
+	retErr := wait_exec_proc(proc, job_id)
 
 	exec_success := true
 	exec_retcode := 0
