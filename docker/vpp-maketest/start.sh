@@ -42,9 +42,16 @@ if TEST=${ARG_TEST} UNATTENDED=y make install-dep ${TEST_TARGET}; then
 	echo Inside docker: success
 else
 	EXIT_CODE=$?
-	echo Inside docker: failure, exit code ${EXIT_CODE}
+	echo "Inside docker: failure, exit code ${EXIT_CODE}"
+	echo "Sleep 5 minutes.."
+	sleep 300
 	cd /
+	echo "===== START VPP TEST DIR ====="
+	ls -lR /tmp/vpp*
+	echo "===== END VPP TEST DIR ====="
+
 	for CORE in $(find /tmp/vpp* -name core*); do
+		echo "FOUND CORE: ${CORE}, invoke GDB"
 		BINFILE=$(gdb -c ${CORE} -ex quit | grep 'Core was generated' | awk '{ print $5; }' | sed -e s/\`//g)
 		echo ====================================================== DECODE CORE: ${CORE}
 		gdb ${BINFILE} ${CORE} -ex 'source -v gdb-commands' -ex quit 
