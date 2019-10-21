@@ -37,6 +37,10 @@ if [ -f "/local/gdb-commands" ]; then
 	sudo cp /local/gdb-commands /gdb-commands
 fi
 
+if [ -f "/local/exec-before-test" ]; then
+	echo "/local/exec-before-test exists, use it"
+	source /local/exec-before-test
+fi
 
 if TEST=${ARG_TEST} UNATTENDED=y make install-dep ${TEST_TARGET}; then
 	echo Inside docker: success
