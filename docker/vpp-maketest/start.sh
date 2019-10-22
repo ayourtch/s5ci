@@ -20,6 +20,9 @@ git log HEAD~3..
 git fetch ${ARG_VPP_GIT_URL} ${ARG_FETCH_REF} && git checkout FETCH_HEAD
 echo ====== GIT AFTER CHECKOUT ======
 git log HEAD~3..
+echo ====== DIFF of the last change ======
+git diff HEAD~1..HEAD
+echo ====== END DIFF =====
 # CACHE_OUTPUT=0 borks on what seems to be big debug CLI outputs
 # if TEST=${ARG_TEST} TEST_JOBS=auto UNATTENDED=y CACHE_OUTPUT=0 make install-dep test; then
 if [ -z "$TEST_TARGET" ]; then
@@ -50,9 +53,6 @@ else
 	echo "Sleep 5 minutes.."
 	sleep 300
 	cd /
-	echo "===== START VPP TEST DIR ====="
-	ls -lR /tmp/vpp*
-	echo "===== END VPP TEST DIR ====="
 
 	for CORE in $(find /tmp/vpp* -name core*); do
 		echo "FOUND CORE: ${CORE}, invoke GDB"
