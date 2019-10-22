@@ -41,6 +41,8 @@ func start_exec_fg_with_redir(cmdline string, out_fname string, new_cwd string, 
 }
 
 func wait_exec_proc(proc *exec.Cmd, job_id string) error {
+	child_pid := proc.Process.Pid
+	fmt.Printf("Waiting for pid %d to finish running...", child_pid)
 	result := make(chan error, 1)
 	go func() {
 		result <- proc.Wait()
@@ -55,7 +57,7 @@ func wait_exec_proc(proc *exec.Cmd, job_id string) error {
 	go func() {
 		for true {
 			s := <-sigc
-			fmt.Println("Signal:", s)
+			fmt.Println("Process ", child_pid, " got Signal:", s)
 			// proc.Process.Signal(s)
 			// syscall.Tgkill(-1, proc.Process.Pid, 3)
 			pgid, err := syscall.Getpgid(proc.Process.Pid)
@@ -63,7 +65,7 @@ func wait_exec_proc(proc *exec.Cmd, job_id string) error {
 				if job_id != "" {
 					cjs := DbGetChildJobs(job_id)
 					for _, cj := range cjs {
-						DoKillJob(cj.Job_ID, fmt.Sprintf("Terminated by terminating parent %s", job_id))
+						DoKillJob(cj.Job_ID, fmt.Sprintf("terminating parent %s", job_id))
 					}
 				}
 				syscall.Kill(-pgid, s.(syscall.Signal)) // note the minus sign
@@ -77,15 +79,15 @@ func wait_exec_proc(proc *exec.Cmd, job_id string) error {
 		time.Sleep(1 * time.Second)
 		select {
 		case retCode, _ := <-result:
-			fmt.Println("Return code: ", retCode)
+			fmt.Println(child_pid, " Return code: ", retCode)
 			ret = retCode
 			keep_waiting = false
 		default:
-			fmt.Println("Process still running, pid ", proc.Process.Pid)
+			// fmt.Println("Process still running, pid ", proc.Process.Pid)
 		}
 	}
 	// outfile.Close()
-	fmt.Println("done")
+	fmt.Println(child_pid, " done")
 	return ret
 }
 
