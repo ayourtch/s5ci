@@ -1,7 +1,7 @@
 # Download base ubuntu image
 FROM ubuntu:18.04
 
-RUN echo force-update-13-sep-2019
+RUN echo force-update-18-nov-2019
 
 RUN apt-get update
 RUN apt-get upgrade -y && true
