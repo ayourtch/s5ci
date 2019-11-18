@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type ListJobsCommand struct {
@@ -64,7 +65,19 @@ func (command *ListJobsCommand) Execute(args []string) error {
 				fmt.Fprintf(w, "include %s/*\n", job.Job_Group_Name)
 				job_group_seen[job.Job_Group_Name] = true
 			}
-			fmt.Fprintf(w, "include %s/%d/**\n", job.Job_Group_Name, job.Instance_ID)
+			split_nr := JobSplitJobNR(job.Instance_ID)
+			path_parts := strings.SplitN(split_nr, "/", 5)
+			accum := ""
+			for _, part := range path_parts {
+				accum = fmt.Sprintf("%s/%s", accum, part)
+				full_name := fmt.Sprintf("%s%s", job.Job_Group_Name, accum)
+				if !job_group_seen[full_name] {
+					fmt.Fprintf(w, "include %s\n", full_name)
+					fmt.Fprintf(w, "include %s/*\n", full_name)
+					job_group_seen[full_name] = true
+				}
+			}
+			fmt.Fprintf(w, "include %s/%s/**\n", job.Job_Group_Name, JobSplitJobNR(job.Instance_ID))
 		} else if command.UpdateRootDir != nil {
 			Db_restore_job_from(*command.UpdateRootDir, job.Job_Group_Name, fmt.Sprintf("%d", job.Instance_ID))
 			RegenerateJobHtml(job.Job_ID)

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"crypto/sha1"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -129,12 +129,16 @@ func jobGetWorkspacePath(job_id string) string {
 }
 
 func JobSplitJobNR(job_nr string) string {
-	first_level := job_nr[0:3]
-	second_level := job_nr[3:6]
-	third_level := job_nr[6:9]
-	rest_level := job_nr[9:]
-	job_dir := filepath.Join(first_level, second_level, third_level, rest_level)
-	return job_dir
+	if len(job_nr) > 9 {
+		first_level := job_nr[0:3]
+		second_level := job_nr[3:6]
+		third_level := job_nr[6:9]
+		rest_level := job_nr[9:]
+		job_dir := filepath.Join(first_level, second_level, third_level, rest_level)
+		return job_dir
+	} else {
+		return job_nr
+	}
 }
 
 func JobGetJobID(job_group string, job_nr string) string {
