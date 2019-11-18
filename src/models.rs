@@ -33,7 +33,7 @@ pub struct counter {
 pub struct job {
     pub record_uuid: String,
     pub job_group_name: String,
-    pub instance_id: i32,
+    pub instance_id: String,
     pub job_id: String,
     pub job_pid: i32,
     pub parent_job_id: Option<String>,

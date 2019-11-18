@@ -308,8 +308,12 @@ pub fn db_restore_jobs_from_group(dir: &str) {
         let job_yaml_fname = format!("{}/{}/job.yaml", dir, &job_dir_name);
         let job_yaml_path = std::path::Path::new(&job_yaml_fname);
 
-        if metadata.is_dir() && RE_DIGITS.is_match(&job_dir_name) && job_yaml_path.is_file() {
-            db_import_job_yaml(&job_yaml_fname);
+        if metadata.is_dir() {
+            if job_yaml_path.is_file() {
+                db_import_job_yaml(&job_yaml_fname);
+            } else {
+                db_restore_jobs_from_group(&format!("{}/{}", dir, &job_dir_name));
+            }
         }
     }
 }

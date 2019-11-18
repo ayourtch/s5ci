@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"crypto/sha1"
 	"log"
 	"os"
 	"os/exec"
@@ -91,17 +91,12 @@ func wait_exec_proc(proc *exec.Cmd, job_id string) error {
 	return ret
 }
 
-func getMinJobNumber(jobname string) int {
-	c := S5ciOptions.Config
-	files, _ := ioutil.ReadDir(filepath.Join(c.Jobs.Rootdir, jobname))
-	return len(files) + 1
-}
-
-func jobGetNextJobNumber(jobname string) int {
-	min_number := getMinJobNumber(jobname)
-	log.Print("min job number for %s is %d", jobname, min_number)
-	next_job_number := DbGetNextCounterWithMin(jobname, min_number)
-	return next_job_number
+func jobGetNextJobNumber(jobname string, hostname string) string {
+	timestamp := time.Now().UnixNano()
+	str_to_hash := fmt.Sprintf("%s %s %x", jobname, hostname, timestamp)
+	fmt.Printf("JOB BEFORE HASH: '%s'", str_to_hash)
+	sum := sha1.Sum([]byte(str_to_hash))
+	return fmt.Sprintf("%x", sum)
 }
 
 func JobBaseNameFromCommand(jobstr string) string {
@@ -133,16 +128,57 @@ func jobGetWorkspacePath(job_id string) string {
 	return filepath.Join(c.Jobs.Rootdir, job_id, "workspace")
 }
 
-func jobCreateWorkspace(job_group string, job_nr int) {
+func JobSplitJobNR(job_nr string) string {
+	first_level := job_nr[0:3]
+	second_level := job_nr[3:6]
+	third_level := job_nr[6:9]
+	rest_level := job_nr[9:]
+	job_dir := filepath.Join(first_level, second_level, third_level, rest_level)
+	return job_dir
+}
+
+func JobGetJobID(job_group string, job_nr string) string {
+	return filepath.Join(job_group, JobSplitJobNR(job_nr))
+}
+
+func JobGetPath(job_group string, job_nr string) string {
+	c := S5ciOptions.Config
+	return filepath.Join(c.Jobs.Rootdir, job_group, JobSplitJobNR(job_nr))
+}
+
+func jobCreateWorkspace(job_group string, job_nr string) {
 	c := S5ciOptions.Config
 	job_group_dir := filepath.Join(c.Jobs.Rootdir, job_group)
 	_ = os.Mkdir(job_group_dir, 0755)
 
-	job_dir := filepath.Join(c.Jobs.Rootdir, job_group, fmt.Sprintf("%d", job_nr))
-	err := os.Mkdir(job_dir, 0755)
+	first_level := job_nr[0:3]
+	second_level := job_nr[3:6]
+	third_level := job_nr[6:9]
+
+	a_dir := filepath.Join(c.Jobs.Rootdir, job_group, first_level)
+	err := os.Mkdir(a_dir, 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	b_dir := filepath.Join(c.Jobs.Rootdir, job_group, first_level, second_level)
+	err = os.Mkdir(b_dir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	c_dir := filepath.Join(c.Jobs.Rootdir, job_group, first_level, second_level, third_level)
+	err = os.Mkdir(c_dir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	job_dir := JobGetPath(job_group, job_nr)
+	err = os.Mkdir(job_dir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	job_workspace_dir := filepath.Join(job_dir, "workspace")
 	err = os.Mkdir(job_workspace_dir, 0755)
 	if err != nil {
@@ -208,8 +244,8 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 		log.Fatal(err)
 	}
 	job_group := JobBaseNameFromCommand(jobstr)
-	job_nr := jobGetNextJobNumber(job_group)
-	job_id := fmt.Sprintf("%s/%d", job_group, job_nr)
+	job_nr := jobGetNextJobNumber(job_group, rtdt.Hostname)
+	job_id := JobGetJobID(job_group, job_nr)
 	jobCreateWorkspace(job_group, job_nr)
 	fmt.Println("running job ", job_group, " job id ", job_nr)
 	best_command := jobFindBestCommand(job_group)

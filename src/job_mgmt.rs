@@ -1,3 +1,6 @@
+extern crate crypto;
+extern crate gethostname;
+
 use crate::runtime_data::s5ciRuntimeData;
 use crate::s5ci_config::s5ciConfig;
 use crate::unix_process::*;
@@ -67,20 +70,43 @@ fn get_existing_workspace_path(config: &s5ciConfig, job_id: &str) -> String {
     workspace_path
 }
 
-fn get_next_job_number(config: &s5ciConfig, jobname: &str) -> i32 {
-    use std::fs;
-    let a_min = get_min_job_counter(config, jobname);
-    let job_number = db_get_next_counter_value_with_min(jobname, a_min).unwrap();
-    let job_id = format!("{}/{}", jobname, job_number);
+fn split_job_number(n: &str) -> String {
+    let s1 = &n[0..3];
+    let s2 = &n[3..6];
+    let s3 = &n[6..9];
+    let s4 = &n[9..];
+    format!("{}/{}/{}/{}", s1, s2, s3, s4)
+}
 
-    let jobpath = format!("{}/{}", &config.jobs.rootdir, jobname);
-    let path = Path::new(&jobpath);
-    if !path.is_dir() {
-        fs::create_dir(&path).unwrap();
-    }
+fn get_job_id(jobname: &str, job_number: &str) -> String {
+    let job_number_split = split_job_number(&job_number);
+    let job_id = format!("{}/{}", jobname, job_number_split);
+    return job_id;
+}
+
+fn get_next_job_number(config: &s5ciConfig, jobname: &str) -> String {
+    use crypto::digest::Digest;
+    use crypto::sha1::Sha1;
+    use std::fs;
+    use std::time::{Duration, SystemTime};
+
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let hostname = gethostname::gethostname().into_string().unwrap();
+
+    let to_hash = format!("{} {} {:x}", jobname, hostname, now);
+    let mut hasher = Sha1::new();
+    hasher.input_str(&to_hash);
+    let job_number = hasher.result_str().to_string();
+    let job_number_split = split_job_number(&job_number);
+
+    let job_id = get_job_id(jobname, &job_number);
+
     let new_path = format!("{}/{}", &config.jobs.rootdir, job_id);
     println!("CREATING DIR {}", &new_path);
-    fs::create_dir(&new_path).unwrap();
+    fs::create_dir_all(&new_path).unwrap();
     let workspace_path = get_workspace_path(config, &job_id);
     fs::create_dir(&workspace_path).unwrap();
     job_number
@@ -118,7 +144,7 @@ fn prepare_child_command<'a>(
     child0: &'a mut std::process::Command,
     cmd: &str,
     suffix: &str,
-) -> (String, i32, &'a mut std::process::Command) {
+) -> (String, String, &'a mut std::process::Command) {
     use regex::Regex;
     use std::env;
     use std::process::Command;
@@ -129,7 +155,7 @@ fn prepare_child_command<'a>(
 
     let job_group = basename_from_cmd(cmd);
     let job_nr = get_next_job_number(config, &job_group);
-    let job_id = format!("{}/{}", job_group, job_nr);
+    let job_id = get_job_id(&job_group, &job_nr);
     let log_fname = format!("{}/{}/console{}.txt", config.jobs.rootdir, job_id, suffix);
     println!("LOG file: {}", &log_fname);
     let log_file = open_log_file(&log_fname).unwrap();
@@ -275,7 +301,7 @@ pub fn exec_command(
     let mut child = child0.arg("-c");
     let (a_job_group_name, a_instance_id, mut child) =
         prepare_child_command(config, rtdt, child, cmd, "");
-    let a_full_job_id = format!("{}/{}", &a_job_group_name, a_instance_id);
+    let a_full_job_id = get_job_id(&a_job_group_name, &a_instance_id);
 
     /* change dir to job workspace */
     std::env::set_current_dir(&get_existing_workspace_path(config, &a_full_job_id)).unwrap();

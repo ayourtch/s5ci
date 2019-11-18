@@ -36,6 +36,8 @@ uuid = { version = "0.7", features = ["serde", "v4"] }
 exec = "*"
 cron = "*"
 envy = "*"
+rust-crypto = "*"
+gethostname = "*"
 
 jenkins_parse = { path = "libs/jenkins_parse" }
 

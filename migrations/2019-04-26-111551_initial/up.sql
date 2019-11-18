@@ -10,7 +10,7 @@ CREATE TABLE comments (
 CREATE TABLE jobs (
 	record_uuid VARCHAR(32) NOT NULL PRIMARY KEY,
 	job_group_name VARCHAR NOT NULL,
-	instance_id INT NOT NULL,
+	instance_id VARCHAR NOT NULL,
 	job_id VARCHAR NOT NULL,
 	job_pid INT NOT NULL,
 	parent_job_id VARCHAR,

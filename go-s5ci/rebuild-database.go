@@ -14,12 +14,27 @@ type RebuildDatabaseCommand struct{}
 func db_restore_job_from(root string, group_name string, instance_id string) {
 	job_path := filepath.Join(root, group_name, instance_id, "job.yaml")
 	fi, err := os.Stat(job_path)
-	if err == nil && !fi.IsDir() {
-		fmt.Println("Restoring ", job_path)
-		job, _ := Import_Job_YAML(job_path)
-		db := DbOpen()
-		DbInsertJob(&db, &job)
-		DbClose(&db)
+	if err == nil {
+		if !fi.IsDir() {
+			fmt.Println("Restoring ", job_path)
+			job, _ := Import_Job_YAML(job_path)
+			db := DbOpen()
+			DbInsertJob(&db, &job)
+			DbClose(&db)
+		}
+	} else {
+		/* probably an intermediate dir, try to dive in */
+		group_path := filepath.Join(root, group_name, instance_id)
+		files, err := ioutil.ReadDir(group_path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, f := range files {
+			if f.IsDir() {
+				db_restore_job_from(root, group_name, filepath.Join(instance_id, f.Name()))
+			}
+			fmt.Println(f.Name())
+		}
 	}
 }
 func Db_restore_job_from(root string, group_name string, instance_id string) {

@@ -17,7 +17,7 @@ table! {
     jobs (record_uuid) {
         record_uuid -> Text,
         job_group_name -> Text,
-        instance_id -> Integer,
+        instance_id -> Text,
         job_id -> Text,
         job_pid -> Integer,
         parent_job_id -> Nullable<Text>,

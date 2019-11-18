@@ -280,7 +280,7 @@ type Job struct {
 	// gorm.Model
 	Record_UUID       string `gorm:"size:32;unique_index;not null"`
 	Job_Group_Name    string
-	Instance_ID       int
+	Instance_ID       string
 	Job_ID            string `gorm:"index;not null"`
 	Job_Pid           int
 	Parent_Job_ID     *string
