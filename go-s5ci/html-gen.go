@@ -13,13 +13,24 @@ import (
 	"strings"
 )
 
+func ensureDbPath(job *Job) {
+	job_data_dir := JobGetDataPathFromJobId(job.Job_ID)
+	err := os.MkdirAll(job_data_dir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func SaveJobYaml(job *Job) {
 	c := S5ciOptions.Config
 	d, err := yaml.Marshal(job)
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
+	// write to both places for now
 	writeToFile(filepath.Join(c.Jobs.Rootdir, job.Job_ID, "job.yaml"), string(d))
+	ensureDbPath(job)
+	writeToFile(filepath.Join(JobGetDataPathFromJobId(job.Job_ID), "job.yaml"), string(d))
 }
 func SaveJobJson(job *Job) {
 	c := S5ciOptions.Config
@@ -28,7 +39,10 @@ func SaveJobJson(job *Job) {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
+	// write to both places for now
 	writeToFile(filepath.Join(c.Jobs.Rootdir, job.Job_ID, "job.json"), string(d))
+	ensureDbPath(job)
+	writeToFile(filepath.Join(JobGetDataPathFromJobId(job.Job_ID), "job.json"), string(d))
 }
 
 func compileTemplate(template_name string) (*mustache.Template, error) {

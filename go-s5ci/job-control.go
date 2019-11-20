@@ -150,35 +150,15 @@ func JobGetPath(job_group string, job_nr string) string {
 	return filepath.Join(c.Jobs.Rootdir, job_group, JobSplitJobNR(job_nr))
 }
 
-func jobCreateWorkspace(job_group string, job_nr string) {
+func JobGetDataPathFromJobId(job_id string) string {
 	c := S5ciOptions.Config
-	job_group_dir := filepath.Join(c.Jobs.Rootdir, job_group)
-	_ = os.Mkdir(job_group_dir, 0755)
+	return filepath.Join(c.Jobs.Rootdir, "db", job_id)
+}
 
-	first_level := job_nr[0:3]
-	second_level := job_nr[3:6]
-	third_level := job_nr[6:9]
-
-	a_dir := filepath.Join(c.Jobs.Rootdir, job_group, first_level)
-	err := os.Mkdir(a_dir, 0755)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	b_dir := filepath.Join(c.Jobs.Rootdir, job_group, first_level, second_level)
-	err = os.Mkdir(b_dir, 0755)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	c_dir := filepath.Join(c.Jobs.Rootdir, job_group, first_level, second_level, third_level)
-	err = os.Mkdir(c_dir, 0755)
-	if err != nil {
-		log.Fatal(err)
-	}
+func jobCreateWorkspace(job_group string, job_nr string) {
 
 	job_dir := JobGetPath(job_group, job_nr)
-	err = os.Mkdir(job_dir, 0755)
+	err := os.MkdirAll(job_dir, 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
