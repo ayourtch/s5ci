@@ -74,7 +74,7 @@ func wait_exec_proc(proc *exec.Cmd, job_id string) error {
 					fmt.Println("Interrupt. Quitting")
 					keep_waiting = false
 				}
-				if s == syscall.SIGTERM{
+				if s == syscall.SIGTERM {
 					fmt.Println("Terminate. Quitting")
 					keep_waiting = false
 				}
