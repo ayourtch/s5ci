@@ -99,10 +99,10 @@ done
 #
 # stop the currently active s5ci from spawning new jobs
 #
-ACTIVE_ALLOC_ID=$(cat /local/jobs/heartbeat.json  | jq -r .nomad_alloc_id)
-nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/shutdown-pause.txt
-ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
-nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
+# ACTIVE_ALLOC_ID=$(cat /local/jobs/heartbeat.json  | jq -r .nomad_alloc_id)
+# nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/shutdown-pause.txt
+# ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
+# nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
 
 # stop the poll loops in the already running instances (heartbeat within 120 sec) with the same cluster id
 INSTANCES=$(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; | jq -r "select(.cluster_id==\"${CLUSTER_ID}\")|select((.rsync_timestamp|tonumber) > now-120)|.nomad_alloc_id")
