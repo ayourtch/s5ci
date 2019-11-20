@@ -26,6 +26,7 @@ type S5ciCommand struct {
 	KillJob            KillJobCommand            `command:"kill-job" description:"kill a running job"`
 	ListJobs           ListJobsCommand           `command:"list-jobs" description:"list jobs"`
 	MarkActiveAsFailed MarkActiveAsFailedCommand `command:"mark-active-as-failed" description:"mark all active jobs as failed"`
+	RegenerateHtml     RegenerateHtmlCommand     `command:"regenerate-html" description:"regenerate all of the html"`
 	ProcessGerritReply ProcessGerritReplyCommand `command:"process-gerrit-reply" description:"process saved JSON reply from gerrit"`
 	RebuildDatabase    RebuildDatabaseCommand    `command:"rebuild-database" description:"rebuild database from per-job yaml"`
 	Review             ReviewCommand             `command:"review" description:"review with comment and maybe vote"`

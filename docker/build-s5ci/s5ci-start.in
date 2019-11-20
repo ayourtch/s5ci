@@ -127,9 +127,14 @@ echo "$(date): s5ci database rebuild" >>${TIMELINE_LOG}
 echo PRAGMA journal_mode=WAL | sqlite3 /s5ci/db/s5ci.sqlite3
 RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} rebuild-database >>${DB_REBUILD_LOG}
 # mark active as failed - and if they are alive, they will come back
-echo "$(date): marking still active jobs as failed and doing full sync back" >>${TIMELINE_LOG}
+echo "$(date): marking still active jobs as failed" >>${TIMELINE_LOG}
 RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} mark-active-as-failed >>${DB_REBUILD_LOG}
+
+# the above does the full regenerate of html, so not needed...
+# echo "$(date): regenerate all html" >>${TIMELINE_LOG}
+# RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} regenerate-html >>${DB_REBUILD_LOG}
 # do the full sync to the store
+echo "$(date): doing full sync back" >>${TIMELINE_LOG}
 rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
 echo PRAGMA journal_mode=DELETE | sqlite3 /s5ci/db/s5ci.sqlite3
 
