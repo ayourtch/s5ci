@@ -38,7 +38,7 @@ func S5ciEvent(event string) {
 	rtdt2.PatchsetID = 0
 	rtdt2.TriggerEventID = fmt.Sprintf("s5ci_event_%s", event)
 	command := fmt.Sprintf("s5ci-event-%s", event)
-	JobExecCommand(c, &rtdt2, command)
+	JobSpawnCommand(c, &rtdt2, command)
 }
 
 func PollLoop() {

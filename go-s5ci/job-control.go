@@ -54,10 +54,11 @@ func wait_exec_proc(proc *exec.Cmd, job_id string) error {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
+	keep_waiting := true
 	go func() {
 		for true {
 			s := <-sigc
-			fmt.Println("Process ", child_pid, " got Signal:", s)
+			fmt.Println("Process ", child_pid, " got a Signal:", s)
 			// proc.Process.Signal(s)
 			// syscall.Tgkill(-1, proc.Process.Pid, 3)
 			pgid, err := syscall.Getpgid(proc.Process.Pid)
@@ -69,12 +70,19 @@ func wait_exec_proc(proc *exec.Cmd, job_id string) error {
 					}
 				}
 				syscall.Kill(-pgid, s.(syscall.Signal)) // note the minus sign
+				if s == syscall.SIGINT {
+					fmt.Println("Interrupt. Quitting")
+					keep_waiting = false
+				}
+				if s == syscall.SIGTERM{
+					fmt.Println("Terminate. Quitting")
+					keep_waiting = false
+				}
 			}
 		}
 	}()
 
 	var ret error
-	keep_waiting := true
 	for keep_waiting {
 		time.Sleep(1 * time.Second)
 		select {
