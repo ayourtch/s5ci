@@ -63,6 +63,9 @@ func (command *ListJobsCommand) Execute(args []string) error {
 			if !job_group_seen[job.Job_Group_Name] {
 				fmt.Fprintf(w, "include %s\n", job.Job_Group_Name)
 				fmt.Fprintf(w, "include %s/*\n", job.Job_Group_Name)
+				// sync the db files as well
+				fmt.Fprintf(w, "include db/%s\n", job.Job_Group_Name)
+				fmt.Fprintf(w, "include db/%s/*\n", job.Job_Group_Name)
 				job_group_seen[job.Job_Group_Name] = true
 			}
 			split_nr := JobSplitJobNR(job.Instance_ID)
@@ -74,10 +77,15 @@ func (command *ListJobsCommand) Execute(args []string) error {
 				if !job_group_seen[full_name] {
 					fmt.Fprintf(w, "include %s\n", full_name)
 					fmt.Fprintf(w, "include %s/*\n", full_name)
+					// sync the db files as well
+					fmt.Fprintf(w, "include db/%s\n", full_name)
+					fmt.Fprintf(w, "include db/%s/*\n", full_name)
 					job_group_seen[full_name] = true
 				}
 			}
 			fmt.Fprintf(w, "include %s/%s/**\n", job.Job_Group_Name, JobSplitJobNR(job.Instance_ID))
+			// sync the db files as well
+			fmt.Fprintf(w, "include db/%s/%s/**\n", job.Job_Group_Name, JobSplitJobNR(job.Instance_ID))
 		} else if command.UpdateRootDir != nil {
 			Db_restore_job_from(*command.UpdateRootDir, job.Job_Group_Name, fmt.Sprintf("%d", job.Instance_ID))
 			RegenerateJobHtml(job.Job_ID)
