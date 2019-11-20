@@ -47,7 +47,14 @@ echo "$(date): clone s5ci config from ${S5CI_CONFIG_CLONE_URL}" >>${TIMELINE_LOG
 
 # populate the jobs data from the storage
 echo "$(date): initial rsync data from storage" >>${TIMELINE_LOG}
-rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+if [ -f /local/initial-rsync-filter ]; then
+        echo "$(date): /local/initial-rsync-filter found" >>${TIMELINE_LOG}
+	rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --filter='merge /local/initial-rsync-filter' ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+else
+        echo "$(date): /local/initial-rsync-filter not found - doing full rsync" >>${TIMELINE_LOG}
+        rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+fi
+
 
 # re-copy possibly updated static html to upstream
 echo "$(date): copy html to /local/html" >>${TIMELINE_LOG}
