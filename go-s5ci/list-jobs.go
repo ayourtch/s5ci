@@ -20,6 +20,7 @@ type ListJobsCommand struct {
 
 func (command *ListJobsCommand) Execute(args []string) error {
 	//	var ErrShowHelpMessage = errors.New("list jobs command invoked")
+	rtdt := &S5ciRuntime
 	jobs := DbGetAllJobs()
 	w := bufio.NewWriter(os.Stdout)
 	rsync_output := false
@@ -36,6 +37,10 @@ func (command *ListJobsCommand) Execute(args []string) error {
 	if rsync_output {
 		fmt.Fprintf(w, "include jobs\n")
 		fmt.Fprintf(w, "include jobs/db\n")
+		fmt.Fprintf(w, "include jobs/updatedb\n")
+		fmt.Fprintf(w, "include jobs/updatedb/%s\n", rtdt.Hostname)
+		fmt.Fprintf(w, "include jobs/updatedb/%s/heartbeat.json\n", rtdt.Hostname)
+		fmt.Fprintf(w, "include jobs/updatedb/%s/rsync-filter.txt\n", rtdt.Hostname)
 		fmt.Fprintf(w, "exclude workspace\n")
 	}
 	for i, job := range jobs {

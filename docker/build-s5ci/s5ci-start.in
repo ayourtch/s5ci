@@ -77,7 +77,13 @@ fi
 
 while [ -f /secrets/startup-pause.txt ]; do
 	echo "startup-pause.txt synchronization ... " >>"${INITIAL_RSYNC_LOG}"
-	rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >>"${INITIAL_RSYNC_LOG}"
+	if [ -f /local/initial-rsync-filter ]; then
+		echo "$(date): /local/initial-rsync-filter found" >>${TIMELINE_LOG}
+		rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --filter='merge /local/initial-rsync-filter' ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+	else
+		echo "$(date): /local/initial-rsync-filter not found - doing full rsync" >>${TIMELINE_LOG}
+		rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+	fi
         echo "$(date): /secrets/startup-pause.txt exists - wait 30 sec ..." >>${TIMELINE_LOG}
 	sleep 30
 done
@@ -90,9 +96,15 @@ nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/shutdown-pause.txt
 ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
 nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
 
-
 # sync again, after we have stopped the currently active s5ci
-rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >>"${INITIAL_RSYNC_LOG}"
+if [ -f /local/initial-rsync-filter ]; then
+        echo "$(date): /local/initial-rsync-filter found" >>${TIMELINE_LOG}
+	rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --filter='merge /local/initial-rsync-filter' ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+else
+        echo "$(date): /local/initial-rsync-filter not found - doing full rsync" >>${TIMELINE_LOG}
+        rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+fi
+
 echo "$(date): s5ci database rebuild" >>${TIMELINE_LOG}
 # put the transaction mode to WAL for somewhat better performance
 echo PRAGMA journal_mode=WAL | sqlite3 /s5ci/db/s5ci.sqlite3
@@ -123,12 +135,16 @@ while (true); do
         echo "$(date): rsync back" >>${BACK_RSYNC_LOG}
 	# rsync a tiny file upstream each second so people know we are alive
         printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID}> /local/jobs/heartbeat.json
+	UPDATE_DIR="/local/jobs/updatedb/${hostname}"
+	mkdir -p ${UPDATE_DIR} || true
+        printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID}> ${UPDATE_DIR}/heartbeat.json
 
 	# prepare the file list of jobs that changed status in the last 10 minutes
 	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -t 600 -e $(hostname)
 	if [ -f /local/back-sync-adjust-list ]; then
 		bash -c /local/back-sync-adjust-list >>${BACK_RSYNC_LOG}
 	fi
+	cp /tmp/s5ci-rsync-list ${UPDATE_DIR}/rsync-filter.txt
 
 	# rsync the html UI and data, do not delete
 	# rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
