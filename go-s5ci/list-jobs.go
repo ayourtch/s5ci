@@ -35,6 +35,7 @@ func (command *ListJobsCommand) Execute(args []string) error {
 	ts_now := UnixTimeNow()
 	if rsync_output {
 		fmt.Fprintf(w, "include jobs\n")
+		fmt.Fprintf(w, "include jobs/db\n")
 		fmt.Fprintf(w, "exclude workspace\n")
 	}
 	for i, job := range jobs {
