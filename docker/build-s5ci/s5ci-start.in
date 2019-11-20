@@ -135,7 +135,7 @@ while (true); do
         echo "$(date): rsync back" >>${BACK_RSYNC_LOG}
 	# rsync a tiny file upstream each second so people know we are alive
         printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID}> /local/jobs/heartbeat.json
-	UPDATE_DIR="/local/jobs/updatedb/${hostname}"
+	UPDATE_DIR="/local/jobs/updatedb/$(hostname)"
 	mkdir -p ${UPDATE_DIR} || true
         printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID}> ${UPDATE_DIR}/heartbeat.json
 
