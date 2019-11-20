@@ -45,6 +45,14 @@ ssh-keyscan -H -p 29418 testgerrit.myvpp.net >>~/.ssh/known_hosts
 echo "$(date): clone s5ci config from ${S5CI_CONFIG_CLONE_URL}" >>${TIMELINE_LOG}
 (cd /local; git clone ${S5CI_CONFIG_CLONE_URL} s5ci-configs)
 
+if [ -f /local/cluster-id ]; then
+	export CLUSTER_ID=$(cat /local/cluster-id)
+else
+	echo $(hostname) >/local/cluster-id
+	export CLUSTER_ID=$(cat /local/cluster-id)
+fi
+echo "$(date): CLUSTER_ID value set to: ${CLUSTER_ID}" >>${TIMELINE_LOG}
+
 # populate the jobs data from the storage
 echo "$(date): initial rsync data from storage" >>${TIMELINE_LOG}
 if [ -f /local/initial-rsync-filter ]; then
@@ -96,6 +104,15 @@ nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/shutdown-pause.txt
 ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
 nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
 
+# stop the poll loops in the already running instances (heartbeat within 120 sec) with the same cluster id
+INSTANCES=$(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; | jq -r "select(.cluster_id==\"${CLUSTER_ID}\")|select((.rsync_timestamp|tonumber) > now-120)|.nomad_alloc_id")
+for ACTIVE_ALLOC_ID in $INSTANCES; do
+	echo "$(date): instance ${inst} has the same cluster id, stopping poll loop..." >>${TIMELINE_LOG}
+	nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/shutdown-pause.txt
+	ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
+	nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
+done
+
 # sync again, after we have stopped the currently active s5ci
 if [ -f /local/initial-rsync-filter ]; then
         echo "$(date): /local/initial-rsync-filter found" >>${TIMELINE_LOG}
@@ -137,7 +154,7 @@ while (true); do
         printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID}> /local/jobs/heartbeat.json
 	UPDATE_DIR="/local/jobs/updatedb/$(hostname)"
 	mkdir -p ${UPDATE_DIR} || true
-        printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID}> ${UPDATE_DIR}/heartbeat.json
+        printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s", "cluster_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') "${NOMAD_JOB_ID}" "${CLUSTER_ID} > ${UPDATE_DIR}/heartbeat.json
 
 	# prepare the file list of jobs that changed status in the last 10 minutes
 	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -t 600 -e $(hostname)
