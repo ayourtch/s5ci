@@ -291,6 +291,7 @@ type Job struct {
 	Remote_Host       *string /* can be null */
 	Status_Message    string
 	Status_Updated_At *S5Time // `sql:"type:time"`
+	Updated_At        *S5Time // `sql:"tupe:time"`
 	Started_At        *S5Time // `sql:"type:time"`
 	Finished_At       *S5Time // `sql:"type:time"`
 	Return_Success    bool

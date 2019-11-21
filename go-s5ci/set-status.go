@@ -19,6 +19,7 @@ func (command *SetStatusCommand) Execute(args []string) error {
 	s5now := S5Now()
 	job.Status_Message = command.Message
 	job.Status_Updated_At = &s5now
+	job.Updated_At = &s5now
 	DbSaveJob(&db, job)
 	RegenerateJobHtml(command.JobID)
 	return nil

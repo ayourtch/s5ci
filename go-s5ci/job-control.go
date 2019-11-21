@@ -300,6 +300,7 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 		Remote_Host:      &rtdt.Hostname,
 		Status_Message:   "",
 		Trigger_Event_ID: rtdt.TriggerEventID,
+		Updated_At:       &now,
 		Started_At:       &now}
 
 	db := DbOpen()
@@ -326,6 +327,7 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 		}
 	}
 	finished_now := S5Now()
+	new_job.Updated_At = &finished_now
 	new_job.Finished_At = &finished_now
 	new_job.Return_Success = exec_success
 	new_job.Return_Code = &exec_retcode

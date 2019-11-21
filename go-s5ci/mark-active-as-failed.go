@@ -16,6 +16,7 @@ func (command *MarkActiveAsFailedCommand) Execute(args []string) error {
 	for i, job := range jobs {
 		now := S5Now()
 		fmt.Println(i, " = ", job)
+		job.Updated_At = &now
 		job.Finished_At = &now
 		job.Return_Success = false
 		retcode := 7777

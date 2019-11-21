@@ -44,6 +44,7 @@ pub struct job {
     pub remote_host: Option<String>,
     pub status_message: String,
     pub status_updated_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
     pub started_at: Option<NaiveDateTime>,
     pub finished_at: Option<NaiveDateTime>,
     pub return_success: bool,

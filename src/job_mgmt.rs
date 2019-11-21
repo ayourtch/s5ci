@@ -274,6 +274,7 @@ pub fn db_set_job_finished(
 
         let updated_rows = diesel::update(jobs.filter(job_id.eq(&a_job_id)))
             .set((
+                updated_at.eq(some_ndt_now),
                 finished_at.eq(some_ndt_now),
                 return_success.eq(a_status_success),
                 return_code.eq(status_code),
@@ -324,6 +325,7 @@ pub fn exec_command(
         status_message: format!(""),
         status_updated_at: None,
         remote_host: None,
+        updated_at: Some(now_naive_date_time()),
         started_at: Some(now_naive_date_time()),
         finished_at: None,
         return_success: false,

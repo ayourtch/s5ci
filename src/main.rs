@@ -195,6 +195,7 @@ fn do_set_job_status(config: &s5ciConfig, rtdt: &s5ciRuntimeData, a_job_id: &str
             .set((
                 status_message.eq(a_msg.to_string()),
                 status_updated_at.eq(some_ndt_now),
+                updated_at.eq(some_ndt_now),
             ))
             .execute(db.conn())
             .unwrap();
