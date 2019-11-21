@@ -188,6 +188,8 @@ func structToLowerMap(in interface{}) map[string]interface{} {
 			result[strings.ToLower(name)] = v.Field(i).Interface()
 		}
 	}
+	result["short_job_id"] = JobShortenJobId(result["job_id"].(string))
+	result["short_instance_id"] = JobShortenInstanceId(result["instance_id"].(string))
 	return result
 }
 

@@ -168,6 +168,7 @@ type DevTestCommand struct {
 	TemplateFile   string  `short:"t" long:"template" description:"template file"`
 	CommandToSpawn *string `short:"c" long:"command-to-spawn" description:"commmand to spawn"`
 	RegenerateHtml bool    `short:"r" long:"regenerate-html" description:"regenerate all html"`
+	JobId          string  `short:"j" long:"job-id" description:"job-id to shorten"`
 }
 
 type Foo struct {
@@ -178,6 +179,11 @@ type Foo struct {
 func (command *DevTestCommand) Execute(args []string) error {
 	var ErrShowHelpMessage = errors.New("run dev test")
 	fmt.Println("Dev Test")
+
+	if command.JobId != "" {
+		res := JobShortenJobId(command.JobId)
+		fmt.Println("Short job id: ", res)
+	}
 	if command.CommandToSpawn != nil {
 		c := &S5ciOptions.Config
 		rtdt := &S5ciRuntime

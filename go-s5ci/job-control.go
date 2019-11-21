@@ -149,6 +149,22 @@ func JobSplitJobNR(job_nr string) string {
 	}
 }
 
+func JobShortenJobId(job_id string) string {
+	i := strings.LastIndex(job_id, "/")
+	if i >= 0 {
+		return job_id[0:i]
+	}
+	return job_id
+}
+
+func JobShortenInstanceId(instance_id string) string {
+	if len(instance_id) > 9 {
+		return instance_id[0:9]
+	} else {
+		return instance_id
+	}
+}
+
 func JobGetJobID(job_group string, job_nr string) string {
 	return filepath.Join(job_group, JobSplitJobNR(job_nr))
 }
