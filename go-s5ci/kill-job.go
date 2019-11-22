@@ -21,13 +21,15 @@ func DoKillJob(job_id string, terminator string) {
 	if job.Command_Pid != nil {
 		fmt.Printf("Requested to kill a job, sending signal to pid %d from job %s", job.Job_Pid, job_id)
 		syscall.Kill(job.Job_Pid, syscall.SIGINT)
-		if job.Finished_At == nil {
-			s5now := S5Now()
-			job.Status_Message = fmt.Sprintf("Terminated by the %s", terminator)
-			job.Status_Updated_At = &s5now
-			DbSaveJob(&db, job)
-			RegenerateJobHtml(job_id)
-		}
+	}
+	if job.Finished_At == nil {
+		s5now := S5Now()
+		job.Status_Message = fmt.Sprintf("Terminated by the %s", terminator)
+		job.Status_Updated_At = &s5now
+		job.Updated_At = &s5now
+		job.Finished_At = &s5now
+		DbSaveJob(&db, job)
+		RegenerateJobHtml(job_id)
 	}
 }
 
