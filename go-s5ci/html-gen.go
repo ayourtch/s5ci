@@ -148,6 +148,9 @@ func RegenerateActiveHtml() {
 		out_cjs[i] = structToLowerMap(elem)
 	}
 	data["child_jobs"] = out_cjs
+	data["now"] = S5Now()
+        rtdt := &S5ciRuntime
+	data["hostname"] = rtdt.Hostname
 	writeToFile(filepath.Join(c.Jobs.Rootdir, "active.html"), template.Render(&data))
 }
 
@@ -166,6 +169,9 @@ func RegenerateGroupHtml(group_name string) {
 	}
 	data["child_jobs"] = out_cjs
 	data["job_group_name"] = group_name
+	data["now"] = S5Now()
+        rtdt := &S5ciRuntime
+	data["hostname"] = rtdt.Hostname
 	writeToFile(filepath.Join(c.Jobs.Rootdir, group_name, "index.html"), template.Render(&data))
 }
 
@@ -224,6 +230,9 @@ func regenerateHtml(job_id string, update_parent bool, update_children bool, gro
 		out_cjs[i] = structToLowerMap(elem)
 	}
 	data["child_jobs"] = out_cjs
+	data["now"] = S5Now()
+        rtdt := &S5ciRuntime
+	data["hostname"] = rtdt.Hostname
 
 	archive_dir_name := filepath.Join(c.Jobs.Rootdir, job_id, "archive")
 	if s, err := os.Stat(archive_dir_name); err == nil && s.IsDir() {
