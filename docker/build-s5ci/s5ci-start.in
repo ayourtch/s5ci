@@ -241,6 +241,16 @@ RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${META_S5CI_CONFIG_PAT
 # execute the s5ci. 
 RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH}
 
+while true; do
+	REMAINING_JOBS=$(ps -ef | grep run-job | grep -v grep | wc -l)
+	if [ "$REMAINING_JOBS" == "0" ]; then
+		echo "$(date): No remaining jobs running!" >>${TIMELINE_LOG}
+		break
+	fi
+	echo "$(date): $REMAINING_JOBS jobs remain - wait 300 sec..." >>${TIMELINE_LOG}
+	sleep 300
+done
+
 
 # if instructed - wait
 while [ -f /secrets/shutdown-pause.txt ]; do
