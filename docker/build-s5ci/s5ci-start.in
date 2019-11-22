@@ -92,6 +92,7 @@ while [ -f /secrets/startup-pause.txt ]; do
 		echo "$(date): /local/initial-rsync-filter not found - doing full rsync" >>${TIMELINE_LOG}
 		rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
 	fi
+	echo "Initial rsync ret code: $?" >>${TIMELINE_LOG}
         echo "$(date): /secrets/startup-pause.txt exists - wait 30 sec ..." >>${TIMELINE_LOG}
 	sleep 30
 done
@@ -111,6 +112,7 @@ RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} mark-
 # do the full sync to the store
 echo "$(date): doing full sync back" >>${TIMELINE_LOG}
 rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
+echo "Back rsync ret code: $?" >>${TIMELINE_LOG}
 echo PRAGMA journal_mode=DELETE | sqlite3 /s5ci/db/s5ci.sqlite3
 
 #
@@ -121,6 +123,8 @@ echo PRAGMA journal_mode=DELETE | sqlite3 /s5ci/db/s5ci.sqlite3
 # ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
 # nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
 
+echo "Active instance dir:" >>${TIMELINE_LOG}
+ls -al /local/jobs/updatedb/ >>${TIMELINE_LOG}
 # stop the poll loops in the already running instances (heartbeat within 120 sec) with the same cluster id
 INSTANCES=$(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; | jq -r "select(.cluster_id==\"${CLUSTER_ID}\")|select((.rsync_timestamp|tonumber) > now-120)|.nomad_alloc_id")
 for ACTIVE_ALLOC_ID in $INSTANCES; do
@@ -167,6 +171,7 @@ while (true); do
 	# rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
 
 	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/s5ci-rsync-list' /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
+	echo "RSYNC ret code: $?" >>${BACK_RSYNC_LOG}
 	if [ -f /local/back-sync-exec ]; then
 		bash -c /local/back-sync-exec >>${BACK_RSYNC_LOG}
 	fi
@@ -186,9 +191,10 @@ __EE__
 
 while (true); do
 	# rsync the list of updates, except our own 
-	rsync -avz -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/downstream-rsync-filter' ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
 	MY_HOST=$(hostname)
 	echo "${MY_HOST} starting update from other hosts on $(date):" >/local/logs/job-import.log
+	rsync -avz -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/downstream-rsync-filter' ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}" >>/local/logs/job-import.log
+	echo "RSYNC ret code: $?" >>/local/logs/job-import.log
 	for A_HOST in $(ls /local/jobs/updatedb); do
 		if [ "$A_HOST" == "$MY_HOST" ]; then 
 			echo not updating from ourselves
@@ -198,6 +204,7 @@ while (true); do
 			# rsync the list of jobs we know are maybe still sitting on other hosts
 			RSYNC_FILTER="merge /local/jobs/updatedb/$A_HOST/rsync-filter.txt"
 			rsync -avz -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter="$RSYNC_FILTER" ${STORAGE_USER}@${STORAGE_HOST}: /local/ 2>>${JOB_IMPORT_LOG} >>${JOB_IMPORT_LOG}
+	                echo "RSYNC ret code: $?" >>${JOB_IMPORT_LOG}
 			# re-import the data from yaml files into the database
 			go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -t 600 -n $(hostname) -u /local/jobs/db -y /local/jobs/updatedb/$A_HOST/updated-jobs.yaml 2>>${JOB_IMPORT_LOG} >>${JOB_IMPORT_LOG}
 
