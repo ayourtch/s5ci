@@ -4,14 +4,21 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 type ListJobsCommand struct {
 	TimeHorizonSec    int     `short:"t" long:"time-horizon" description:"Time horizon for stopped jobs, seconds"`
 	RsyncFileListName string  `short:"r" long:"rsync-file-list" description:"File list for rsync"`
+	JsonJobListName   string  `short:"j" long:"json-job-list" description:"list of job IDs in json"`
+	YamlJobListName   string  `short:"y" long:"yaml-job-list" description:"list of job IDs in yaml"`
 	EqualsHostname    *string `short:"e" long:"equals-hostname" description:"Check hostname being equal to this"`
 	NotEqualsHostname *string `short:"n" long:"not-equals-hostname" description:"Check hostname NOT being equal to this"`
 	UpdateRootDir     *string `short:"u" long:"update-from-root" description:"Update the specified jobs from a job root"`
@@ -24,6 +31,20 @@ func (command *ListJobsCommand) Execute(args []string) error {
 	jobs := DbGetAllJobs()
 	w := bufio.NewWriter(os.Stdout)
 	rsync_output := false
+	json_output := false
+	yaml_output := false
+	precise_job_update_list := false
+	// if the update root directory was specified, the json list is the *input*
+	if command.JsonJobListName != "" && command.UpdateRootDir == nil {
+		json_output = true
+	}
+	if command.YamlJobListName != "" && command.UpdateRootDir == nil {
+		yaml_output = true
+	}
+	if (command.JsonJobListName != "" || command.YamlJobListName != "") && command.UpdateRootDir != nil {
+		precise_job_update_list = true
+	}
+	updated_jobs_list := make([]string, 0)
 	if command.RsyncFileListName != "" {
 		rsync_output = true
 		f, err := os.Create(command.RsyncFileListName)
@@ -41,6 +62,8 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		fmt.Fprintf(w, "include jobs/updatedb/%s\n", rtdt.Hostname)
 		fmt.Fprintf(w, "include jobs/updatedb/%s/heartbeat.json\n", rtdt.Hostname)
 		fmt.Fprintf(w, "include jobs/updatedb/%s/rsync-filter.txt\n", rtdt.Hostname)
+		fmt.Fprintf(w, "include jobs/updatedb/%s/updated-jobs.json\n", rtdt.Hostname)
+		fmt.Fprintf(w, "include jobs/updatedb/%s/updated-jobs.yaml\n", rtdt.Hostname)
 		fmt.Fprintf(w, "exclude workspace\n")
 	}
 	for i, job := range jobs {
@@ -64,6 +87,9 @@ func (command *ListJobsCommand) Execute(args []string) error {
 			if *command.NotEqualsHostname == *job.Remote_Host {
 				continue
 			}
+		}
+		if json_output {
+			updated_jobs_list = append(updated_jobs_list, job.Job_ID)
 		}
 		if rsync_output {
 			if !job_group_seen[job.Job_Group_Name] {
@@ -93,8 +119,10 @@ func (command *ListJobsCommand) Execute(args []string) error {
 			// sync the db files as well
 			fmt.Fprintf(w, "include db/%s/%s/**\n", job.Job_Group_Name, JobSplitJobNR(job.Instance_ID))
 		} else if command.UpdateRootDir != nil {
-			Db_restore_job_from(*command.UpdateRootDir, job.Job_Group_Name, fmt.Sprintf("%d", job.Instance_ID))
-			RegenerateJobHtml(job.Job_ID)
+			if !precise_job_update_list {
+				Db_restore_job_from(filepath.Join(*command.UpdateRootDir, job.Job_ID))
+				RegenerateJobHtml(job.Job_ID)
+			}
 		} else {
 			fmt.Printf("job %d: %s\n", i, job)
 			YamlDump(job)
@@ -109,7 +137,52 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		}
 		fmt.Fprintf(w, "exclude *\n")
 	}
+	if json_output {
+		d, err := json.MarshalIndent(updated_jobs_list, "", "  ")
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		writeToFile(command.JsonJobListName, string(d))
+	}
+	if yaml_output {
+		d, err := yaml.Marshal(updated_jobs_list)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		writeToFile(command.YamlJobListName, string(d))
+	}
 	w.Flush()
+	if precise_job_update_list {
+		jobs_list := make([]string, 0)
+		if command.JsonJobListName != "" {
+			data, err := ioutil.ReadFile(command.JsonJobListName)
+			if err != nil {
+				log.Fatalf("error: %v", err)
+			}
+
+			err = json.Unmarshal([]byte(data), &jobs_list)
+			if err != nil {
+				log.Fatalf("error: %v", err)
+			}
+		}
+		if command.YamlJobListName != "" {
+			data, err := ioutil.ReadFile(command.YamlJobListName)
+			if err != nil {
+				log.Fatalf("error: %v", err)
+			}
+
+			err = yaml.Unmarshal([]byte(data), &jobs_list)
+			if err != nil {
+				log.Fatalf("error: %v", err)
+			}
+		}
+		for _, job_id := range jobs_list {
+			fmt.Printf("Restoring/updating job %s\n", job_id)
+			Db_restore_job_from(filepath.Join(*command.UpdateRootDir, job_id))
+			RegenerateJobHtml(job_id)
+		}
+
+	}
 	return nil
 	//return ErrShowHelpMessage
 }

@@ -11,8 +11,8 @@ import (
 
 type RebuildDatabaseCommand struct{}
 
-func db_restore_job_from(root string, group_name string, instance_id string) {
-	job_path := filepath.Join(root, group_name, instance_id, "job.yaml")
+func db_restore_job_from(dir_path string) {
+	job_path := filepath.Join(dir_path, "job.yaml")
 	fi, err := os.Stat(job_path)
 	if err == nil {
 		if !fi.IsDir() {
@@ -24,32 +24,35 @@ func db_restore_job_from(root string, group_name string, instance_id string) {
 		}
 	} else {
 		/* probably an intermediate dir, try to dive in */
-		group_path := filepath.Join(root, group_name, instance_id)
+		group_path := dir_path
 		files, err := ioutil.ReadDir(group_path)
 		if err != nil {
 			log.Fatal(err)
 		}
 		for _, f := range files {
 			if f.IsDir() {
-				db_restore_job_from(root, group_name, filepath.Join(instance_id, f.Name()))
+				db_restore_job_from(filepath.Join(dir_path, f.Name()))
 			}
 			fmt.Println(f.Name())
 		}
 	}
 }
-func Db_restore_job_from(root string, group_name string, instance_id string) {
-	db_restore_job_from(root, group_name, instance_id)
+func Db_restore_job_from(dir_path string) {
+	db_restore_job_from(dir_path)
 }
-
 func db_restore_job_group_from(root string, group_name string) {
 	group_path := filepath.Join(root, group_name)
+	db_restore_job_group_from_path(group_path)
+}
+
+func db_restore_job_group_from_path(group_path string) {
 	files, err := ioutil.ReadDir(group_path)
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, f := range files {
 		if f.IsDir() {
-			db_restore_job_from(root, group_name, f.Name())
+			db_restore_job_from(filepath.Join(group_path, f.Name()))
 		}
 		fmt.Println(f.Name())
 	}

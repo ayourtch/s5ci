@@ -155,11 +155,13 @@ while (true); do
         printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s", "cluster_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') "${NOMAD_JOB_ID}" "${CLUSTER_ID}" > ${UPDATE_DIR}/heartbeat.json
 
 	# prepare the file list of jobs that changed status in the last 10 minutes
-	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -t 600 -e $(hostname)
+	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -j /tmp/s5ci-updated-jobs.json -y /tmp/s5ci-updated-jobs.yaml -t 600 -e $(hostname)
 	if [ -f /local/back-sync-adjust-list ]; then
 		bash -c /local/back-sync-adjust-list >>${BACK_RSYNC_LOG}
 	fi
 	cp /tmp/s5ci-rsync-list ${UPDATE_DIR}/rsync-filter.txt
+	cp /tmp/s5ci-updated-jobs.json ${UPDATE_DIR}/updated-jobs.json
+	cp /tmp/s5ci-updated-jobs.yaml ${UPDATE_DIR}/updated-jobs.yaml
 
 	# rsync the html UI and data, do not delete
 	# rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
@@ -174,15 +176,34 @@ BACKSYNC_PID=$!
 
 
 ### sync the jobs from other hosts which were in a drain mode
+cat <<__EE__ >/tmp/downstream-rsync-filter
+include jobs
+include jobs/updatedb
+include jobs/updatedb/**
+exclude jobs/updatedb/$(hostname)
+exclude *
+__EE__
+
 while (true); do
-	# get the list of jobs either still running or just finished, on other hosts
-	go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -t 600 -r /tmp/s5ci-rsync-other-hosts -n $(hostname)
-	# rsync the list of jobs we know are maybe still sitting on other hosts
-	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/s5ci-rsync-other-hosts' ${STORAGE_USER}@${STORAGE_HOST}: /local/ 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
-	# re-import the data from yaml files into the database
-	go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -t 600 -n $(hostname) -u /local/jobs
-	# sleep 5 minutes
-	sleep 300
+	# rsync the list of updates, except our own 
+	rsync -avz -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/downstream-rsync-filter' ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+	MY_HOST=$(hostname)
+	echo "${MY_HOST} starting update from other hosts on $(date):" >/local/logs/job-import.log
+	for A_HOST in $(ls /local/jobs/updatedb); do
+		if [ "$A_HOST" == "$MY_HOST" ]; then 
+			echo not updating from ourselves
+		else
+			echo "${A_HOST} on $(date):" >>/local/logs/job-import.log
+			# rsync the list of jobs we know are maybe still sitting on other hosts
+			RSYNC_FILTER="merge /local/jobs/updatedb/$A_HOST/rsync-filter.txt"
+			rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter=$RSYNC_FILTER ${STORAGE_USER}@${STORAGE_HOST}: /local/ 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
+			# re-import the data from yaml files into the database
+			go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -t 600 -n $(hostname) -u /local/jobs/db -y /local/jobs/updatedb/$A_HOST/updated-jobs.yaml 2>>/local/logs/job-import-$A_HOST.log >>/local/logs/job-import-$A_HOST.log
+
+		fi
+	done
+	echo "${MY_HOST} finished update from other hosts on $(date):" >>/local/logs/job-import.log
+	sleep 5
 
 done &
 DRAINSYNC_PID=$!
