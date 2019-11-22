@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/erikdubbelboer/gspt"
 	"github.com/jessevdk/go-flags"
 	"github.com/vito/twentythousandtonnesofcrudeoil"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var opts struct {
@@ -87,6 +89,7 @@ func S5ciCommandHandler(command flags.Commander, args []string) error {
 
 func main() {
 	var Version = "0.1"
+	gspt.SetProcTitle(strings.Join(os.Args, " "))
 
 	S5ciOptions.Version = func() {
 		fmt.Println(Version)
