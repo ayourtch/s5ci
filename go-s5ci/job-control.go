@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha1"
 	"fmt"
+	"github.com/erikdubbelboer/gspt"
 	"log"
 	"os"
 	"os/exec"
@@ -306,7 +307,7 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 	db := DbOpen()
 	DbInsertJob(&db, &new_job)
 	StartingJob(new_job.Job_ID)
-        /// SetProcTitle(fmt.Sprintf("s5ci run-job %s", job_id))
+	gspt.SetProcTitle(fmt.Sprintf("s5ci run-job %s", job_id))
 
 	syscall.Setsid()
 	proc := start_exec_fg_with_redir(new_command, jobGetConsolePath(job_id), jobGetWorkspacePath(job_id), new_env)
