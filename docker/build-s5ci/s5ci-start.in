@@ -242,6 +242,10 @@ cleanup()
         echo "Done cleanup"
 }
 
+#
+# blast away the update-db directory on the store, it will be recreated by active instances - this way less cruft for all.
+mkdir /tmp/empty
+rsync -avz --delete -e 'ssh -p23 -i/secrets/s5ci-key' --recursive /tmp/empty/ ${STORAGE_USER}@${STORAGE_HOST}:jobs/updatedb/
 
 # execute the meta-s5ci
 RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${META_S5CI_CONFIG_PATH} 2>>${META_S5CI_LOG} >>${META_S5CI_LOG} &
