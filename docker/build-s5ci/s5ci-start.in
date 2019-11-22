@@ -194,11 +194,12 @@ while (true); do
 			echo not updating from ourselves
 		else
 			echo "${A_HOST} on $(date):" >>/local/logs/job-import.log
+			JOB_IMPORT_LOG="/local/logs/job-import-$A_HOST.log"
 			# rsync the list of jobs we know are maybe still sitting on other hosts
 			RSYNC_FILTER="merge /local/jobs/updatedb/$A_HOST/rsync-filter.txt"
-			rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter=$RSYNC_FILTER ${STORAGE_USER}@${STORAGE_HOST}: /local/ 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
+			rsync -avz -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter="$RSYNC_FILTER" ${STORAGE_USER}@${STORAGE_HOST}: /local/ 2>>${JOB_IMPORT_LOG} >>${JOB_IMPORT_LOG}
 			# re-import the data from yaml files into the database
-			go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -t 600 -n $(hostname) -u /local/jobs/db -y /local/jobs/updatedb/$A_HOST/updated-jobs.yaml 2>>/local/logs/job-import-$A_HOST.log >>/local/logs/job-import-$A_HOST.log
+			go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -t 600 -n $(hostname) -u /local/jobs/db -y /local/jobs/updatedb/$A_HOST/updated-jobs.yaml 2>>${JOB_IMPORT_LOG} >>${JOB_IMPORT_LOG}
 
 		fi
 	done
@@ -241,9 +242,16 @@ RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${META_S5CI_CONFIG_PAT
 # execute the s5ci. 
 RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH}
 
+# stop syncing the html back and the root heartbeat
+cat <<__EE__ >/local/back-sync-adjust-list
+#!/bin/sh
+sed -i -e '/\.html/d' -e '/include heartbeat.json/d' /tmp/s5ci-rsync-list
+__EE__
+chmod +x /local/back-sync-adjust-list
+
 while true; do
 	REMAINING_JOBS=$(ps -ef | grep run-job | grep -v grep | wc -l)
-	if [ "$REMAINING_JOBS" == "0" ]; then
+	if [ "$REMAINING_JOBS" = "0" ]; then
 		echo "$(date): No remaining jobs running!" >>${TIMELINE_LOG}
 		break
 	fi
