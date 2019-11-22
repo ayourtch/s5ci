@@ -261,6 +261,7 @@ func RegenerateJobHtml(job_id string) {
 		RegenerateGroupHtml(group_name)
 	}
 	RegenerateActiveHtml()
+	RegenerateRootHtml()
 }
 
 func StartingJob(job_id string) {
