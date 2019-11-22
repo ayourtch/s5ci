@@ -132,6 +132,9 @@ func RegenerateRootHtml() {
 		out_cjs[i] = structToLowerMap(elem)
 	}
 	data["child_jobs"] = out_cjs
+	data["now"] = S5Now()
+        rtdt := &S5ciRuntime
+	data["hostname"] = rtdt.Hostname
 	writeToFile(fname, template.Render(&data))
 }
 
