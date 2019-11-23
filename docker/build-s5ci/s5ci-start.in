@@ -169,11 +169,15 @@ while (true); do
 
 	# rsync the html UI and data, do not delete
 	# rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
+	while [ -f /secrets/upstream-sync-pause.txt ]; do
+		echo "$(date): /secrets/upstream-sync-pause.txt exists - wait 30 sec..." >>${TIMELINE_LOG}
+		sleep 30
+	done
 
 	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/s5ci-rsync-list' /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
 	echo "RSYNC ret code: $?" >>${BACK_RSYNC_LOG}
-	if [ -f /local/back-sync-exec ]; then
-		bash -c /local/back-sync-exec >>${BACK_RSYNC_LOG}
+	if [ -f /local/upstream-sync-exec ]; then
+		bash -c /local/upstream-sync-exec >>${BACK_RSYNC_LOG}
 	fi
 done &
 
@@ -192,7 +196,7 @@ __EE__
 while (true); do
 	# rsync the list of updates, except our own 
 	MY_HOST=$(hostname)
-	echo "${MY_HOST} starting update from other hosts on $(date):" >/local/logs/job-import.log
+	echo "${MY_HOST} starting update from other hosts on $(date):" >>/local/logs/job-import.log
 	rsync -avz -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/downstream-rsync-filter' ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}" >>/local/logs/job-import.log
 	echo "RSYNC ret code: $?" >>/local/logs/job-import.log
 	for A_HOST in $(ls /local/jobs/updatedb); do
@@ -202,6 +206,7 @@ while (true); do
 			echo "${A_HOST} on $(date):" >>/local/logs/job-import.log
 			JOB_IMPORT_LOG="/local/logs/job-import-$A_HOST.log"
 			# rsync the list of jobs we know are maybe still sitting on other hosts
+			echo "$(date): starting update from ${A_HOST}:" >>${JOB_IMPORT_LOG}
 			RSYNC_FILTER="merge /local/jobs/updatedb/$A_HOST/rsync-filter.txt"
 			rsync -avz -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter="$RSYNC_FILTER" ${STORAGE_USER}@${STORAGE_HOST}: /local/ 2>>${JOB_IMPORT_LOG} >>${JOB_IMPORT_LOG}
 	                echo "RSYNC ret code: $?" >>${JOB_IMPORT_LOG}
@@ -210,7 +215,14 @@ while (true); do
 
 		fi
 	done
+	if [ -f /local/downstream-sync-exec ]; then
+		bash -c /local/downstream-sync-exec >>/local/logs/job-import.log
+	fi
 	echo "${MY_HOST} finished update from other hosts on $(date):" >>/local/logs/job-import.log
+	while [ -f /secrets/downstream-sync-pause.txt ]; do
+		echo "$(date): /secrets/downstream-sync-pause.txt exists - wait 30 sec..." >>${TIMELINE_LOG}
+		sleep 30
+	done
 	sleep 5
 
 done &
