@@ -15,22 +15,24 @@ import (
 )
 
 type ListJobsCommand struct {
-	TimeHorizonSec    int     `short:"t" long:"time-horizon" description:"Time horizon for stopped jobs, seconds"`
-	RsyncFileListName string  `short:"r" long:"rsync-file-list" description:"File list for rsync"`
-	JsonJobListName   string  `short:"j" long:"json-job-list" description:"list of job IDs in json"`
-	YamlJobListName   string  `short:"y" long:"yaml-job-list" description:"list of job IDs in yaml"`
-	EqualsHostname    *string `short:"e" long:"equals-hostname" description:"Check hostname being equal to this"`
-	NotEqualsHostname *string `short:"n" long:"not-equals-hostname" description:"Check hostname NOT being equal to this"`
-	UpdateRootDir     *string `short:"u" long:"update-from-root" description:"Update the specified jobs from a job root"`
-	DrainMode         bool    `short:"d" long:"drain-mode" description:"make list suitable for drain mode"`
+	TimeHorizonSec      int     `short:"t" long:"time-horizon" description:"Time horizon for stopped jobs, seconds"`
+	RsyncFileListName   string  `short:"r" long:"rsync-file-list" description:"File list for rsync"`
+	JsonJobListName     string  `short:"j" long:"json-job-list" description:"list of job IDs in json"`
+	YamlJobListName     string  `short:"y" long:"yaml-job-list" description:"list of job IDs in yaml"`
+	EqualsHostname      *string `short:"e" long:"equals-hostname" description:"Check hostname being equal to this"`
+	NotEqualsHostname   *string `short:"n" long:"not-equals-hostname" description:"Check hostname NOT being equal to this"`
+	UpdateRootDir       *string `short:"u" long:"update-from-root" description:"Update the specified jobs from a job root"`
+	DbRsyncFileListName string  `short:"d" long:"db-rsync-file-list" description:"database-only rsync filelist"`
 }
 
 func (command *ListJobsCommand) Execute(args []string) error {
 	//	var ErrShowHelpMessage = errors.New("list jobs command invoked")
 	rtdt := &S5ciRuntime
 	jobs := DbGetAllJobs()
-	w := bufio.NewWriter(os.Stdout)
+	rw := bufio.NewWriter(os.Stdout)
+	dw := bufio.NewWriter(os.Stdout)
 	rsync_output := false
+	db_rsync_output := false
 	json_output := false
 	yaml_output := false
 	precise_job_update_list := false
@@ -51,20 +53,29 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		if err != nil {
 			panic(err)
 		}
-		w = bufio.NewWriter(f)
+		rw = bufio.NewWriter(f)
+	}
+	if command.DbRsyncFileListName != "" {
+		db_rsync_output = true
+		f, err := os.Create(command.DbRsyncFileListName)
+		if err != nil {
+			panic(err)
+		}
+		dw = bufio.NewWriter(f)
 	}
 	job_group_seen := make(map[string]bool)
+	db_job_group_seen := make(map[string]bool)
 	ts_now := UnixTimeNow()
 	if rsync_output {
-		fmt.Fprintf(w, "include jobs\n")
-		fmt.Fprintf(w, "include jobs/db\n")
-		fmt.Fprintf(w, "include jobs/updatedb\n")
-		fmt.Fprintf(w, "include jobs/updatedb/%s\n", rtdt.Hostname)
-		fmt.Fprintf(w, "include jobs/updatedb/%s/heartbeat.json\n", rtdt.Hostname)
-		fmt.Fprintf(w, "include jobs/updatedb/%s/rsync-filter.txt\n", rtdt.Hostname)
-		fmt.Fprintf(w, "include jobs/updatedb/%s/updated-jobs.json\n", rtdt.Hostname)
-		fmt.Fprintf(w, "include jobs/updatedb/%s/updated-jobs.yaml\n", rtdt.Hostname)
-		fmt.Fprintf(w, "exclude workspace\n")
+		fmt.Fprintf(rw, "include jobs\n")
+		fmt.Fprintf(rw, "include jobs/db\n")
+		fmt.Fprintf(rw, "include jobs/updatedb\n")
+		fmt.Fprintf(rw, "include jobs/updatedb/%s\n", rtdt.Hostname)
+		fmt.Fprintf(rw, "include jobs/updatedb/%s/heartbeat.json\n", rtdt.Hostname)
+		fmt.Fprintf(rw, "include jobs/updatedb/%s/rsync-filter.txt\n", rtdt.Hostname)
+		fmt.Fprintf(rw, "include jobs/updatedb/%s/updated-jobs.json\n", rtdt.Hostname)
+		fmt.Fprintf(rw, "include jobs/updatedb/%s/updated-jobs.yaml\n", rtdt.Hostname)
+		fmt.Fprintf(rw, "exclude workspace\n")
 	}
 	for i, job := range jobs {
 		if job.Finished_At != nil {
@@ -91,13 +102,33 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		if json_output {
 			updated_jobs_list = append(updated_jobs_list, job.Job_ID)
 		}
+		if db_rsync_output {
+			if !job_group_seen[job.Job_Group_Name] {
+				fmt.Fprintf(dw, "include %s\n", job.Job_Group_Name)
+				fmt.Fprintf(dw, "include %s/*\n", job.Job_Group_Name)
+				db_job_group_seen[job.Job_Group_Name] = true
+			}
+			split_nr := JobSplitJobNR(job.Instance_ID)
+			path_parts := strings.SplitN(split_nr, "/", 5)
+			accum := ""
+			for _, part := range path_parts {
+				accum = fmt.Sprintf("%s/%s", accum, part)
+				full_name := fmt.Sprintf("%s%s", job.Job_Group_Name, accum)
+				if !db_job_group_seen[full_name] {
+					fmt.Fprintf(dw, "include %s\n", full_name)
+					fmt.Fprintf(dw, "include %s/*\n", full_name)
+					db_job_group_seen[full_name] = true
+				}
+			}
+			fmt.Fprintf(dw, "include %s/%s/**\n", job.Job_Group_Name, JobSplitJobNR(job.Instance_ID))
+		}
 		if rsync_output {
 			if !job_group_seen[job.Job_Group_Name] {
-				fmt.Fprintf(w, "include %s\n", job.Job_Group_Name)
-				fmt.Fprintf(w, "include %s/*\n", job.Job_Group_Name)
+				fmt.Fprintf(rw, "include %s\n", job.Job_Group_Name)
+				fmt.Fprintf(rw, "include %s/*\n", job.Job_Group_Name)
 				// sync the db files as well
-				fmt.Fprintf(w, "include db/%s\n", job.Job_Group_Name)
-				fmt.Fprintf(w, "include db/%s/*\n", job.Job_Group_Name)
+				fmt.Fprintf(rw, "include db/%s\n", job.Job_Group_Name)
+				fmt.Fprintf(rw, "include db/%s/*\n", job.Job_Group_Name)
 				job_group_seen[job.Job_Group_Name] = true
 			}
 			split_nr := JobSplitJobNR(job.Instance_ID)
@@ -107,17 +138,17 @@ func (command *ListJobsCommand) Execute(args []string) error {
 				accum = fmt.Sprintf("%s/%s", accum, part)
 				full_name := fmt.Sprintf("%s%s", job.Job_Group_Name, accum)
 				if !job_group_seen[full_name] {
-					fmt.Fprintf(w, "include %s\n", full_name)
-					fmt.Fprintf(w, "include %s/*\n", full_name)
+					fmt.Fprintf(rw, "include %s\n", full_name)
+					fmt.Fprintf(rw, "include %s/*\n", full_name)
 					// sync the db files as well
-					fmt.Fprintf(w, "include db/%s\n", full_name)
-					fmt.Fprintf(w, "include db/%s/*\n", full_name)
+					fmt.Fprintf(rw, "include db/%s\n", full_name)
+					fmt.Fprintf(rw, "include db/%s/*\n", full_name)
 					job_group_seen[full_name] = true
 				}
 			}
-			fmt.Fprintf(w, "include %s/%s/**\n", job.Job_Group_Name, JobSplitJobNR(job.Instance_ID))
+			fmt.Fprintf(rw, "include %s/%s/**\n", job.Job_Group_Name, JobSplitJobNR(job.Instance_ID))
 			// sync the db files as well
-			fmt.Fprintf(w, "include db/%s/%s/**\n", job.Job_Group_Name, JobSplitJobNR(job.Instance_ID))
+			fmt.Fprintf(rw, "include db/%s/%s/**\n", job.Job_Group_Name, JobSplitJobNR(job.Instance_ID))
 		} else if command.UpdateRootDir != nil {
 			if !precise_job_update_list {
 				Db_restore_job_from(filepath.Join(*command.UpdateRootDir, job.Job_ID))
@@ -129,13 +160,11 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		}
 	}
 	if rsync_output {
-		if !command.DrainMode {
-			fmt.Fprintf(w, "include /index*.html\n")
-			fmt.Fprintf(w, "include jobs/index*.html\n")
-			fmt.Fprintf(w, "include jobs/active*.html\n")
-			fmt.Fprintf(w, "include heartbeat.json\n")
-		}
-		fmt.Fprintf(w, "exclude *\n")
+		fmt.Fprintf(rw, "include heartbeat.json\n")
+		fmt.Fprintf(rw, "exclude *\n")
+	}
+	if db_rsync_output {
+		fmt.Fprintf(dw, "exclude *\n")
 	}
 	if json_output {
 		d, err := json.MarshalIndent(updated_jobs_list, "", "  ")
@@ -151,7 +180,8 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		}
 		writeToFile(command.YamlJobListName, string(d))
 	}
-	w.Flush()
+	rw.Flush()
+	dw.Flush()
 	if precise_job_update_list {
 		jobs_list := make([]string, 0)
 		if command.JsonJobListName != "" {
