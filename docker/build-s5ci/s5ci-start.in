@@ -153,13 +153,13 @@ while (true); do
 	sleep 1
         echo "$(date): rsync back" >>${BACK_RSYNC_LOG}
 	# rsync a tiny file upstream each second so people know we are alive
-        printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID}> /local/jobs/heartbeat.json
+	printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s", "hostname": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID} "$(hostname)" > /local/jobs/heartbeat.json
 	UPDATE_DIR="/local/jobs/updatedb/$(hostname)"
 	mkdir -p ${UPDATE_DIR} || true
-        printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s", "cluster_id": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') "${NOMAD_JOB_ID}" "${CLUSTER_ID}" > ${UPDATE_DIR}/heartbeat.json
+	printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s", "cluster_id": "%s", "hostname": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') "${NOMAD_JOB_ID}" "${CLUSTER_ID}" "$(hostname)" > ${UPDATE_DIR}/heartbeat.json
 
 	# prepare the file list of jobs that changed status in the last 10 minutes
-	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -r /tmp/s5ci-rsync-list -d /tmp/s5ci-db-rsync-list -j /tmp/s5ci-updated-jobs.json -y /tmp/s5ci-updated-jobs.yaml -t 600 -e $(hostname)
+	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -i /tmp/s5ci-idx-rsync-list -r /tmp/s5ci-rsync-list -d /tmp/s5ci-db-rsync-list -j /tmp/s5ci-updated-jobs.json -y /tmp/s5ci-updated-jobs.yaml -t 600 -e $(hostname)
 	if [ -f /local/back-sync-adjust-list ]; then
 		bash -c /local/back-sync-adjust-list >>${BACK_RSYNC_LOG}
 	fi
@@ -171,12 +171,22 @@ while (true); do
 	# rsync the html UI and data, do not delete
 	# rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclude workspace /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
 	while [ -f /secrets/upstream-sync-pause.txt ]; do
-		echo "$(date): /secrets/upstream-sync-pause.txt exists - wait 30 sec..." >>${TIMELINE_LOG}
+		echo "$(date): /secrets/upstream-sync-pause.txt exists - wait 30 sec..." >>${BACK_RSYNC_LOG}
 		sleep 30
 	done
 
 	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/s5ci-rsync-list' /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
 	echo "RSYNC ret code: $?" >>${BACK_RSYNC_LOG}
+	# if we are the active index builder, rsync the html files
+	BUILDER_HOST=$(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; | jq -r "select((.rsync_timestamp|tonumber) > now-120)|.hostname" | sort | head -n 1)
+	if [ "${BUILDER_HOST}" = "$(hostname)" ]; then
+		echo "$(date): active index updater, update index" >>${BACK_RSYNC_LOG}
+		rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/s5ci-idx-rsync-list' /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
+	else
+		echo "$(date): NOT an index updater (it is ${BUILDER_HOST}, not $(hostname))" >>${BACK_RSYNC_LOG}
+	fi
+
+
 	if [ -f /local/upstream-sync-exec ]; then
 		bash -c /local/upstream-sync-exec >>${BACK_RSYNC_LOG}
 	fi
