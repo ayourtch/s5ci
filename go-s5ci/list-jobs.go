@@ -73,6 +73,7 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		fmt.Fprintf(rw, "include jobs/updatedb/%s\n", rtdt.Hostname)
 		fmt.Fprintf(rw, "include jobs/updatedb/%s/heartbeat.json\n", rtdt.Hostname)
 		fmt.Fprintf(rw, "include jobs/updatedb/%s/rsync-filter.txt\n", rtdt.Hostname)
+		fmt.Fprintf(rw, "include jobs/updatedb/%s/rsync-db-filter.txt\n", rtdt.Hostname)
 		fmt.Fprintf(rw, "include jobs/updatedb/%s/updated-jobs.json\n", rtdt.Hostname)
 		fmt.Fprintf(rw, "include jobs/updatedb/%s/updated-jobs.yaml\n", rtdt.Hostname)
 		fmt.Fprintf(rw, "exclude workspace\n")
