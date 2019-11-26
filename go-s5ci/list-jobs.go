@@ -196,7 +196,7 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		fmt.Fprintf(dw, "exclude *\n")
 	}
 	if idx_rsync_output {
-		fmt.Fprintf(dw, "exclude *\n")
+		fmt.Fprintf(iw, "exclude *\n")
 	}
 	if json_output {
 		d, err := json.MarshalIndent(updated_jobs_list, "", "  ")
