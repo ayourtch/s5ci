@@ -214,6 +214,7 @@ func (command *ListJobsCommand) Execute(args []string) error {
 	}
 	rw.Flush()
 	dw.Flush()
+	iw.Flush()
 	if precise_job_update_list {
 		jobs_list := make([]string, 0)
 		if command.JsonJobListName != "" {
