@@ -153,10 +153,10 @@ while (true); do
 	sleep 1
         echo "$(date): rsync back" >>${BACK_RSYNC_LOG}
 	# rsync a tiny file upstream each second so people know we are alive
-	printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s", "hostname": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') ${NOMAD_JOB_ID} "$(hostname)" > /local/jobs/heartbeat.json
+	printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_name": "%s", "hostname": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') "${NOMAD_JOB_NAME}" "$(hostname)" > /local/jobs/heartbeat.json
 	UPDATE_DIR="/local/jobs/updatedb/$(hostname)"
 	mkdir -p ${UPDATE_DIR} || true
-	printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_id": "%s", "cluster_id": "%s", "hostname": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') "${NOMAD_JOB_ID}" "${CLUSTER_ID}" "$(hostname)" > ${UPDATE_DIR}/heartbeat.json
+	printf '{ "nomad_alloc_id": "%s", "rsync_timestamp": "%s", "nomad_job_name": "%s", "cluster_id": "%s", "hostname": "%s"}' ${NOMAD_ALLOC_ID} $(date '+%s') "${NOMAD_JOB_NAME}" "${CLUSTER_ID}" "$(hostname)" > ${UPDATE_DIR}/heartbeat.json
 
 	# prepare the file list of jobs that changed status in the last 10 minutes
 	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -i /tmp/s5ci-idx-rsync-list -r /tmp/s5ci-rsync-list -d /tmp/s5ci-db-rsync-list -j /tmp/s5ci-updated-jobs.json -y /tmp/s5ci-updated-jobs.yaml -t 600 -e $(hostname)
