@@ -27,6 +27,12 @@ ip route >>${NETWORK_LOG}
 curl http://s5ci-images.myvpp.net >>${NETWORK_LOG}
 echo "end of net" >>${NETWORK_LOG}
 
+if [ -f /local/nginx-nomad.conf ]; then
+	echo "$(date): copy nginx nomad config" >>${TIMELINE_LOG}
+	cp /local/nginx-nomad.conf /etc/nginx/modules-enabled/
+	service nginx restart
+fi
+
 while true; do curl http://s5ci-images.myvpp.net >> ${INITIAL_RSYNC_LOG} && break; date; sleep 1; done
 echo "$(date): connectivity is ok" >>${TIMELINE_LOG}
 
