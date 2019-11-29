@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 )
 
-type RebuildDatabaseCommand struct{}
+type RebuildDatabaseCommand struct {
+	InitOnly bool `short:"i" long:"init-only" description:"only init the db/build schema, do not import"`
+}
 
 func db_restore_job_from(dir_path string) {
 	job_path := filepath.Join(dir_path, "job.yaml")
@@ -78,6 +80,9 @@ func (command *RebuildDatabaseCommand) Execute(args []string) error {
 	fmt.Println("==== restoring database ====")
 
 	DbInitDatabase()
+	if command.InitOnly {
+		return nil
+	}
 
 	db_restore_jobs_from(S5ciOptions.Config.Jobs.Rootdir)
 	fmt.Println("Test")
