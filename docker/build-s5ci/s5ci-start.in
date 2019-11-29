@@ -2,6 +2,7 @@
 
 
 . /secrets/env-vars.env
+. /secrets/early-exec-once.env
 
 # export STORAGE_USER="{{ACTUAL_STORAGE_USER}}"
 # export STORAGE_HOST="{{ACTUAL_STORAGE_HOST}}"
