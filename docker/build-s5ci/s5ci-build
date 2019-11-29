@@ -4,7 +4,7 @@ set -eux
 export ROOT_DIR=../..
 
 rm -rf tmp
-(cd ${ROOT_DIR}; make regen-db) || exit
+# (cd ${ROOT_DIR}; make regen-db) || exit
 (cd ${ROOT_DIR}; make) || exit
 mkdir tmp
 mkdir dist || true
