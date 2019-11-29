@@ -15,15 +15,15 @@ import (
 )
 
 type ListJobsCommand struct {
-	TimeHorizonSec      int     `short:"t" long:"time-horizon" description:"Time horizon for stopped jobs, seconds"`
-	RsyncFileListName   string  `short:"r" long:"rsync-file-list" description:"File list for rsync"`
-	IdxRsyncFileListName   string  `short:"i" long:"index-rsync-file-list" description:"Index file list for rsync"`
-	JsonJobListName     string  `short:"j" long:"json-job-list" description:"list of job IDs in json"`
-	YamlJobListName     string  `short:"y" long:"yaml-job-list" description:"list of job IDs in yaml"`
-	EqualsHostname      *string `short:"e" long:"equals-hostname" description:"Check hostname being equal to this"`
-	NotEqualsHostname   *string `short:"n" long:"not-equals-hostname" description:"Check hostname NOT being equal to this"`
-	UpdateRootDir       *string `short:"u" long:"update-from-root" description:"Update the specified jobs from a job root"`
-	DbRsyncFileListName string  `short:"d" long:"db-rsync-file-list" description:"database-only rsync filelist"`
+	TimeHorizonSec       int     `short:"t" long:"time-horizon" description:"Time horizon for stopped jobs, seconds"`
+	RsyncFileListName    string  `short:"r" long:"rsync-file-list" description:"File list for rsync"`
+	IdxRsyncFileListName string  `short:"i" long:"index-rsync-file-list" description:"Index file list for rsync"`
+	JsonJobListName      string  `short:"j" long:"json-job-list" description:"list of job IDs in json"`
+	YamlJobListName      string  `short:"y" long:"yaml-job-list" description:"list of job IDs in yaml"`
+	EqualsHostname       *string `short:"e" long:"equals-hostname" description:"Check hostname being equal to this"`
+	NotEqualsHostname    *string `short:"n" long:"not-equals-hostname" description:"Check hostname NOT being equal to this"`
+	UpdateRootDir        *string `short:"u" long:"update-from-root" description:"Update the specified jobs from a job root"`
+	DbRsyncFileListName  string  `short:"d" long:"db-rsync-file-list" description:"database-only rsync filelist"`
 }
 
 func (command *ListJobsCommand) Execute(args []string) error {
@@ -92,10 +92,10 @@ func (command *ListJobsCommand) Execute(args []string) error {
 	}
 	if idx_rsync_output {
 		fmt.Fprintf(iw, "include jobs\n")
-                fmt.Fprintf(iw, "include /index*.html\n")
-                fmt.Fprintf(iw, "include jobs/index*.html\n")
-                fmt.Fprintf(iw, "include jobs/active*.html\n")
-                fmt.Fprintf(iw, "include heartbeat.json\n")
+		fmt.Fprintf(iw, "include /index*.html\n")
+		fmt.Fprintf(iw, "include jobs/index*.html\n")
+		fmt.Fprintf(iw, "include jobs/active*.html\n")
+		fmt.Fprintf(iw, "include heartbeat.json\n")
 	}
 	for i, job := range jobs {
 		if job.Finished_At != nil {

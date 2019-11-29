@@ -262,7 +262,7 @@ func JobExecCommand(c *S5ciConfig, rtdt *S5ciRuntimeData, jobstr string) {
 	if best_command != job_group {
 		new_command = best_command + " " + jobstr[len(best_command)+1:]
 	}
-        s5ci_lib_dir := filepath.Join(c.Command_Rootdir, "lib")
+	s5ci_lib_dir := filepath.Join(c.Command_Rootdir, "lib")
 
 	new_env := append([]string{}, fmt.Sprintf("PATH=%s:%s", c.Command_Rootdir, os.Getenv("PATH")))
 	new_env = append(new_env, fmt.Sprintf("S5CI_EXE=%s", exe_name))
