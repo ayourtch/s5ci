@@ -76,20 +76,8 @@ fi
 echo "$(date): copy html to /local/html" >>${TIMELINE_LOG}
 cp -r /var/www/html/html /local/html
 
-
-export NOMAD_AGENT_LOG="${LOG_DIR}/nomad-agent.log"
-export NOMAD_LOG="${LOG_DIR}/nomad.log"
-if [ -f /secrets/nomad-agent.hcl ]; then
-        echo "$(date): nomad-agent.hcl found, starting nomad" >>${TIMELINE_LOG}
-	nomad agent -config /secrets/nomad-agent.hcl >${NOMAD_AGENT_LOG} 2>${NOMAD_AGENT_LOG} &
-        echo "$(date): waiting to join the cluster" >>${TIMELINE_LOG}
-        while true; do nomad status >> ${NOMAD_LOG} && break; date >>${NOMAD_LOG}; sleep 1; done
-        echo "$(date): joined the cluster" >>${TIMELINE_LOG}
-        echo "Run nomad status" >>${NOMAD_LOG}
-	nomad status >>${NOMAD_LOG}
-else
-        echo "$(date): nomad-agent.hcl not found, skipped nomad tasks" >>${TIMELINE_LOG}
-fi
+echo "Run nomad status" >>${NOMAD_LOG}
+nomad status >>${NOMAD_LOG}
 
 while [ -f /secrets/startup-pause.txt ]; do
 	echo "startup-pause.txt synchronization ... " >>"${INITIAL_RSYNC_LOG}"
