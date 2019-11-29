@@ -2,14 +2,6 @@ LINUX_RELEASE := $(shell lsb_release -cs)
 SHELL := /bin/bash
 
 default: build
-install-rust:
-	sudo apt-get install -y make build-essential git
-	curl https://sh.rustup.rs -sSf | sh -s -- -y
-	sudo apt-get install -y libssl-dev pkg-config moreutils libpq-dev libsqlite3-dev
-	source ~/.cargo/env && cargo install diesel_cli --no-default-features --features postgres,sqlite
-	mkdir db
-	source ~/.cargo/env && diesel setup --database-url db/s5ci.sqlite3
-	echo To finish Rust installation, please logout and login back
 
 install-docker:
 	echo Install docker
@@ -32,22 +24,20 @@ install-nginx:
 	rm -f /var/www/html/index.nginx-debian.html 
 	mkdir /var/www/html/jobs
 	sudo service nginx restart
-install-dep: install-rust install-docker install-nginx
+
+install-pkg:
+	sudo apt-get install -y make build-essential git
+	sudo apt-get install -y libssl-dev pkg-config moreutils libpq-dev libsqlite3-dev
+
+install-dep: install-pkg install-docker install-nginx
 	echo Installed all dependencies
 prepare-image:
 	(cd docker; bash build)
-regen-db:
-	rm db/s5ci.sqlite3
-	diesel setup --database-url db/s5ci.sqlite3
-	diesel migration redo --database-url db/s5ci.sqlite3
-	rustfmt src/schema.rs
-	./dev-scripts/print-model >src/models.rs
-rustfmt:
-	find src -name '*.rs' -exec rustfmt {} \;
+regen-db: build
+	rm db/s5ci.sqlite3 || true
+	mkdir -p db
+	go-s5ci/go-s5ci -c config.yaml rebuild-database -i
 
 build:
-	cargo build
 	(cd go-s5ci; go get || true; go build)
 
-run: build
-	RUST_BACKTRACE=1 cargo run -- --config config.yaml
