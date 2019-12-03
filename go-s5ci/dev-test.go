@@ -163,7 +163,7 @@ func ShuffleTestDatabase(dbfile string) error {
 
 type DevTestCommand struct {
 	Init           bool    `short:"i" long:"init" description:"init the db"`
-	WebRpcStart       bool    `short:"w" long:"web-rpc-start" description:"start the RPC listener"`
+	WebRpcStart    bool    `short:"w" long:"web-rpc-start" description:"start the RPC listener"`
 	Shuffle        bool    `short:"s" long:"shuffle" description:"shuffle the db"`
 	Stress         bool    `long:"stress" description:"stress the db"`
 	TemplateFile   string  `short:"t" long:"template" description:"template file"`
@@ -186,7 +186,7 @@ func (command *DevTestCommand) Execute(args []string) error {
 		fmt.Println("Short job id: ", res)
 	}
 	if command.WebRpcStart {
-		StartWebRpcServer();
+		StartWebRpcServer()
 	}
 
 	if command.CommandToSpawn != nil {
