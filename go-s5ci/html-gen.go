@@ -79,50 +79,25 @@ func RegenerateRootHtml() {
 	rjs := DbGetRootJobs()
 	total_jobs := len(rjs)
 	max_n_first_page_jobs := total_jobs%jobs_per_page + jobs_per_page
-	n_nonfirst_pages := 0
-	if total_jobs > max_n_first_page_jobs {
-		n_nonfirst_pages = (total_jobs - max_n_first_page_jobs) / jobs_per_page
-	}
 	n_first_page_jobs := total_jobs
 	if total_jobs > max_n_first_page_jobs {
 		n_first_page_jobs = max_n_first_page_jobs
 	}
 
 	data := make(map[string]interface{})
-	fname := filepath.Join(c.Jobs.Rootdir, "index.html")
 	if n_first_page_jobs < total_jobs {
-		first_prev_page_number := (total_jobs - n_first_page_jobs) / jobs_per_page
-		prev_page_number := first_prev_page_number
-		prev_page_name := fmt.Sprintf("index_%d.html", prev_page_number)
-		for true {
-			data_n := make(map[string]interface{})
-			curr_page_number := prev_page_number
-			if curr_page_number == 0 {
-				break
-			}
-			prev_page_number--
-			next_page_number := curr_page_number + 1
-			if prev_page_number > 0 {
-				prev_page_name = fmt.Sprintf("index_%d.html", prev_page_number)
-				data_n["prev_page_name"] = prev_page_name
-			}
-			next_page_name := "index.html"
-			if next_page_number <= first_prev_page_number {
-				next_page_name = fmt.Sprintf("index_%d.html", next_page_number)
-			}
-			data_n["next_page_name"] = next_page_name
-			start_job := n_first_page_jobs + (n_nonfirst_pages-curr_page_number)*jobs_per_page
-			end_job := start_job + jobs_per_page
-			cjobs := rjs[start_job:end_job]
-			out_cjs := make([]map[string]interface{}, len(cjobs))
-			for i, elem := range cjobs {
-				out_cjs[i] = structToLowerMap(elem)
-			}
-			data["child_jobs"] = out_cjs
-			fname := filepath.Join(c.Jobs.Rootdir, fmt.Sprintf("index_%d.html", curr_page_number))
-			// log.Printf("writing template %s", fname)
-			writeToFile(fname, template.Render(&data_n))
+		data_n := make(map[string]interface{})
+		out_cjs := make([]map[string]interface{}, len(rjs))
+		data_n["next_page_name"] = "index.html"
+		for i, elem := range rjs {
+			out_cjs[i] = structToLowerMap(elem)
 		}
+		data_n["now"] = S5Now()
+		rtdt := &S5ciRuntime
+		data_n["hostname"] = rtdt.Hostname
+		data_n["child_jobs"] = out_cjs
+		fname := filepath.Join(c.Jobs.Rootdir, "index_full.html")
+		writeToFile(fname, template.Render(&data_n))
 	}
 
 	cjobs := rjs[0:n_first_page_jobs]
@@ -131,10 +106,14 @@ func RegenerateRootHtml() {
 	for i, elem := range cjobs {
 		out_cjs[i] = structToLowerMap(elem)
 	}
+	if n_first_page_jobs < total_jobs {
+		data["prev_page_name"] = "index_full.html"
+	}
 	data["child_jobs"] = out_cjs
 	data["now"] = S5Now()
 	rtdt := &S5ciRuntime
 	data["hostname"] = rtdt.Hostname
+	fname := filepath.Join(c.Jobs.Rootdir, "index.html")
 	writeToFile(fname, template.Render(&data))
 }
 
