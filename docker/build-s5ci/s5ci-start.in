@@ -98,10 +98,10 @@ done
 echo "$(date): s5ci database rebuild" >>${TIMELINE_LOG}
 # put the transaction mode to WAL for somewhat better performance
 echo PRAGMA journal_mode=WAL | sqlite3 /s5ci/db/s5ci.sqlite3
-RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} rebuild-database >>${DB_REBUILD_LOG}
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} rebuild-database >>${DB_REBUILD_LOG}
 # mark active as failed - and if they are alive, they will come back
 echo "$(date): marking still active jobs as failed" >>${TIMELINE_LOG}
-RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/s5ci -c ${S5CI_CONFIG_PATH} mark-active-as-failed >>${DB_REBUILD_LOG}
+RUST_LOG=debug RUST_BACKTRACE=1 /usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} mark-active-as-failed >>${DB_REBUILD_LOG}
 
 # the above does the full regenerate of html, so not needed...
 # echo "$(date): regenerate all html" >>${TIMELINE_LOG}
