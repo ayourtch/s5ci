@@ -215,18 +215,20 @@ while (true); do
 			JOB_IMPORT_LOG="/local/logs/job-import-$A_HOST.log"
 			# rsync the list of jobs we know are maybe still sitting on other hosts
 			echo "$(date): starting update from ${A_HOST}:" >>${JOB_IMPORT_LOG}
-			RSYNC_FILTER="merge /local/jobs/updatedb/$A_HOST/rsync-filter.txt"
-			RSYNC_DB_FILTER="merge /local/jobs/updatedb/$A_HOST/rsync-db-filter.txt"
+			RSYNC_FILTER_FILE="/local/jobs/updatedb/$A_HOST/rsync-filter.txt"
+			RSYNC_FILTER="merge ${RSYNC_FILTER_FILE}"
+			RSYNC_DB_FILTER_FILE="/local/jobs/updatedb/$A_HOST/rsync-db-filter.txt"
+			RSYNC_DB_FILTER="merge ${RSYNC_DB_FILTER_FILE}"
 			if [ -f /secrets/downstream-sync-skip.txt ]; then
 				echo "$(date): /secrets/downstream-sync-skip.txt exists - skip host ${A_HOST}..." >>${JOB_IMPORT_LOG}
 			else
-				if [ -f ${RSYNC_DB_FILTER} ]; then
+				if [ -f ${RSYNC_DB_FILTER_FILE} ]; then
 					rsync -avz -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter="$RSYNC_DB_FILTER" ${STORAGE_USER}@${STORAGE_HOST}:jobs/db /local/jobs/db 2>>${JOB_IMPORT_LOG} >>${JOB_IMPORT_LOG}
 					echo "RSYNC ret code: $?" >>${JOB_IMPORT_LOG}
 					# re-import the data from yaml files into the database
 					go-s5ci -c ${S5CI_CONFIG_PATH} list-jobs -t 600 -n $(hostname) -u /local/jobs/db -y /local/jobs/updatedb/$A_HOST/updated-jobs.yaml 2>>${JOB_IMPORT_LOG} >>${JOB_IMPORT_LOG}
 				else
-					echo "${RSYNC_DB_FILTER} not found, skip import" >>${JOB_IMPORT_LOG}
+					echo "${RSYNC_DB_FILTER_FILE} not found, skip import" >>${JOB_IMPORT_LOG}
 				fi
 			fi
 
