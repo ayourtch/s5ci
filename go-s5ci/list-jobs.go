@@ -132,8 +132,8 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		if db_rsync_output {
 			if !job_group_seen[job.Job_Group_Name] {
 				fmt.Fprintf(dw, "include %s\n", job.Job_Group_Name)
-				fmt.Fprintf(dw, "include %s/*\n", job.Job_Group_Name)
 				fmt.Fprintf(dw, "exclude %s/index*\n", job.Job_Group_Name)
+				fmt.Fprintf(dw, "include %s/*\n", job.Job_Group_Name)
 				db_job_group_seen[job.Job_Group_Name] = true
 			}
 			split_nr := JobSplitJobNR(job.Instance_ID)
@@ -153,8 +153,8 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		if rsync_output {
 			if !job_group_seen[job.Job_Group_Name] {
 				fmt.Fprintf(rw, "include %s\n", job.Job_Group_Name)
-				fmt.Fprintf(rw, "include %s/*\n", job.Job_Group_Name)
 				fmt.Fprintf(rw, "exclude %s/index*\n", job.Job_Group_Name)
+				fmt.Fprintf(rw, "include %s/*\n", job.Job_Group_Name)
 				// sync the db files as well
 				fmt.Fprintf(rw, "include db/%s\n", job.Job_Group_Name)
 				fmt.Fprintf(rw, "include db/%s/*\n", job.Job_Group_Name)
