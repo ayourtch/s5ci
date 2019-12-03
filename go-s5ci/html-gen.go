@@ -1,15 +1,18 @@
 package main
 
 import (
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	mustache "github.com/hoisie/mustache"
 	"gopkg.in/yaml.v2"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -28,9 +31,9 @@ func SaveJobYaml(job *Job) {
 		log.Fatalf("error: %v", err)
 	}
 	// write to both places for now
-	writeToFile(filepath.Join(c.Jobs.Rootdir, job.Job_ID, "job.yaml"), string(d))
+	writeToFileIfDifferent(filepath.Join(c.Jobs.Rootdir, job.Job_ID, "job.yaml"), string(d))
 	ensureDbPath(job)
-	writeToFile(filepath.Join(JobGetDataPathFromJobId(job.Job_ID), "job.yaml"), string(d))
+	writeToFileIfDifferent(filepath.Join(JobGetDataPathFromJobId(job.Job_ID), "job.yaml"), string(d))
 }
 func SaveJobJson(job *Job) {
 	c := S5ciOptions.Config
@@ -40,9 +43,9 @@ func SaveJobJson(job *Job) {
 		log.Fatalf("error: %v", err)
 	}
 	// write to both places for now
-	writeToFile(filepath.Join(c.Jobs.Rootdir, job.Job_ID, "job.json"), string(d))
+	writeToFileIfDifferent(filepath.Join(c.Jobs.Rootdir, job.Job_ID, "job.json"), string(d))
 	ensureDbPath(job)
-	writeToFile(filepath.Join(JobGetDataPathFromJobId(job.Job_ID), "job.json"), string(d))
+	writeToFileIfDifferent(filepath.Join(JobGetDataPathFromJobId(job.Job_ID), "job.json"), string(d))
 }
 
 func compileTemplate(template_name string) (*mustache.Template, error) {
@@ -66,6 +69,34 @@ func writeToFile(filename string, data string) error {
 		return err
 	}
 	return file.Sync()
+}
+
+var sum_exclude_regex = regexp.MustCompile(`(?s)START EXCLUDE FROM CSUM.*?END EXCLUDE FROM CSUM`)
+
+func writeToFileIfDifferent(fname string, data string) {
+	// calculate sha1 of the file
+	sum_of_file := "0"
+	f_data_b, err := ioutil.ReadFile(fname)
+	if err == nil {
+		f_data := string(f_data_b)
+		h := sha1.New()
+		f_data_comp := sum_exclude_regex.ReplaceAllString(f_data, "")
+		io.WriteString(h, f_data_comp)
+		sum_of_file = fmt.Sprintf("%x", h.Sum(nil))
+	}
+
+	// calculate the sum of bytes
+	h := sha1.New()
+	data_comp := sum_exclude_regex.ReplaceAllString(data, "")
+	io.WriteString(h, data_comp)
+	sum_of_string := fmt.Sprintf("%x", h.Sum(nil))
+
+	if sum_of_string != sum_of_file {
+		writeToFile(fname, data)
+	} else {
+		fmt.Println(fname, " already has the same contents. not touching")
+	}
+
 }
 
 const jobs_per_page = 20
@@ -97,7 +128,7 @@ func RegenerateRootHtml() {
 		data_n["hostname"] = rtdt.Hostname
 		data_n["child_jobs"] = out_cjs
 		fname := filepath.Join(c.Jobs.Rootdir, "index_full.html")
-		writeToFile(fname, template.Render(&data_n))
+		writeToFileIfDifferent(fname, template.Render(&data_n))
 	}
 
 	cjobs := rjs[0:n_first_page_jobs]
@@ -114,7 +145,7 @@ func RegenerateRootHtml() {
 	rtdt := &S5ciRuntime
 	data["hostname"] = rtdt.Hostname
 	fname := filepath.Join(c.Jobs.Rootdir, "index.html")
-	writeToFile(fname, template.Render(&data))
+	writeToFileIfDifferent(fname, template.Render(&data))
 }
 
 func RegenerateActiveHtml() {
@@ -133,7 +164,7 @@ func RegenerateActiveHtml() {
 	data["now"] = S5Now()
 	rtdt := &S5ciRuntime
 	data["hostname"] = rtdt.Hostname
-	writeToFile(filepath.Join(c.Jobs.Rootdir, "active.html"), template.Render(&data))
+	writeToFileIfDifferent(filepath.Join(c.Jobs.Rootdir, "active.html"), template.Render(&data))
 }
 
 func RegenerateGroupHtml(group_name string) {
@@ -154,7 +185,7 @@ func RegenerateGroupHtml(group_name string) {
 	data["now"] = S5Now()
 	rtdt := &S5ciRuntime
 	data["hostname"] = rtdt.Hostname
-	writeToFile(filepath.Join(c.Jobs.Rootdir, group_name, "index.html"), template.Render(&data))
+	writeToFileIfDifferent(filepath.Join(c.Jobs.Rootdir, group_name, "index.html"), template.Render(&data))
 }
 
 func structToLowerMap(in interface{}) map[string]interface{} {
@@ -220,7 +251,7 @@ func regenerateHtml(job_id string, update_parent bool, update_children bool, gro
 	if s, err := os.Stat(archive_dir_name); err == nil && s.IsDir() {
 		data["archive_dir"] = "archive"
 	}
-	writeToFile(filepath.Join(c.Jobs.Rootdir, job_id, "index.html"), template.Render(&data))
+	writeToFileIfDifferent(filepath.Join(c.Jobs.Rootdir, job_id, "index.html"), template.Render(&data))
 
 	if update_children {
 		for _, cj := range cjs {
