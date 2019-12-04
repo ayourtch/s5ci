@@ -130,6 +130,8 @@ INSTANCES=$(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; | jq
 for ACTIVE_ALLOC_ID in $INSTANCES; do
 	echo "$(date): instance ${ACTIVE_ALLOC_ID} has the same cluster id, stop poll loop there..." >>${TIMELINE_LOG}
 	nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/shutdown-pause.txt
+	# let the jobs kill themselves when there is no active tasks remaining
+	nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/nomad-self-shutdown.txt
 	ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
 	nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
 done
@@ -305,6 +307,11 @@ while true; do
 	sleep 300
 done
 
+if [ -f /secrets/nomad-self-shutdown.txt ]; then
+        echo "$(date): /secrets/nomad-self-shutdown.txt exists - wait 300 sec and stop our job..." >>${TIMELINE_LOG}
+	sleep 300
+	nomad stop ${NOMAD_JOB_NAME}
+fi
 
 # if instructed - wait
 while [ -f /secrets/shutdown-pause.txt ]; do
