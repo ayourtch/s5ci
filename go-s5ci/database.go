@@ -197,6 +197,7 @@ func DbOpen() S5ciDb {
 	return S5ciDb{db: db}
 }
 
+/* two functions to use Gorm with transactions */
 func DbBeginTransaction(db *S5ciDb) S5ciDb {
 	tx := db.db.Begin()
 	return S5ciDb{db: tx}
