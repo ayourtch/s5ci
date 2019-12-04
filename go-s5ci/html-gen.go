@@ -58,6 +58,8 @@ func compileTemplate(template_name string) (*mustache.Template, error) {
 // WriteToFile will print any string of text to a file safely by
 // checking for errors and syncing at the end.
 func writeToFile(filename string, data string) error {
+	file_dir := filepath.Dir(filename)
+	os.MkdirAll(file_dir, 0755)
 	file, err := os.Create(filename)
 	if err != nil {
 		return err
