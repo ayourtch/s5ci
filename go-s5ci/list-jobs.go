@@ -103,6 +103,14 @@ func (command *ListJobsCommand) Execute(args []string) error {
 				continue
 			}
 		}
+		/* index generation does not depend on equal/unequal hostnames - do it always */
+		if idx_rsync_output {
+			if !job_group_seen[job.Job_Group_Name] {
+				fmt.Fprintf(iw, "include %s\n", job.Job_Group_Name)
+				fmt.Fprintf(iw, "include %s/index*\n", job.Job_Group_Name)
+				idx_job_group_seen[job.Job_Group_Name] = true
+			}
+		}
 		if command.EqualsHostname != nil {
 			if job.Remote_Host == nil {
 				continue
@@ -121,13 +129,6 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		}
 		if json_output {
 			updated_jobs_list = append(updated_jobs_list, job.Job_ID)
-		}
-		if idx_rsync_output {
-			if !job_group_seen[job.Job_Group_Name] {
-				fmt.Fprintf(iw, "include %s\n", job.Job_Group_Name)
-				fmt.Fprintf(iw, "include %s/index*\n", job.Job_Group_Name)
-				idx_job_group_seen[job.Job_Group_Name] = true
-			}
 		}
 		if db_rsync_output {
 			if !job_group_seen[job.Job_Group_Name] {
