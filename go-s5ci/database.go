@@ -197,6 +197,15 @@ func DbOpen() S5ciDb {
 	return S5ciDb{db: db}
 }
 
+func DbBeginTransaction(db *S5ciDb) S5ciDb {
+	tx := db.db.Begin()
+	return S5ciDb{db: tx}
+}
+
+func DbCommitTransaction(db *S5ciDb) {
+	db.db.Commit()
+}
+
 func DbClose(db *S5ciDb) {
 	db.db.Close()
 }

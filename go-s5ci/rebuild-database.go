@@ -68,13 +68,15 @@ func db_restore_jobs_from(root string) {
 	}
 	db := DbOpen()
 	db.db.Exec("PRAGMA journal_mode=WAL;")
+	txdb := DbBeginTransaction(&db)
 
 	for _, f := range files {
 		if f.IsDir() {
-			db_restore_job_group_from(&db, root, f.Name())
+			db_restore_job_group_from(&txdb, root, f.Name())
 		}
 		// fmt.Println(f.Name())
 	}
+	DbCommitTransaction(&txdb)
 	db.db.Exec("PRAGMA journal_mode=DELETE;")
 	DbClose(&db)
 }
