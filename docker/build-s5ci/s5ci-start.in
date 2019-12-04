@@ -112,6 +112,17 @@ rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --exclud
 echo "Back rsync ret code: $?" >>${TIMELINE_LOG}
 echo PRAGMA journal_mode=DELETE | sqlite3 /s5ci/db/s5ci.sqlite3
 
+# do another resync (primarily to catch active allocatins)
+echo "post sync re-synchronization ... " >>"${INITIAL_RSYNC_LOG}"
+if [ -f /local/initial-rsync-filter ]; then
+	echo "$(date): /local/initial-rsync-filter found" >>${TIMELINE_LOG}
+	rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --filter='merge /local/initial-rsync-filter' ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+else
+	echo "$(date): /local/initial-rsync-filter not found - doing full rsync" >>${TIMELINE_LOG}
+	rsync -avz --progress -e 'ssh -p23 -i/secrets/s5ci-key' --recursive ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}"
+fi
+echo "post-sync rsync ret code: $?" >>${TIMELINE_LOG}
+
 #
 # stop the currently active s5ci from spawning new jobs
 #
