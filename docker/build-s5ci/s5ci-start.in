@@ -122,8 +122,11 @@ echo PRAGMA journal_mode=DELETE | sqlite3 /s5ci/db/s5ci.sqlite3
 
 echo "Active instance dir:" >>${TIMELINE_LOG}
 ls -al /local/jobs/updatedb/ >>${TIMELINE_LOG}
+(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; -exec printf "\n" \; >>${TIMELINE_LOG}
 # stop the poll loops in the already running instances (heartbeat within 120 sec) with the same cluster id
-INSTANCES=$(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; | jq -r "select(.cluster_id==\"${CLUSTER_ID}\")|select((.rsync_timestamp|tonumber) > now-120)|.nomad_alloc_id")
+HOSTNAME=$(hostname)
+INSTANCES=$(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; | jq -r "select(.cluster_id==\"${CLUSTER_ID}\")|select((.rsync_timestamp|tonumber) > now-120)|select(.hostname!=\"${HOSTNAME}\")|.nomad_alloc_id")
+
 for ACTIVE_ALLOC_ID in $INSTANCES; do
 	echo "$(date): instance ${ACTIVE_ALLOC_ID} has the same cluster id, stop poll loop there..." >>${TIMELINE_LOG}
 	nomad exec ${ACTIVE_ALLOC_ID} touch /secrets/shutdown-pause.txt
