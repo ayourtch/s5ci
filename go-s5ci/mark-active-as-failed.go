@@ -24,6 +24,7 @@ func (command *MarkActiveAsFailedCommand) Execute(args []string) error {
 		DbSaveJob(&db, &job)
 		RegenerateJobHtml(job.Job_ID)
 	}
-	RegenerateAllHtml()
+	// No need to regenerate *all* html
+	// RegenerateAllHtml()
 	return nil
 }
