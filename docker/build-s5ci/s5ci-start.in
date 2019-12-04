@@ -40,17 +40,19 @@ while true; do curl http://s5ci-images.myvpp.net >> ${INITIAL_RSYNC_LOG} && brea
 echo "$(date): connectivity is ok" >>${TIMELINE_LOG}
 
 # pin the ssh hosts
-echo "$(date): scan SSH key for storage" >>${TIMELINE_LOG}
-ssh-keyscan -H -p 23 ${STORAGE_HOST} >>~/.ssh/known_hosts
-ssh-keyscan -H -p 23 ${LOGS_HOST} >>~/.ssh/known_hosts
+# echo "$(date): scan SSH key for storage" >>${TIMELINE_LOG}
+# ssh-keyscan -H -p 23 ${STORAGE_HOST} >>~/.ssh/known_hosts
+# ssh-keyscan -H -p 23 ${LOGS_HOST} >>~/.ssh/known_hosts
 
-echo "$(date): scan SSH key for gerrit" >>${TIMELINE_LOG}
-ssh-keyscan -H -p 29418 ${GERRIT_HOST} >>~/.ssh/known_hosts
+# echo "$(date): scan SSH key for gerrit" >>${TIMELINE_LOG}
+# ssh-keyscan -H -p 29418 ${GERRIT_HOST} >>~/.ssh/known_hosts
 # add the test host as well
-ssh-keyscan -H -p 29418 testgerrit.myvpp.net >>~/.ssh/known_hosts
+# ssh-keyscan -H -p 29418 testgerrit.myvpp.net >>~/.ssh/known_hosts
 
 # export S5CI_CONFIG_PATH="/local/s5ci-configs/config.yaml"
 # export S5CI_CONFIG_CLONE_URL="http://testgerrit.myvpp.net/r/s5ci-pilot"
+
+# FIXME : use s5ci-branch here
 echo "$(date): clone s5ci config from ${S5CI_CONFIG_CLONE_URL}" >>${TIMELINE_LOG}
 (cd /local; git clone ${S5CI_CONFIG_CLONE_URL} s5ci-configs)
 
