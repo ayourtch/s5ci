@@ -13,16 +13,14 @@ type RebuildDatabaseCommand struct {
 	InitOnly bool `short:"i" long:"init-only" description:"only init the db/build schema, do not import"`
 }
 
-func db_restore_job_from(dir_path string) {
+func db_restore_job_from(db *S5ciDb, dir_path string) {
 	job_path := filepath.Join(dir_path, "job.yaml")
 	fi, err := os.Stat(job_path)
 	if err == nil {
 		if !fi.IsDir() {
-			fmt.Println("Restoring ", job_path)
+			// fmt.Println("Restoring ", job_path)
 			job, _ := Import_Job_YAML(job_path)
-			db := DbOpen()
-			DbInsertJob(&db, &job)
-			DbClose(&db)
+			DbInsertJob(db, &job)
 		}
 	} else {
 		/* probably an intermediate dir, try to dive in */
@@ -33,30 +31,32 @@ func db_restore_job_from(dir_path string) {
 		}
 		for _, f := range files {
 			if f.IsDir() {
-				db_restore_job_from(filepath.Join(dir_path, f.Name()))
+				db_restore_job_from(db, filepath.Join(dir_path, f.Name()))
 			}
-			fmt.Println(f.Name())
+			// fmt.Println(f.Name())
 		}
 	}
 }
 func Db_restore_job_from(dir_path string) {
-	db_restore_job_from(dir_path)
+	db := DbOpen()
+	db_restore_job_from(&db, dir_path)
+	DbClose(&db)
 }
-func db_restore_job_group_from(root string, group_name string) {
+func db_restore_job_group_from(db *S5ciDb, root string, group_name string) {
 	group_path := filepath.Join(root, group_name)
-	db_restore_job_group_from_path(group_path)
+	db_restore_job_group_from_path(db, group_path)
 }
 
-func db_restore_job_group_from_path(group_path string) {
+func db_restore_job_group_from_path(db *S5ciDb, group_path string) {
 	files, err := ioutil.ReadDir(group_path)
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, f := range files {
 		if f.IsDir() {
-			db_restore_job_from(filepath.Join(group_path, f.Name()))
+			db_restore_job_from(db, filepath.Join(group_path, f.Name()))
 		}
-		fmt.Println(f.Name())
+		// fmt.Println(f.Name())
 	}
 
 }
@@ -66,13 +66,17 @@ func db_restore_jobs_from(root string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	db := DbOpen()
+	db.db.Exec("PRAGMA journal_mode=WAL;")
 
 	for _, f := range files {
 		if f.IsDir() {
-			db_restore_job_group_from(root, f.Name())
+			db_restore_job_group_from(&db, root, f.Name())
 		}
-		fmt.Println(f.Name())
+		// fmt.Println(f.Name())
 	}
+	db.db.Exec("PRAGMA journal_mode=DELETE;")
+	DbClose(&db)
 }
 
 func (command *RebuildDatabaseCommand) Execute(args []string) error {

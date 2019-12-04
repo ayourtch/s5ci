@@ -61,7 +61,7 @@ func (t *S5Time) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			return err
 		}
 	}
-	fmt.Println("Parsed:", buf, tt)
+	// fmt.Println("Parsed:", buf, tt)
 	t.Time = tt
 	return nil
 }

@@ -325,13 +325,17 @@ func Import_Job_YAML(fname string) (Job, error) {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
-	fmt.Printf("--- job:\n%v\n\n", t)
+	/*
+		for verification of the job serialization:
 
-	d, err := yaml.Marshal(&t)
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-	fmt.Printf("--- job dump:\n%s\n\n", string(d))
+		fmt.Printf("--- job:\n%v\n\n", t)
+
+		d, err := yaml.Marshal(&t)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		fmt.Printf("--- job dump:\n%s\n\n", string(d))
+	*/
 
 	return t, nil
 }
