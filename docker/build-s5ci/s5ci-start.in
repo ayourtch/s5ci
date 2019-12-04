@@ -195,7 +195,7 @@ while (true); do
 	rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/s5ci-rsync-list' /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
 	echo "RSYNC ret code: $?" >>${BACK_RSYNC_LOG}
 	# if we are the active index builder, rsync the html files
-	BUILDER_HOST=$(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; | jq -r "select((.rsync_timestamp|tonumber) > now-120)|.hostname" | sort | head -n 1)
+	BUILDER_HOST=$(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; | jq -r "select((.rsync_timestamp|tonumber) > now-120)|(.active_poll_loop+.hostname)" | sort -r | head -n 1 | cut -c 2-100)
 	if [ "${BUILDER_HOST}" = "$(hostname)" ]; then
 		echo "$(date): active index updater, update index" >>${BACK_RSYNC_LOG}
 		rsync -az -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/s5ci-idx-rsync-list' /local/jobs ${STORAGE_USER}@${STORAGE_HOST}: 2>>${BACK_RSYNC_LOG} >>${BACK_RSYNC_LOG}
