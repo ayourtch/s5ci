@@ -225,6 +225,12 @@ while (true); do
 	echo "${MY_HOST} starting update from other hosts on $(date):" >>/local/logs/job-import.log
 	rsync -avz -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/downstream-rsync-filter' ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}" >>/local/logs/job-import.log
 	echo "RSYNC ret code: $?" >>/local/logs/job-import.log
+	DEAD_HOSTS=$(find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; | jq -r "select((.rsync_timestamp|tonumber) < now-7200)|select(.hostname!=\"${HOSTNAME}\")|.hostname")
+	for A_DEAD_HOST in $DEAD_HOSTS; do
+		echo "$(date): Hostname ${A_DEAD_HOST} is dead - deleting" >>/local/logs/delete-dead-hosts.log
+		rm -f /local/jobs/updatedb/${A_DEAD_HOST}/*
+		rmdir /local/jobs/updatedb/${A_DEAD_HOST}
+	done
 	for A_HOST in $(ls /local/jobs/updatedb); do
 		if [ "$A_HOST" == "$MY_HOST" ]; then 
 			echo not updating from ourselves
