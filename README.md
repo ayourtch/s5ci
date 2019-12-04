@@ -194,3 +194,4 @@ and (assuming a good implementation), nomad will provide the required tolerance 
 and moving the failing jobs around in case of failing nodes.
 
 
+
