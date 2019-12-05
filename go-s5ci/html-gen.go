@@ -101,9 +101,48 @@ func writeToFileIfDifferent(fname string, data string) {
 
 }
 
-const jobs_per_page = 50
+var batch_regenerate bool = false
+var batch_pending_groups map[string]interface{} = make(map[string]interface{})
+
+func BatchHtmlRegenerateStart() {
+	batch_regenerate = true
+}
+
+func BatchHtmlRegenerateFinish() {
+	// reset batch regenerate if it was set
+	batch_regenerate = false
+	for group_name, _ := range batch_pending_groups {
+		fmt.Printf("Regenerating group %s\n", group_name)
+		ReallyRegenerateGroupHtml(group_name)
+	}
+	ReallyRegenerateActiveHtml()
+	ReallyRegenerateRootHtml()
+	batch_pending_groups = make(map[string]interface{})
+}
 
 func RegenerateRootHtml() {
+	if !batch_regenerate {
+		ReallyRegenerateRootHtml()
+	}
+}
+
+func RegenerateGroupHtml(group_name string) {
+	if batch_regenerate {
+		batch_pending_groups[group_name] = true
+	} else {
+		ReallyRegenerateGroupHtml(group_name)
+	}
+}
+
+func RegenerateActiveHtml() {
+	if !batch_regenerate {
+		ReallyRegenerateActiveHtml()
+	}
+}
+
+const jobs_per_page = 50
+
+func ReallyRegenerateRootHtml() {
 	c := S5ciOptions.Config
 	template, err := compileTemplate("root_job_page")
 	if err != nil {
@@ -134,7 +173,7 @@ func RegenerateRootHtml() {
 	writeToFileIfDifferent(fname, template.Render(&data))
 }
 
-func RegenerateActiveHtml() {
+func ReallyRegenerateActiveHtml() {
 	c := S5ciOptions.Config
 	template, err := compileTemplate("active_job_page")
 	if err != nil {
@@ -153,7 +192,7 @@ func RegenerateActiveHtml() {
 	writeToFileIfDifferent(filepath.Join(c.Jobs.Rootdir, "active.html"), template.Render(&data))
 }
 
-func RegenerateGroupHtml(group_name string) {
+func ReallyRegenerateGroupHtml(group_name string) {
 	c := S5ciOptions.Config
 	template, err := compileTemplate("group_job_page")
 	if err != nil {
@@ -283,15 +322,21 @@ func FinishedJob(job_id string) {
 
 func RegenerateAllHtml() {
 	fmt.Printf("Regenerating all jobs HTML...\n")
-	jobs := DbGetAllJobs()
+	BatchHtmlRegenerateStart()
 	groups := make(map[string]int)
-	for _, j := range jobs {
-		regenerateHtml(j.Job_ID, false, false, &groups)
+	db := DbOpen()
+	defer DbClose(&db)
+
+	iter, _ := db.db.Model(&Job{}).Order("started_at desc").Rows()
+	for iter.Next() {
+		var elem Job
+		db.db.ScanRows(iter, &elem)
+		regenerateHtml(elem.Job_ID, false, false, &groups)
 	}
+
 	for group_name, count := range groups {
 		fmt.Printf("Regenerating group %s with %d jobs\n", group_name, count)
 		RegenerateGroupHtml(group_name)
 	}
-	RegenerateActiveHtml()
-	RegenerateRootHtml()
+	BatchHtmlRegenerateFinish()
 }
