@@ -233,8 +233,9 @@ func regenerateHtml(job_id string, update_parent bool, update_children bool, gro
 	rtdt := &S5ciRuntime
 	data["hostname"] = rtdt.Hostname
 
-	archive_dir_name := filepath.Join(c.Jobs.Rootdir, job_id, "archive")
-	if s, err := os.Stat(archive_dir_name); err == nil && s.IsDir() {
+	// archive_dir_name := filepath.Join(c.Jobs.Rootdir, job_id, "archive")
+	// if s, err := os.Stat(archive_dir_name); err == nil && s.IsDir() {
+	if j.Finished_At != nil {
 		data["archive_dir"] = "archive"
 	}
 	writeToFileIfDifferent(filepath.Join(c.Jobs.Rootdir, job_id, "index.html"), template.Render(&data))
