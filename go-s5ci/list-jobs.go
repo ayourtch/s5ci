@@ -39,6 +39,7 @@ func (command *ListJobsCommand) Execute(args []string) error {
 	json_output := false
 	yaml_output := false
 	precise_job_update_list := false
+	BatchHtmlRegenerateStart()
 	// if the update root directory was specified, the json list is the *input*
 	if command.JsonJobListName != "" && command.UpdateRootDir == nil {
 		json_output = true
@@ -247,6 +248,7 @@ func (command *ListJobsCommand) Execute(args []string) error {
 		}
 
 	}
+	BatchHtmlRegenerateFinish()
 	return nil
 	//return ErrShowHelpMessage
 }
