@@ -94,9 +94,8 @@ func writeToFileIfDifferent(fname string, data string) {
 	sum_of_string := fmt.Sprintf("%x", h.Sum(nil))
 
 	if sum_of_string != sum_of_file {
+		fmt.Println("Saving ", fname)
 		writeToFile(fname, data)
-	} else {
-		fmt.Println(fname, " already has the same contents. not touching")
 	}
 
 }
