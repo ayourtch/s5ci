@@ -36,7 +36,7 @@ type AutorestartState struct {
 }
 
 func AutorestartInit(c *S5ciConfig, rtdt *S5ciRuntimeData) AutorestartState {
-	log.Printf("exe: %s config: %s", rtdt.RealS5ciExe, rtdt.ConfigPath)
+	// log.Printf("exe: %s config: %s", rtdt.RealS5ciExe, rtdt.ConfigPath)
 	config_mtime := GetFileMtimestamp(rtdt.ConfigPath)
 	exe_mtime := GetFileMtimestamp(rtdt.RealS5ciExe)
 	return AutorestartState{ConfigMtime: config_mtime, ExeMtime: exe_mtime}

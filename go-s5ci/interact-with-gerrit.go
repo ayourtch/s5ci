@@ -6,7 +6,7 @@ import (
 )
 
 func GerritQueryChanges(c *S5ciConfig, before_ts *int, after_ts *int) (string, error) {
-	log.Printf("Gerrit Query Changes")
+	// log.Printf("Gerrit Query Changes")
 	// RunSshCommand
 	date_str := ""
 	if before_ts != nil {
