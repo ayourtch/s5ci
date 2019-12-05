@@ -101,7 +101,7 @@ func writeToFileIfDifferent(fname string, data string) {
 
 }
 
-const jobs_per_page = 20
+const jobs_per_page = 50
 
 func RegenerateRootHtml() {
 	c := S5ciOptions.Config
@@ -109,39 +109,23 @@ func RegenerateRootHtml() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	rjs := DbGetRootJobs()
-	total_jobs := len(rjs)
-	max_n_first_page_jobs := total_jobs%jobs_per_page + jobs_per_page
-	n_first_page_jobs := total_jobs
-	if total_jobs > max_n_first_page_jobs {
-		n_first_page_jobs = max_n_first_page_jobs
-	}
+	db := DbOpen()
+	defer DbClose(&db)
 
 	data := make(map[string]interface{})
-	if n_first_page_jobs < total_jobs {
-		data_n := make(map[string]interface{})
-		out_cjs := make([]map[string]interface{}, len(rjs))
-		data_n["next_page_name"] = "index.html"
-		for i, elem := range rjs {
+
+	out_cjs := make([]map[string]interface{}, jobs_per_page)
+	iter, err := db.db.Model(&Job{}).Order("started_at desc").Rows()
+	i := 0
+	for iter.Next() {
+		var elem Job
+		if i < jobs_per_page {
+			db.db.ScanRows(iter, &elem)
 			out_cjs[i] = structToLowerMap(elem)
+			i = i + 1
 		}
-		data_n["now"] = S5Now()
-		rtdt := &S5ciRuntime
-		data_n["hostname"] = rtdt.Hostname
-		data_n["child_jobs"] = out_cjs
-		fname := filepath.Join(c.Jobs.Rootdir, "index_full.html")
-		writeToFileIfDifferent(fname, template.Render(&data_n))
 	}
-
-	cjobs := rjs[0:n_first_page_jobs]
-
-	out_cjs := make([]map[string]interface{}, len(cjobs))
-	for i, elem := range cjobs {
-		out_cjs[i] = structToLowerMap(elem)
-	}
-	if n_first_page_jobs < total_jobs {
-		data["prev_page_name"] = "index_full.html"
-	}
+	//      data["prev_page_name"] = "index_full.html"
 	data["child_jobs"] = out_cjs
 	data["now"] = S5Now()
 	rtdt := &S5ciRuntime
