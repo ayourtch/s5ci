@@ -24,9 +24,9 @@ func CollectZombies() {
 			break
 		}
 		n_zombies = n_zombies + 1
-		fmt.Println("Collected child process:", pid, err)
+		log.Println("Collected child process:", pid, err, wstatus)
 	}
-	fmt.Println("Collected total zombies: ", n_zombies)
+	log.Println("Collected total zombies: ", n_zombies)
 }
 
 func S5ciEvent(event string) {
@@ -42,14 +42,14 @@ func S5ciEvent(event string) {
 }
 
 func PollLoop() {
-	fmt.Println("Poll loop")
+	//fmt.Println("Poll loop")
 	c := &S5ciOptions.Config
 	rtdt := &S5ciRuntime
 
-	ts_now := int(time.Now().Unix())
-	fmt.Println("Now: ", ts_now)
-	s5time := S5TimeFromTimestamp(ts_now)
-	fmt.Println(s5time)
+	// ts_now := int(time.Now().Unix())
+	// fmt.Println("Now: ", ts_now)
+	// s5time := S5TimeFromTimestamp(ts_now)
+	// fmt.Println(s5time)
 
 	sync_horizon_sec := c.Default_Sync_Horizon_Sec
 	if c.Server.Sync_Horizon_Sec != nil {
@@ -115,7 +115,7 @@ func PollLoop() {
 		earliest_cron_ts := candidate_next_poll_ts
 		for i, cs := range rtdt.CronTriggerSchedules {
 			next_t := int(cs.Schedule.Next(time.Unix(int64(cs.LastRun), 0)).Unix())
-			s5t := S5TimeFromTimestamp(next_t)
+			// s5t := S5TimeFromTimestamp(next_t)
 			if next_t < now_ts {
 				log.Printf("Running cron %s", cs.Name)
 				rtdt2 := S5ciRuntimeData{}
@@ -131,7 +131,7 @@ func PollLoop() {
 				rtdt.CronTriggerSchedules[i].LastRun = next_t
 				next_t = int(cs.Schedule.Next(time.Unix(int64(next_t), 0)).Unix())
 			}
-			log.Printf("NEXT(%s): %s", cs.Name, s5t)
+			// log.Printf("NEXT(%s): %s", cs.Name, s5t)
 			if next_t < earliest_cron_ts {
 				earliest_cron_ts = next_t
 			}
@@ -148,9 +148,9 @@ func PollLoop() {
 			sleep_delay_sec = 0
 		}
 		sleep_delay_sec = sleep_delay_sec + 1
-		fmt.Println("Now: ", ts_now, " sleeping for ", sleep_delay_sec, " sec")
-		s5time := S5TimeFromTimestamp(ts_now)
-		fmt.Println(s5time)
+		log.Println("Now: ", ts_now, " sleeping for ", sleep_delay_sec, " sec")
+		// s5time := S5TimeFromTimestamp(ts_now)
+		// fmt.Println(s5time)
 		time.Sleep(time.Duration(sleep_delay_sec) * time.Second)
 		CollectZombies()
 

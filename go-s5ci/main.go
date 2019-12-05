@@ -49,7 +49,7 @@ func S5ciPrepareToRun() {
 	if c.Per_Project_Config != nil {
 		for _, project_name := range c.Per_Project_Config.Projects {
 			fname := filepath.Join(c.Per_Project_Config.Root_Dir, fmt.Sprintf("%s.yaml", project_name))
-			log.Printf("Reading per-project config from %s", fname)
+			// log.Printf("Reading per-project config from %s", fname)
 			ppc, err := LoadS5ciPerProjectConfig(fname)
 			if err != nil {
 				log.Fatalf("error: %v", err)
@@ -123,7 +123,6 @@ func main() {
 
 	_, err := parser.Parse()
 
-	fmt.Printf("Active: %v\n", parser.Active)
 	if S5ciOptions.CpuProfile != nil {
 		if S5ciOptions.ProfileUsePid {
 			name := fmt.Sprintf("%s.%d", *S5ciOptions.CpuProfile, os.Getpid())

@@ -130,8 +130,8 @@ func GerritParsePollCommandReply(reply_data string) (GerritSshResult, error) {
 
 			json.Unmarshal([]byte(line), &result)
 			json.Unmarshal([]byte(line), &stats)
-			fmt.Println("PARSED:", stats)
-			fmt.Println("UNPARSED:", result)
+			// fmt.Println("PARSED:", stats)
+			// fmt.Println("UNPARSED:", result)
 			ret.stats = stats
 		} else {
 			var change GerritChangeSet
