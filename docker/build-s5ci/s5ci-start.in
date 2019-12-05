@@ -106,7 +106,11 @@ echo "$(date): marking still active jobs as failed" >>${TIMELINE_LOG}
 /usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} mark-active-as-failed >>${DB_REBUILD_LOG}
 
 # renegerate all jobs html (temp)
-/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} regenerate-html >>${DB_REBUILD_LOG}
+if [ -f /secrets/regenerate-html.txt ]; then
+	echo "$(date): regenerating all html because noticed /secrets/regenerate-html.txt" >>${TIMELINE_LOG}
+	/usr/local/bin/go-s5ci -c ${S5CI_CONFIG_PATH} regenerate-html >>${DB_REBUILD_LOG}
+fi
+
 
 # not needed. (in theory)
 # echo "$(date): regenerate all html" >>${TIMELINE_LOG}
