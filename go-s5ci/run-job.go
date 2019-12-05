@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"runtime/debug"
 )
 
 type RunJobCommand struct {
@@ -12,6 +14,17 @@ type RunJobCommand struct {
 }
 
 func (cmd *RunJobCommand) Execute(args []string) error {
+	defer func() {
+		if err := recover(); err != nil {
+			file, _ := os.Create(fmt.Sprintf("/tmp/s5ci-crash.%d", os.Getpid()))
+			fmt.Fprintf(file, "Exception in pid %d: %v\n", os.Getpid(), err)
+			fmt.Fprintf(file, "backtrace: %v", string(debug.Stack()))
+			file.Close()
+			os.Exit(1)
+		}
+
+	}()
+
 	c := &S5ciOptions.Config
 	rtdt := &S5ciRuntime
 	fmt.Println("Command: ", cmd.Command)
