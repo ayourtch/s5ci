@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
 	"strings"
 )
 
@@ -16,12 +18,15 @@ var opts struct {
 }
 
 type S5ciCommand struct {
-	Config       S5ciConfig
-	Version      func()         `short:"v" long:"version" description:"Print the version of S5ci and exit"`
-	ConfigFile   func(string)   `short:"c" long:"config" description:"configuration file" required:"true"`
-	SandboxLevel int            `short:"s" long:"sandbox-level" description:"sandbox level"`
-	DevTest      DevTestCommand `command:"dev-test"     description:"tests."`
-	DbMaint      DbMaintCommand `command:"database" description:"database maintenance"`
+	Config        S5ciConfig
+	Version       func()         `short:"v" long:"version" description:"Print the version of S5ci and exit"`
+	ConfigFile    func(string)   `short:"c" long:"config" description:"configuration file" required:"true"`
+	SandboxLevel  int            `short:"s" long:"sandbox-level" description:"sandbox level"`
+	CpuProfile    *string        `long:"memory-profile" description:"Write memory profile to a file"`
+	MemoryProfile *string        `long:"cpu-profile" description:"Write CPU profile to a file"`
+	ProfileUsePid bool           `long:"profile-file-pid" description:"append the current pid to the profile files"`
+	DevTest       DevTestCommand `command:"dev-test"     description:"tests."`
+	DbMaint       DbMaintCommand `command:"database" description:"database maintenance"`
 
 	CheckConfig        CheckConfigCommand        `command:"check-config" description:"check config, return 0 if ok"`
 	GerritCommand      GerritCommandCommand      `command:"gerrit-command" description:"run arbitrary command"`
@@ -119,6 +124,22 @@ func main() {
 	_, err := parser.Parse()
 
 	fmt.Printf("Active: %v\n", parser.Active)
+	if S5ciOptions.CpuProfile != nil {
+		if S5ciOptions.ProfileUsePid {
+			name := fmt.Sprintf("%s.%d", *S5ciOptions.CpuProfile, os.Getpid())
+			S5ciOptions.CpuProfile = &name
+		}
+
+		f, err := os.Create(*S5ciOptions.CpuProfile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
 
 	if err != nil {
 		if e, ok := err.(*flags.Error); ok {
@@ -133,6 +154,21 @@ func main() {
 		} else {
 			fmt.Fprintf(os.Stderr, "Usage error: %v\n", err)
 			os.Exit(1)
+		}
+	}
+	if S5ciOptions.MemoryProfile != nil {
+		if S5ciOptions.ProfileUsePid {
+			name := fmt.Sprintf("%s.%d", *S5ciOptions.MemoryProfile, os.Getpid())
+			S5ciOptions.MemoryProfile = &name
+		}
+		f, err := os.Create(*S5ciOptions.MemoryProfile)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close()
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
 		}
 	}
 
