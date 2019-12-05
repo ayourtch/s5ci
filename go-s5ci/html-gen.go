@@ -48,7 +48,22 @@ func SaveJobJson(job *Job) {
 	writeToFileIfDifferent(filepath.Join(JobGetDataPathFromJobId(job.Job_ID), "job.json"), string(d))
 }
 
+var compiled_templates map[string]*mustache.Template = make(map[string]*mustache.Template)
+
 func compileTemplate(template_name string) (*mustache.Template, error) {
+	if compiled_templates[template_name] != nil {
+		return compiled_templates[template_name], nil
+	} else {
+		template, err := compileTemplateUncached(template_name)
+		if err != nil {
+			log.Fatalf("error compiling template: %v", err)
+		}
+		compiled_templates[template_name] = template
+		return template, nil
+	}
+}
+
+func compileTemplateUncached(template_name string) (*mustache.Template, error) {
 	c := S5ciOptions.Config
 	fname := fmt.Sprintf("%s.mustache", template_name)
 	full_name := filepath.Join(c.Install_Rootdir, "templates", fname)
