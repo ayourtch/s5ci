@@ -140,6 +140,18 @@ echo "post-sync rsync ret code: $?" >>${TIMELINE_LOG}
 # ACTIVE_S5CI_PID=$(nomad exec -t=false ${ACTIVE_ALLOC_ID} ps -ef | grep s5ci | egrep -e '/config.yaml$' | awk '{ print $2 }')
 # nomad exec ${ACTIVE_ALLOC_ID} kill ${ACTIVE_S5CI_PID}
 
+cat <<__EE__ >/tmp/downstream-rsync-filter
+include jobs
+include jobs/updatedb
+include jobs/updatedb/**
+exclude jobs/updatedb/$(hostname)
+exclude *
+__EE__
+
+# rsync just the updates dir
+rsync -avz -e 'ssh -p23 -i/secrets/s5ci-key' --recursive --max-delete=-1 --filter='merge /tmp/downstream-rsync-filter' ${STORAGE_USER}@${STORAGE_HOST}:${STORAGE_DIR} /local/ >"${INITIAL_RSYNC_LOG}" >>/local/logs/job-import.log
+
+
 echo "Active instance dir:" >>${TIMELINE_LOG}
 ls -al /local/jobs/updatedb/ >>${TIMELINE_LOG}
 find /local/jobs/updatedb/ -name heartbeat.json -exec cat {} \; -exec printf "\n" \; >>${TIMELINE_LOG}
@@ -220,13 +232,6 @@ BACKSYNC_PID=$!
 
 
 ### sync the jobs from other hosts which were in a drain mode
-cat <<__EE__ >/tmp/downstream-rsync-filter
-include jobs
-include jobs/updatedb
-include jobs/updatedb/**
-exclude jobs/updatedb/$(hostname)
-exclude *
-__EE__
 
 while (true); do
 	# rsync the list of updates, except our own 
