@@ -3,6 +3,7 @@
 EXECSTART=`date`
 echo Arguments: $1 $2 $3 $4 $5
 echo EXECSTART: $EXECSTART
+ls -al /
 
 . /secrets/env-vars.env
 echo ====== ENV START ======
