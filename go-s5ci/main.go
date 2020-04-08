@@ -7,6 +7,7 @@ import (
 	"github.com/vito/twentythousandtonnesofcrudeoil"
 	"log"
 	"os"
+	"io"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
@@ -96,10 +97,28 @@ func main() {
 	var Version = "0.1"
 	gspt.SetProcTitle(strings.Join(os.Args, " "))
 
+	// Setup the logger
+	fd, err := s5LogCreateFile("./logs/s5ci.log")
+	if fd != nil {
+		defer fd.Close()
+		fileAndStdout := io.MultiWriter(fd, os.Stdout)
+		fileAndStderr := io.MultiWriter(fd, os.Stderr)
+
+		// Trace will go only to the file, Info, Warning and Error
+		// will go to the Stdout and Stderr
+		s5LogInit(fd, fileAndStdout, fileAndStdout, fileAndStderr)
+	} else {
+		s5LogInit(os.Stdout, os.Stdout, os.Stdout, os.Stderr)
+	}
+
+	Trace.Printf("============ s5ci New Execution ============\n")
+
 	S5ciOptions.Version = func() {
 		fmt.Println(Version)
 		os.Exit(0)
 	}
+	Info.Printf("s5ci Version: %s\n", Version)
+
 	S5ciOptions.ConfigFile = func(fname string) {
 		config_path, err := filepath.Abs(fname)
 		if err != nil {
@@ -121,7 +140,7 @@ func main() {
 	os.Setenv("X_S5CI_PARENT_JOB_NAME", os.Getenv("S5CI_PARENT_JOB_NAME"))
 	twentythousandtonnesofcrudeoil.TheEnvironmentIsPerfectlySafe(parser, "S5CI_")
 
-	_, err := parser.Parse()
+	_, err = parser.Parse()
 
 	if S5ciOptions.CpuProfile != nil {
 		if S5ciOptions.ProfileUsePid {
@@ -178,4 +197,5 @@ func main() {
 			panic(err)
 		}
 	}
+	Trace.Printf("============ s5ci Exiting ============\n")
 }
